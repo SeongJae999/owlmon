@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Go
+bin/
+*.exe
+
+# Node.js
+node_modules/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 환경변수 / 시크릿 (절대 커밋 금지)
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# Docker
+docker-compose.override.yml
+
+# 로그
+*.log
+logs/
+
+# Claude 로컬 설정 (개인별 다름)
+.claude/

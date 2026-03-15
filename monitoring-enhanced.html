@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모니터링 시스템 정리 — 확장판</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1628;
+    --bg3: #151d35;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --border: rgba(0,212,255,0.15);
+    --card: rgba(15,22,40,0.8);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 300;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    padding: 80px 0 60px;
+    text-align: center;
+    position: relative;
+  }
+
+  .header-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 14px;
+    border-radius: 2px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    animation: fadeIn 0.6s ease;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(48px, 8vw, 88px);
+    letter-spacing: 4px;
+    line-height: 1;
+    background: linear-gradient(135deg, #ffffff 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+    animation: fadeIn 0.8s ease 0.1s both;
+  }
+
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    letter-spacing: 1px;
+    animation: fadeIn 0.8s ease 0.2s both;
+  }
+
+  section { margin-bottom: 64px; animation: fadeIn 0.8s ease both; }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 28px;
+    color: #fff;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 12px;
+    margin-top: 28px;
+  }
+
+  h4 {
+    font-size: 15px;
+    font-weight: 500;
+    color: #a78bfa;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+
+  p {
+    color: #94a3b8;
+    font-size: 14.5px;
+    margin-bottom: 12px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .card:hover {
+    border-color: rgba(0,212,255,0.4);
+    transform: translateY(-2px);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-title .icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 16px;
+    margin: 12px 0;
+    overflow-x: auto;
+    color: #7dd3fc;
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+
+  pre .comment { color: #475569; }
+  pre .highlight { color: var(--accent3); }
+  pre .warn { color: var(--warn); }
+  pre .danger { color: var(--danger); }
+
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 16px 0;
+  }
+
+  .compare-table th {
+    background: rgba(0,212,255,0.08);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: #94a3b8;
+    vertical-align: top;
+  }
+
+  .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .compare-table td:first-child { color: #fff; font-weight: 500; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--accent3); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-blue  { background: rgba(0,212,255,0.1);  color: var(--accent);  border: 1px solid rgba(0,212,255,0.25); }
+  .badge-red   { background: rgba(239,68,68,0.1);  color: var(--danger);  border: 1px solid rgba(239,68,68,0.25); }
+  .badge-amber { background: rgba(245,158,11,0.1); color: var(--warn);    border: 1px solid rgba(245,158,11,0.25); }
+  .badge-purple{ background: rgba(124,58,237,0.15);color: #a78bfa;        border: 1px solid rgba(124,58,237,0.3); }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  .point-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0;
+  }
+
+  .point-list li {
+    padding-left: 20px;
+    position: relative;
+    color: #94a3b8;
+    font-size: 14px;
+  }
+
+  .point-list li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-size: 11px;
+    top: 3px;
+  }
+
+  .layer-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 16px 0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .layer {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+
+  .layer-name { font-weight: 600; color: #fff; }
+  .layer-desc { color: #64748b; font-size: 12px; margin-top: 2px; }
+
+  .strategy-box {
+    background: linear-gradient(135deg, rgba(0,212,255,0.05), rgba(124,58,237,0.08));
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+
+  .strategy-box .title {
+    font-size: 13px;
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  footer {
+    text-align: center;
+    padding: 48px 0;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    border-top: 1px solid var(--border);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 12px 0;
+  }
+
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0,212,255,0.15);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-content {
+    font-size: 14px;
+    color: #94a3b8;
+  }
+
+  .step-content strong { color: #fff; font-weight: 500; }
+
+  .highlight-box {
+    background: rgba(16,185,129,0.07);
+    border: 1px solid rgba(16,185,129,0.25);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #6ee7b7;
+  }
+
+  .warn-box {
+    background: rgba(245,158,11,0.07);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #fcd34d;
+  }
+
+  .vs-divider {
+    text-align: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--text-muted);
+    margin: 8px 0;
+    letter-spacing: 4px;
+  }
+
+  .new-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    background: rgba(239,68,68,0.2);
+    color: #f87171;
+    border: 1px solid rgba(239,68,68,0.4);
+    padding: 1px 6px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+
+  .arch-box {
+    background: rgba(0,212,255,0.06);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 6px;
+    padding: 12px 18px;
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .arch-box .arch-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .arch-box .arch-desc {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  .arch-arrow {
+    font-size: 20px;
+    color: var(--text-muted);
+    padding: 0 8px;
+  }
+
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+
+  .toc-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+  }
+
+  .toc-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 32px;
+  }
+
+  @media (max-width: 600px) {
+    .toc-columns { grid-template-columns: 1fr; }
+  }
+
+  .toc a {
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 13px;
+    display: block;
+    padding: 4px 0;
+    transition: color 0.2s;
+  }
+
+  .toc a:hover { color: var(--accent); }
+  .toc a .num { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-right: 8px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="header-badge">MONITORING SYSTEM — ENHANCED EDITION</div>
+    <h1>모니터링 시스템<br>완전 정리 확장판</h1>
+    <p class="subtitle">오픈소스 생태계 · 핵심 기술지식 · 아키텍처 패턴 · 프로토콜 · 개발 전략</p>
+    <p style="color:#475569;font-size:12px;margin-top:12px;font-family:'JetBrains Mono',monospace;">2026.03 기준 리서치 반영</p>
+  </header>
+
+  <!-- 목차 -->
+  <div class="toc">
+    <div class="toc-title">TABLE OF CONTENTS</div>
+    <div class="toc-columns">
+      <div>
+        <a href="#s01"><span class="num">01</span> 모니터링이란 무엇인가</a>
+        <a href="#s02"><span class="num">02</span> 모니터링의 3가지 층</a>
+        <a href="#s03"><span class="num">03</span> Zabbix 완전 분석</a>
+        <a href="#s04"><span class="num">04</span> 주요 도구 비교 (기존)</a>
+        <a href="#s05"><span class="num">05</span> 오픈소스 생태계 심층 분석</a>
+        <a href="#s06"><span class="num">06</span> 모니터링 아키텍처 패턴</a>
+      </div>
+      <div>
+        <a href="#s07"><span class="num">07</span> 핵심 프로토콜 & 기술</a>
+        <a href="#s08"><span class="num">08</span> 시계열 데이터베이스</a>
+        <a href="#s09"><span class="num">09</span> 에이전트 & 데이터 수집</a>
+        <a href="#s10"><span class="num">10</span> 알림 시스템 설계</a>
+        <a href="#s11"><span class="num">11</span> 핵심 논문 & 문서 분석</a>
+        <a href="#s12"><span class="num">12</span> 커스텀 납품 전략</a>
+        <a href="#s13"><span class="num">13</span> 개발 로드맵 & 학습 순서</a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============================== -->
+  <!-- 01. 모니터링이란 -->
+  <!-- ============================== -->
+  <section id="s01">
+    <div class="section-label">01</div>
+    <h2>모니터링이란 무엇인가</h2>
+
+    <p>병원에서 환자에게 심전도 기계를 붙여놓는 것처럼, 서버에 모니터링 도구를 붙여두는 것입니다. 서버 상태를 계속 측정하고 이상 발생 시 담당자에게 알림을 보내며, 기록을 남겨 나중에 원인을 분석합니다.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title"><div class="icon" style="background:rgba(239,68,68,0.15)">❌</div> 모니터링 없을 때</div>
+        <pre>고객 "앱이 안 열려요"
+→ 그제야 인지
+→ 원인 파악
+→ 해결
+(고객이 먼저 발견)</pre>
+      </div>
+      <div class="card">
+        <div class="card-title"><div class="icon" style="background:rgba(16,185,129,0.15)">✅</div> 모니터링 있을 때</div>
+        <pre>모니터링 도구가 이상 감지
+→ 담당자에게 즉시 알림
+→ 해결
+(고객보다 먼저 발견)</pre>
+      </div>
+    </div>
+
+    <h3>서버 모니터링 항목 (사람 건강검진 비유)</h3>
+    <table class="compare-table">
+      <tr><th>건강검진</th><th>모니터링</th><th>설명</th></tr>
+      <tr><td>심박수</td><td>CPU 사용률</td><td>서버가 얼마나 바쁜지</td></tr>
+      <tr><td>혈압</td><td>메모리 사용량</td><td>작업 공간이 얼마나 남았는지</td></tr>
+      <tr><td>체온</td><td>서버 온도</td><td>과열 여부</td></tr>
+      <tr><td>혈당</td><td>디스크 잔여 공간</td><td>저장공간 부족 여부</td></tr>
+      <tr><td>호흡</td><td>네트워크 트래픽</td><td>데이터 송수신량</td></tr>
+      <tr><td>반사신경</td><td>응답 시간 (Latency)</td><td>요청에 얼마나 빨리 반응하는지</td></tr>
+      <tr><td>심전도</td><td>에러율 (Error Rate)</td><td>전체 요청 중 실패 비율</td></tr>
+    </table>
+
+    <h3>모니터링 vs 옵저버빌리티(Observability) <span class="new-badge">NEW</span></h3>
+    <p>최근 업계에서는 "모니터링"을 넘어 "옵저버빌리티"라는 개념이 대세입니다. 둘의 차이를 이해하는 것이 중요합니다.</p>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📊 모니터링 (Monitoring)</div>
+        <ul class="point-list">
+          <li><strong>무엇이</strong> 고장났는지 알려줌</li>
+          <li>미리 정한 지표를 추적</li>
+          <li>"CPU 95% 초과" 같은 알림</li>
+          <li>알려진 문제에 대한 대응</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 옵저버빌리티 (Observability)</div>
+        <ul class="point-list">
+          <li><strong>왜</strong> 고장났는지 파악 가능</li>
+          <li>Metrics + Logs + Traces 통합</li>
+          <li>"이 API가 느린 이유는 DB 쿼리 N번선" 추적</li>
+          <li>처음 보는 문제도 진단 가능</li>
+        </ul>
+      </div>
+    </div>
+    <div class="highlight-box">
+      💡 모니터링은 옵저버빌리티의 부분집합입니다. 모니터링 → 옵저버빌리티로 진화하는 것이 현재 업계 흐름이며, OpenTelemetry가 그 핵심 표준입니다.
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 02. 모니터링 3가지 층 -->
+  <!-- ============================== -->
+  <section id="s02">
+    <div class="section-label">02</div>
+    <h2>모니터링의 3가지 층</h2>
+    <p>모니터링은 하나의 개념이 아니라 3가지 층이 있습니다. 도구마다 담당하는 층이 다릅니다.</p>
+
+    <div class="layer-diagram">
+      <div class="layer" style="background:rgba(124,58,237,0.2);border-left:3px solid #7c3aed">
+        <div>
+          <div class="layer-name">APM 층 (Application Performance Monitoring)</div>
+          <div class="layer-desc">"이 API가 왜 느려?" "어떤 쿼리가 문제야?" "사용자 요청이 어디서 병목?"</div>
+        </div>
+        <span class="badge badge-purple">Jennifer · Sentry · SigNoz</span>
+      </div>
+      <div class="layer" style="background:rgba(0,212,255,0.12);border-left:3px solid var(--accent)">
+        <div>
+          <div class="layer-name">인프라 모니터링 층 (Infrastructure)</div>
+          <div class="layer-desc">"CPU가 90%야" "디스크 꽉 찼어" "네트워크 대역폭 포화"</div>
+        </div>
+        <span class="badge badge-blue">Zabbix · Prometheus · Checkmk</span>
+      </div>
+      <div class="layer" style="background:rgba(16,185,129,0.12);border-left:3px solid var(--accent3)">
+        <div>
+          <div class="layer-name">로그 분석 층 (Log Management)</div>
+          <div class="layer-desc">"어떤 에러가 났어?" "누가 접속했어?" "보안 이벤트 추적"</div>
+        </div>
+        <span class="badge badge-green">ELK Stack · Loki · Graylog</span>
+      </div>
+    </div>
+
+    <h3>추가: 합성 모니터링 & 업타임 체크 <span class="new-badge">NEW</span></h3>
+    <p>위 3가지 층 외에 "외부에서 바라보는 시점"의 모니터링도 중요합니다.</p>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🌐 업타임 모니터링</div>
+        <ul class="point-list">
+          <li>"우리 웹사이트가 지금 살아있나?"</li>
+          <li>외부에서 HTTP 핑을 보내 확인</li>
+          <li>대표 도구: Uptime Kuma, Gatus</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">🤖 합성 모니터링 (Synthetic)</div>
+        <ul class="point-list">
+          <li>"사용자처럼 흉내내서 테스트"</li>
+          <li>로그인→주문→결제 시나리오 자동 실행</li>
+          <li>대표 도구: Checkmk, Grafana Synthetic</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      💡 업종마다 필요한 층이 다릅니다. IT 개발팀 있는 회사 → APM 필수 / IT 전담 없는 중소기업 → 인프라 층 + 업타임 체크만으로 충분
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 03. Zabbix 완전 분석 -->
+  <!-- ============================== -->
+  <section id="s03">
+    <div class="section-label">03</div>
+    <h2>Zabbix 완전 분석</h2>
+
+    <div class="grid-2">
+      <div>
+        <h3>기술 스택</h3>
+        <table class="compare-table">
+          <tr><th>구성요소</th><th>언어</th><th>이유</th></tr>
+          <tr><td>서버·에이전트</td><td><span class="badge badge-amber">C</span></td><td>빠르고 가벼움, OS 직접 접근</td></tr>
+          <tr><td>웹 프론트엔드</td><td><span class="badge badge-blue">PHP</span></td><td>2001년 창설 당시 최선의 선택</td></tr>
+          <tr><td>데이터베이스</td><td><span class="badge badge-green">MySQL/PostgreSQL</span></td><td>안정적인 RDBMS</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>C언어를 쓰는 이유</h3>
+        <pre><span class="comment"># 에이전트 메모리 비교</span>
+Python 에이전트: ~50MB
+C 에이전트:      ~2MB
+
+서버 1,000대라면
+Python: 50GB 소비
+<span class="highlight">C:       2GB 소비</span>
+
+<span class="comment">모니터링 도구가 서버 자원을</span>
+<span class="comment">많이 쓰면 안 되기 때문</span></pre>
+      </div>
+    </div>
+
+    <h3>Zabbix 핵심 수치 (2026 기준) <span class="new-badge">NEW</span></h3>
+    <div class="strategy-box">
+      <pre><span class="highlight">배포 수:     300,000+ (190개국 이상)</span>
+라이선스:    100% 오픈소스 (GPL v2)
+역사:        20년 이상 (2001~)
+지원 구조:    유료 서포트 + 파트너 네트워크
+최신 버전:    7.x (2024~)
+
+<span class="comment">// 국내 현황</span>
+공공·제조·금융 시장 점유율: 압도적 1위 (온프레미스)
+SI 납품 레퍼런스:           가장 많음
+한글 커뮤니티:              활발</pre>
+    </div>
+
+    <h3>관리자들이 불편해하는 점 (개선 포인트)</h3>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🔔 알림 폭탄</div>
+        <p style="font-size:13px">같은 경고가 수백 개 쏟아져 진짜 중요한 알림을 놓침. 카카오톡 연동도 기본 미지원.</p>
+        <span class="badge badge-blue">개선 가능</span>
+      </div>
+      <div class="card">
+        <div class="card-title">🖥 복잡한 영문 UI</div>
+        <p style="font-size:13px">메뉴가 영어로 20개 이상. 비전문가(공장 총무, 병원 원무과)는 화면만 봐도 포기.</p>
+        <span class="badge badge-blue">개선 가능</span>
+      </div>
+      <div class="card">
+        <div class="card-title">📱 모바일 공식 앱 없음</div>
+        <p style="font-size:13px">퇴근 후 장애 발생 시 노트북을 켜야 확인 가능. 공식 모바일 앱이 없음.</p>
+        <span class="badge badge-blue">개선 가능</span>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 보고서 불편</div>
+        <p style="font-size:13px">기본 보고서는 그래프 이미지 나열. 한글 요약 없음, 인쇄 시 깨짐.</p>
+        <span class="badge badge-blue">개선 가능</span>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙ 초기 설정 복잡</div>
+        <p style="font-size:13px">서버 추가마다 에이전트 설치→등록→항목설정→임계값→알림 전부 수작업.</p>
+        <span class="badge badge-blue">자동화 가능</span>
+      </div>
+      <div class="card">
+        <div class="card-title">🤔 원인을 안 알려줌</div>
+        <p style="font-size:13px">"CPU 95% 초과"만 알려주고 왜 그런지, 어떻게 해야 하는지는 알려주지 않음.</p>
+        <span class="badge badge-purple">AI 접목 가능</span>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 04. 기존 도구 비교 -->
+  <!-- ============================== -->
+  <section id="s04">
+    <div class="section-label">04</div>
+    <h2>주요 모니터링 도구 비교</h2>
+
+    <table class="compare-table">
+      <tr>
+        <th>도구</th><th>방식</th><th>비용</th><th>UI</th><th>특화</th><th>납품 적합도</th>
+      </tr>
+      <tr>
+        <td><strong>Zabbix</strong></td><td>직접 설치</td>
+        <td><span class="badge badge-green">무료</span></td><td>보통</td>
+        <td>인프라 전반</td><td><span class="badge badge-blue">공공·제조 납품 최적</span></td>
+      </tr>
+      <tr>
+        <td><strong>Prometheus + Grafana</strong></td><td>직접 설치</td>
+        <td><span class="badge badge-green">무료</span></td><td>매우 예쁨</td>
+        <td>클라우드·컨테이너</td><td><span class="badge badge-blue">IT기업 신규 구축 대세</span></td>
+      </tr>
+      <tr>
+        <td><strong>Nagios</strong></td><td>직접 설치</td>
+        <td><span class="badge badge-green">무료</span></td><td>구식</td>
+        <td>인프라</td><td><span class="badge badge-amber">신규 구축 거의 없음</span></td>
+      </tr>
+      <tr>
+        <td><strong>Datadog</strong></td><td>SaaS</td>
+        <td><span class="badge badge-red">비쌈 ($15~30/대)</span></td><td>최고</td>
+        <td>올인원</td><td><span class="badge badge-red">보안 민감기관 불가</span></td>
+      </tr>
+      <tr>
+        <td><strong>ELK Stack</strong></td><td>직접 설치</td>
+        <td><span class="badge badge-green">무료</span></td><td>보통</td>
+        <td>로그 분석</td><td><span class="badge badge-amber">인프라 모니터링 약함</span></td>
+      </tr>
+      <tr>
+        <td><strong>Jennifer</strong></td><td>직접 설치</td>
+        <td><span class="badge badge-red">유료</span></td><td>직관적</td>
+        <td>Java APM</td><td><span class="badge badge-purple">국내 공공·금융 점유율 1위</span></td>
+      </tr>
+    </table>
+
+    <h3>국내 시장 현실</h3>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🏛 공공기관 / 제조 / 금융</div>
+        <ul class="point-list">
+          <li>Zabbix 압도적 (레퍼런스 많음)</li>
+          <li>예산 적고 외부 SaaS 보안 불가</li>
+          <li>직접 설치형 선호</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">🚀 스타트업 / IT 기업</div>
+        <ul class="point-list">
+          <li>Prometheus + Grafana 대세</li>
+          <li>Kubernetes 사용 시 사실상 기본</li>
+          <li>Datadog 도입 기업 증가 중</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 05. 오픈소스 생태계 심층분석 (NEW) -->
+  <!-- ============================== -->
+  <section id="s05">
+    <div class="section-label">05 — NEW</div>
+    <h2>오픈소스 모니터링 생태계 심층 분석 <span class="new-badge">NEW</span></h2>
+
+    <p>기존 비교표에서 다루지 못한, 2026년 현재 주목해야 할 오픈소스 프로젝트들을 카테고리별로 분석합니다.</p>
+
+    <!-- 올인원 플랫폼 -->
+    <h3>🏗 올인원 옵저버빌리티 플랫폼</h3>
+    <p>Datadog의 오픈소스 대안으로 부상 중인 프로젝트들입니다. Metrics + Logs + Traces를 하나의 플랫폼에서 처리합니다.</p>
+
+    <div class="card" style="border-left:3px solid #f59e0b">
+      <div class="card-title">🔥 SigNoz</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>깃허브 스타</td><td>20,000+ ⭐</td></tr>
+        <tr><td>핵심 기술</td><td>OpenTelemetry 네이티브 + ClickHouse (저장소)</td></tr>
+        <tr><td>기능</td><td>APM, 로그, 트레이스, 메트릭, 알림, LLM 모니터링</td></tr>
+        <tr><td>장점</td><td>Prometheus+Grafana+Jaeger+Loki 4개 따로 설치 안 해도 됨. Datadog 대비 비용 대폭 절감</td></tr>
+        <tr><td>단점</td><td>상대적으로 신생 (2021~), 커뮤니티 규모 아직 작음</td></tr>
+        <tr><td>납품 전략</td><td><span class="badge badge-purple">클라우드 네이티브 기업 대상 올인원 솔루션으로 유망</span></td></tr>
+      </table>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--accent3)">
+      <div class="card-title">🌐 OpenObserve</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>핵심 특징</td><td>Rust 기반, 초경량, S3 호환 스토리지 지원</td></tr>
+        <tr><td>기능</td><td>로그, 메트릭, 트레이스 통합 + SQL 쿼리</td></tr>
+        <tr><td>장점</td><td>Elasticsearch 대비 스토리지 비용 140배 절감 주장. 설치 간편</td></tr>
+        <tr><td>단점</td><td>아직 성숙도 부족, 엔터프라이즈 검증 사례 적음</td></tr>
+        <tr><td>납품 전략</td><td><span class="badge badge-green">로그 분석이 주 목적인 중소기업에 ELK 대안</span></td></tr>
+      </table>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <div class="card-title">☁ OneUptime</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>핵심 특징</td><td>모니터링 + 상태페이지 + 인시던트 관리 + 온콜 올인원</td></tr>
+        <tr><td>기능</td><td>업타임 모니터링, 로그, 메트릭, 트레이스, 스케줄 관리</td></tr>
+        <tr><td>장점</td><td>OpenTelemetry 네이티브. 5~10개 도구를 하나로 통합</td></tr>
+        <tr><td>단점</td><td>대규모 환경 검증 부족</td></tr>
+        <tr><td>납품 전략</td><td><span class="badge badge-blue">소규모 팀에 도구 통합 솔루션으로 제안 가능</span></td></tr>
+      </table>
+    </div>
+
+    <!-- 업타임/가벼운 모니터링 -->
+    <h3>🫀 업타임 & 경량 모니터링</h3>
+    <p>IT 전담 없는 중소기업이 가장 먼저 필요로 하는 "우리 서버/사이트 살아있나?" 에 특화된 도구들입니다.</p>
+
+    <div class="grid-2">
+      <div class="card" style="border-left:3px solid var(--accent3)">
+        <div class="card-title">⬆ Uptime Kuma</div>
+        <ul class="point-list">
+          <li>깃허브 스타 62,000+ ⭐ (매우 인기)</li>
+          <li>Docker 한 줄로 설치 완료</li>
+          <li>HTTP(s), TCP, Ping, DNS, WebSocket 모니터링</li>
+          <li>90개 이상 알림 채널 (Telegram, Slack, Discord 등)</li>
+          <li>상태 페이지 내장, 예쁜 UI</li>
+          <li>20초 간격 모니터링, SSL 인증서 만료 감시</li>
+        </ul>
+        <span class="badge badge-green">MVP 제작 시 참고할 최고의 벤치마크</span>
+      </div>
+      <div class="card" style="border-left:3px solid var(--warn)">
+        <div class="card-title">🦆 Gatus</div>
+        <ul class="point-list">
+          <li>Go 기반, 초경량 바이너리</li>
+          <li>YAML 설정파일 하나로 구성</li>
+          <li>HTTP, TCP, ICMP, DNS 등 다양한 프로토콜</li>
+          <li>합성 모니터링 (시나리오 테스트) 지원</li>
+          <li>Uptime Kuma보다 DevOps 친화적</li>
+        </ul>
+        <span class="badge badge-amber">코드 기반 설정 선호 팀에 적합</span>
+      </div>
+    </div>
+
+    <!-- 인프라 모니터링 -->
+    <h3>🖥 인프라 모니터링 (Zabbix 대안)</h3>
+
+    <div class="grid-2">
+      <div class="card" style="border-left:3px solid var(--accent2)">
+        <div class="card-title">✅ Checkmk</div>
+        <ul class="point-list">
+          <li>에이전트 기반 + 에이전트리스 모두 지원</li>
+          <li>자동 디스커버리 (네트워크 장비 자동 발견)</li>
+          <li>무료 오픈소스 에디션 존재</li>
+          <li>Zabbix보다 설정이 쉽다는 평가</li>
+          <li>네트워크 장비 모니터링에 특히 강함</li>
+        </ul>
+        <span class="badge badge-purple">Zabbix가 어려운 고객에게 대안 제시 가능</span>
+      </div>
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <div class="card-title">📈 VictoriaMetrics</div>
+        <ul class="point-list">
+          <li>Prometheus의 장기 스토리지 문제 해결</li>
+          <li>PromQL 호환 (기존 쿼리 그대로 사용)</li>
+          <li>데이터 압축률 매우 높음 (스토리지 절약)</li>
+          <li>Anomaly Detection(이상 감지) AI 기능 내장</li>
+          <li>Grafana와 완벽 호환</li>
+        </ul>
+        <span class="badge badge-blue">Prometheus 스케일 문제 해결용</span>
+      </div>
+    </div>
+
+    <!-- 로그 관리 -->
+    <h3>📜 로그 관리 (ELK 대안)</h3>
+
+    <div class="grid-2">
+      <div class="card" style="border-left:3px solid var(--accent3)">
+        <div class="card-title">📋 Grafana Loki</div>
+        <ul class="point-list">
+          <li>Grafana Labs 개발, Grafana와 완벽 연동</li>
+          <li>"Prometheus처럼 로그를 다루자" 컨셉</li>
+          <li>인덱싱 안 함 → 스토리지 비용 대폭 절감</li>
+          <li>라벨 기반 쿼리 (LogQL)</li>
+        </ul>
+        <span class="badge badge-green">ELK 대비 운영 비용 크게 절약</span>
+      </div>
+      <div class="card" style="border-left:3px solid var(--text-muted)">
+        <div class="card-title">🔍 Graylog</div>
+        <ul class="point-list">
+          <li>SSPL 라이선스 (완전 오픈소스는 아님)</li>
+          <li>로그 검색/분석/대시보드 올인원</li>
+          <li>보안 모니터링(SIEM) 기능 내장</li>
+          <li>엔터프라이즈 기능 풍부</li>
+        </ul>
+        <span class="badge badge-amber">보안 로그 분석 필요 시 적합</span>
+      </div>
+    </div>
+
+    <h3>전체 비교 매트릭스 <span class="new-badge">NEW</span></h3>
+    <table class="compare-table">
+      <tr>
+        <th>도구</th><th>카테고리</th><th>핵심 언어</th><th>OTel 지원</th><th>난이도</th><th>추천 대상</th>
+      </tr>
+      <tr><td><strong>Zabbix</strong></td><td>인프라</td><td>C/PHP</td><td>제한적</td><td>중</td><td>공공/제조/금융</td></tr>
+      <tr><td><strong>Prometheus</strong></td><td>메트릭</td><td>Go</td><td>✅ 완벽</td><td>중상</td><td>K8s/클라우드</td></tr>
+      <tr><td><strong>Grafana</strong></td><td>시각화</td><td>Go/TS</td><td>✅ 완벽</td><td>중</td><td>모든 환경</td></tr>
+      <tr><td><strong>SigNoz</strong></td><td>올인원</td><td>Go/TS</td><td>✅ 네이티브</td><td>중</td><td>클라우드 네이티브</td></tr>
+      <tr><td><strong>Uptime Kuma</strong></td><td>업타임</td><td>Node.js</td><td>✖</td><td>하</td><td>중소기업/개인</td></tr>
+      <tr><td><strong>Checkmk</strong></td><td>인프라</td><td>Python/C++</td><td>제한적</td><td>중</td><td>네트워크 중심</td></tr>
+      <tr><td><strong>VictoriaMetrics</strong></td><td>TSDB</td><td>Go</td><td>✅ 완벽</td><td>중</td><td>대규모 메트릭</td></tr>
+      <tr><td><strong>Loki</strong></td><td>로그</td><td>Go</td><td>✅ 완벽</td><td>중</td><td>Grafana 스택</td></tr>
+      <tr><td><strong>OpenObserve</strong></td><td>올인원</td><td>Rust</td><td>✅ 완벽</td><td>중하</td><td>비용 민감 환경</td></tr>
+      <tr><td><strong>Gatus</strong></td><td>업타임</td><td>Go</td><td>✖</td><td>하</td><td>DevOps 팀</td></tr>
+    </table>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 06. 모니터링 아키텍처 패턴 (NEW) -->
+  <!-- ============================== -->
+  <section id="s06">
+    <div class="section-label">06 — NEW</div>
+    <h2>모니터링 시스템 아키텍처 패턴 <span class="new-badge">NEW</span></h2>
+
+    <p>모니터링 시스템을 직접 개발하려면, 업계에서 검증된 아키텍처 패턴을 이해해야 합니다.</p>
+
+    <h3>패턴 A: Pull 모델 (Prometheus 방식)</h3>
+    <div class="arch-flow">
+      <div class="arch-box">
+        <div class="arch-label">TARGET</div>
+        <div class="arch-desc">메트릭 노출<br>/metrics 엔드포인트</div>
+      </div>
+      <div class="arch-arrow">←</div>
+      <div class="arch-box" style="border-color:var(--accent3)">
+        <div class="arch-label" style="color:var(--accent3)">SCRAPER</div>
+        <div class="arch-desc">주기적으로 가져감<br>(10~60초)</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <div class="arch-label">TSDB</div>
+        <div class="arch-desc">시계열 DB 저장</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:var(--accent2)">
+        <div class="arch-label" style="color:var(--accent2)">DASHBOARD</div>
+        <div class="arch-desc">시각화 & 알림</div>
+      </div>
+    </div>
+    <pre><span class="comment"># 장점</span>
+<span class="highlight">- 서버가 직접 가져가므로 "뭘 수집하는지" 중앙 제어 가능</span>
+<span class="highlight">- 대상이 죽으면 "수집 실패" 자체가 장애 감지</span>
+<span class="highlight">- 방화벽 설정 간단 (서버→대상 방향만)</span>
+
+<span class="comment"># 단점</span>
+<span class="danger">- NAT/방화벽 뒤 대상 수집 어려움</span>
+<span class="danger">- 대상이 늘어나면 스크래핑 부하 증가</span></pre>
+
+    <h3>패턴 B: Push 모델 (Zabbix/Datadog 방식)</h3>
+    <div class="arch-flow">
+      <div class="arch-box">
+        <div class="arch-label">AGENT</div>
+        <div class="arch-desc">에이전트가<br>데이터 수집</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:var(--accent3)">
+        <div class="arch-label" style="color:var(--accent3)">COLLECTOR</div>
+        <div class="arch-desc">데이터 수신<br>& 전처리</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <div class="arch-label">STORAGE</div>
+        <div class="arch-desc">저장소</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:var(--accent2)">
+        <div class="arch-label" style="color:var(--accent2)">UI / API</div>
+        <div class="arch-desc">대시보드</div>
+      </div>
+    </div>
+    <pre><span class="comment"># 장점</span>
+<span class="highlight">- 에이전트가 보내므로 방화벽/NAT 뒤에서도 동작</span>
+<span class="highlight">- 더 높은 빈도로 수집 가능 (초 단위)</span>
+<span class="highlight">- 네트워크 장비(SNMP) 모니터링에 유리</span>
+
+<span class="comment"># 단점</span>
+<span class="danger">- 에이전트 설치·관리 필요</span>
+<span class="danger">- 수집 서버에 트래픽 집중 (병목 가능)</span></pre>
+
+    <h3>패턴 C: OpenTelemetry 통합 파이프라인 (최신 트렌드) <span class="new-badge">2026 대세</span></h3>
+    <div class="arch-flow">
+      <div class="arch-box">
+        <div class="arch-label">APP / INFRA</div>
+        <div class="arch-desc">OTel SDK로<br>계측(instrument)</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="border-color:var(--warn)">
+        <div class="arch-label" style="color:var(--warn)">OTel COLLECTOR</div>
+        <div class="arch-desc">수신·처리·라우팅<br>(벤더 무관)</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box">
+        <div class="arch-label">BACKEND(s)</div>
+        <div class="arch-desc">Prometheus, Jaeger<br>SigNoz, Grafana...</div>
+      </div>
+    </div>
+    <pre><span class="comment"># OpenTelemetry의 핵심 가치</span>
+<span class="highlight">한 번 계측하면, 어떤 백엔드로든 데이터를 보낼 수 있음</span>
+<span class="highlight">벤더 종속(lock-in) 없음</span>
+<span class="highlight">Metrics + Logs + Traces 3가지 신호를 통합 파이프라인으로</span>
+
+<span class="comment"># CNCF 졸업 프로젝트</span>
+<span class="comment"># Kubernetes 다음으로 활발한 오픈소스 프로젝트</span>
+<span class="comment"># 2026년 현재 클라우드 네이티브 관측의 사실상 표준</span></pre>
+
+    <div class="warn-box">
+      ⚠️ 커스텀 모니터링 시스템을 개발할 때, 처음부터 OpenTelemetry 호환을 고려하면 나중에 Prometheus, Grafana 등 어떤 도구와도 연동이 가능합니다. OTLP(OpenTelemetry Protocol)를 수신할 수 있는 엔드포인트를 만드는 것이 핵심입니다.
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 07. 핵심 프로토콜 & 기술 (NEW) -->
+  <!-- ============================== -->
+  <section id="s07">
+    <div class="section-label">07 — NEW</div>
+    <h2>핵심 프로토콜 & 기술 <span class="new-badge">NEW</span></h2>
+
+    <p>모니터링 시스템 개발에 필수로 알아야 할 프로토콜과 기술 스택입니다.</p>
+
+    <h3>SNMP (Simple Network Management Protocol)</h3>
+    <p>1988년부터 사용된 네트워크 장비 모니터링의 표준 프로토콜입니다. 라우터, 스위치, 프린터, UPS 등 거의 모든 네트워크 장비가 지원합니다.</p>
+
+    <div class="strategy-box">
+      <div class="title">// SNMP_ARCHITECTURE.md</div>
+      <pre><span class="comment">// 핵심 구성요소</span>
+<span class="highlight">SNMP Manager (NMS)</span>  ← 중앙 모니터링 서버
+<span class="highlight">SNMP Agent</span>          ← 장비에 내장된 소프트웨어
+<span class="highlight">MIB (Management Information Base)</span> ← 수집 가능 항목 목록
+<span class="highlight">OID (Object Identifier)</span>  ← 각 항목의 고유 번호
+
+<span class="comment">// 동작 방식</span>
+1. Manager → Agent: GET 요청 (정보 요청)
+2. Agent → Manager: Response (정보 응답)
+3. Agent → Manager: TRAP (이벤트 알림, 비동기)
+
+<span class="comment">// 버전별 차이</span>
+v1:  평문 커뮤니티 스트링 (보안 취약)
+v2c: GetBulk 추가 (효율성 개선), 보안은 여전히 약함
+<span class="highlight">v3:  인증 + 암호화 지원 (권장)</span>
+
+<span class="comment">// 수집 가능 메트릭</span>
+CPU 사용률, 메모리, 인터페이스 상태
+대역폭 사용량, 에러 카운트, 온도
+장비 업타임, 팬 속도, 전력 상태</pre>
+    </div>
+
+    <h3>OTLP (OpenTelemetry Protocol)</h3>
+    <div class="card">
+      <div class="card-title">🔗 OTel의 데이터 전송 표준</div>
+      <ul class="point-list">
+        <li>gRPC 및 HTTP 둘 다 지원</li>
+        <li>Metrics, Logs, Traces 3가지 신호 모두 전송</li>
+        <li>Protobuf 기반 직렬화 → 높은 효율</li>
+        <li>모든 주요 모니터링 백엔드가 OTLP 수신 지원</li>
+      </ul>
+      <pre><span class="comment"># OTLP 엔드포인트 예시</span>
+gRPC: localhost:4317
+HTTP:  localhost:4318/v1/metrics
+HTTP:  localhost:4318/v1/traces
+HTTP:  localhost:4318/v1/logs</pre>
+    </div>
+
+    <h3>PromQL (Prometheus Query Language)</h3>
+    <div class="card">
+      <div class="card-title">📐 메트릭 분석의 사실상 표준 쿼리 언어</div>
+      <pre><span class="comment"># CPU 사용률 5분 평균</span>
+<span class="highlight">rate(node_cpu_seconds_total{mode="idle"}[5m])</span>
+
+<span class="comment"># 메모리 사용률 (퍼센트)</span>
+<span class="highlight">(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100</span>
+
+<span class="comment"># HTTP 요청 에러율</span>
+<span class="highlight">rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100</span>
+
+<span class="comment"># P99 응답시간 (히스토그램)</span>
+<span class="highlight">histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))</span></pre>
+      <p style="margin-top:8px">VictoriaMetrics, Grafana, Thanos 등 대부분의 도구가 PromQL 호환 쿼리를 지원하므로, PromQL을 한 번 익히면 여러 플랫폼에서 사용 가능합니다.</p>
+    </div>
+
+    <h3>핵심 기술 스택 요약</h3>
+    <table class="compare-table">
+      <tr><th>기술</th><th>역할</th><th>알아야 하는 이유</th></tr>
+      <tr><td><strong>SNMP v2c/v3</strong></td><td>네트워크 장비 데이터 수집</td><td>온프레미스 납품 시 라우터/스위치 모니터링 필수</td></tr>
+      <tr><td><strong>OTLP/gRPC</strong></td><td>텔레메트리 데이터 전송</td><td>OTel 호환 시스템 구축 시 필수</td></tr>
+      <tr><td><strong>PromQL</strong></td><td>메트릭 쿼리</td><td>Grafana 대시보드 구성의 기본</td></tr>
+      <tr><td><strong>REST API / JSON-RPC</strong></td><td>도구 간 통합</td><td>Zabbix API, 카카오톡 알림 연동 등</td></tr>
+      <tr><td><strong>WebSocket</strong></td><td>실시간 데이터 스트리밍</td><td>대시보드 실시간 갱신 구현</td></tr>
+      <tr><td><strong>Protocol Buffers</strong></td><td>고효율 직렬화</td><td>대량 메트릭 전송 시 JSON보다 10x 효율</td></tr>
+    </table>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 08. 시계열 데이터베이스 (NEW) -->
+  <!-- ============================== -->
+  <section id="s08">
+    <div class="section-label">08 — NEW</div>
+    <h2>시계열 데이터베이스 (TSDB) <span class="new-badge">NEW</span></h2>
+
+    <p>모니터링 데이터는 "시간 + 값"의 연속입니다. 일반 DB(MySQL 등)로는 대량의 시계열 데이터를 효율적으로 처리할 수 없어, 전용 데이터베이스를 사용합니다.</p>
+
+    <div class="strategy-box">
+      <div class="title">// 시계열 데이터란?</div>
+      <pre><span class="comment">// 일반 데이터 (RDBMS)</span>
+| user_id | name | email            |
+| 1       | 김철수 | cs@example.com |
+
+<span class="comment">// 시계열 데이터 (TSDB)</span>
+| timestamp           | metric        | value | host    |
+| 2026-03-14 10:00:00 | cpu_usage     | 45.2  | web-01  |
+| 2026-03-14 10:00:10 | cpu_usage     | 47.8  | web-01  |
+| 2026-03-14 10:00:20 | cpu_usage     | 52.1  | web-01  |
+<span class="highlight">↑ 시간 축으로 계속 쌓이는 데이터</span>
+<span class="highlight">  쓰기가 매우 많고, 오래된 데이터는 집계 후 삭제</span></pre>
+    </div>
+
+    <h3>TSDB 비교</h3>
+    <table class="compare-table">
+      <tr><th>TSDB</th><th>사용처</th><th>장점</th><th>단점</th></tr>
+      <tr>
+        <td><strong>Prometheus TSDB</strong></td>
+        <td>Prometheus 내장</td>
+        <td>단순, 빠름, 로컬 스토리지</td>
+        <td>장기 보관 어려움, 단일 노드 한계</td>
+      </tr>
+      <tr>
+        <td><strong>VictoriaMetrics</strong></td>
+        <td>Prometheus 장기 스토리지</td>
+        <td>높은 압축률, PromQL 호환</td>
+        <td>클러스터 모드는 유료</td>
+      </tr>
+      <tr>
+        <td><strong>ClickHouse</strong></td>
+        <td>SigNoz, OpenObserve 등</td>
+        <td>초고속 분석 쿼리, SQL 지원, 고카디널리티에 강함</td>
+        <td>운영 복잡도, 리소스 요구 높음</td>
+      </tr>
+      <tr>
+        <td><strong>InfluxDB</strong></td>
+        <td>IoT, 범용 시계열</td>
+        <td>전용 쿼리 언어(Flux), 쓰기 성능 우수</td>
+        <td>v3로 대전환 중, 라이선스 불투명</td>
+      </tr>
+      <tr>
+        <td><strong>TimescaleDB</strong></td>
+        <td>PostgreSQL 확장</td>
+        <td>SQL 그대로 사용, PostgreSQL 생태계 활용</td>
+        <td>전용 TSDB 대비 쓰기 성능 낮음</td>
+      </tr>
+    </table>
+
+    <div class="highlight-box">
+      💡 <strong>MVP 추천:</strong> 시작할 때는 Prometheus TSDB (내장)로 충분합니다. 데이터가 수개월 이상 쌓이거나 서버 100대 이상이면 VictoriaMetrics 또는 ClickHouse로 마이그레이션을 고려하세요.
+    </div>
+
+    <h3>카디널리티(Cardinality) 문제 — TSDB의 핵심 이슈</h3>
+    <pre><span class="comment"># 카디널리티 = 고유한 시계열(time series) 수</span>
+
+<span class="comment"># 낮은 카디널리티 (괜찮음)</span>
+cpu_usage{host="web-01"}        <span class="comment">// 서버 10대 = 시계열 10개</span>
+cpu_usage{host="web-02"}
+
+<span class="comment"># 높은 카디널리티 (위험!)</span>
+http_requests{user_id="12345"}  <span class="comment">// 사용자 100만명 = 시계열 100만개</span>
+http_requests{user_id="12346"}  <span class="comment">// 메모리 폭발, 쿼리 느려짐</span>
+
+<span class="danger">→ Prometheus는 고카디널리티에 취약 (메모리 부족)</span>
+<span class="highlight">→ ClickHouse는 고카디널리티에도 강함 (컬럼 스토리지)</span>
+
+<span class="comment"># 실무 규칙: 라벨(태그)에 사용자 ID, 세션 ID 같은</span>
+<span class="comment"># 무한히 늘어나는 값을 넣지 말 것!</span></pre>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 09. 에이전트 & 데이터 수집 (NEW) -->
+  <!-- ============================== -->
+  <section id="s09">
+    <div class="section-label">09 — NEW</div>
+    <h2>에이전트 & 데이터 수집 설계 <span class="new-badge">NEW</span></h2>
+
+    <p>모니터링 시스템의 "데이터 수집" 부분을 직접 개발할 때 고려해야 할 사항들입니다.</p>
+
+    <h3>에이전트가 수집하는 것들</h3>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title" style="font-size:15px">🖥 시스템 메트릭</div>
+        <ul class="point-list">
+          <li>CPU (사용률, 코어별, load avg)</li>
+          <li>메모리 (사용량, 캐시, swap)</li>
+          <li>디스크 (사용률, IOPS, 지연)</li>
+          <li>네트워크 (in/out, 에러, 드롭)</li>
+          <li>프로세스 목록 & 상태</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size:15px">🌐 서비스 체크</div>
+        <ul class="point-list">
+          <li>포트 열림 확인 (TCP check)</li>
+          <li>HTTP 상태코드 & 응답시간</li>
+          <li>SSL 인증서 만료일</li>
+          <li>DNS 응답 확인</li>
+          <li>프로세스 생존 확인</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size:15px">📊 애플리케이션 메트릭</div>
+        <ul class="point-list">
+          <li>요청 수 (RPS)</li>
+          <li>에러율</li>
+          <li>응답 지연시간 (p50, p99)</li>
+          <li>DB 쿼리 시간</li>
+          <li>큐 길이 / 배치 처리량</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>에이전트 설계 원칙</h3>
+    <pre><span class="comment">// 1. 가벼워야 한다</span>
+<span class="highlight">메모리: 50MB 이하 (목표 10MB 이하)</span>
+<span class="highlight">CPU:   1% 이하</span>
+<span class="comment">→ 모니터링 도구 때문에 서버가 느려지면 본말전도</span>
+
+<span class="comment">// 2. 수집 주기</span>
+시스템 메트릭: 10~60초 (기본 30초)
+서비스 체크:   30~300초
+로그:          실시간 (tail -f 방식)
+
+<span class="comment">// 3. 버퍼링 & 재시도</span>
+<span class="highlight">서버 연결 끊어져도 로컬에 버퍼링</span>
+<span class="highlight">연결 복구 시 밀린 데이터 전송</span>
+<span class="comment">→ 네트워크 불안정해도 데이터 유실 방지</span>
+
+<span class="comment">// 4. 자동 업데이트</span>
+에이전트 버전 업그레이드를 중앙에서 관리
+서버 1000대에 하나하나 접속해서 업데이트? NO!
+
+<span class="comment">// 5. 보안</span>
+TLS 암호화 통신
+인증 토큰 / API 키 기반 인가
+최소 권한 원칙 (root 불필요한 메트릭은 일반 권한)</pre>
+
+    <h3>수집 파이프라인 기술 선택</h3>
+    <table class="compare-table">
+      <tr><th>언어</th><th>장점</th><th>단점</th><th>적합한 경우</th></tr>
+      <tr>
+        <td><strong>Go</strong></td>
+        <td>단일 바이너리, 크로스 컴파일 쉬움, 경량</td>
+        <td>학습 곡선</td>
+        <td>Prometheus, Grafana, VictoriaMetrics가 모두 Go</td>
+      </tr>
+      <tr>
+        <td><strong>Rust</strong></td>
+        <td>C급 성능, 메모리 안전</td>
+        <td>학습 곡선 높음</td>
+        <td>초고성능 필요 시 (OpenObserve가 Rust)</td>
+      </tr>
+      <tr>
+        <td><strong>Python</strong></td>
+        <td>빠른 프로토타이핑, 풍부한 라이브러리</td>
+        <td>메모리 많이 사용, 속도 느림</td>
+        <td>MVP/PoC, 데이터 분석 파이프라인</td>
+      </tr>
+      <tr>
+        <td><strong>Node.js</strong></td>
+        <td>웹 대시보드와 통합 용이, npm 생태계</td>
+        <td>CPU 집약 작업에 약함</td>
+        <td>Uptime Kuma가 Node.js. 웹 중심 모니터링</td>
+      </tr>
+      <tr>
+        <td><strong>C</strong></td>
+        <td>최고 성능, 최소 리소스</td>
+        <td>개발 속도 느림, 메모리 관리 어려움</td>
+        <td>Zabbix 에이전트처럼 극한의 경량화 필요 시</td>
+      </tr>
+    </table>
+
+    <div class="highlight-box">
+      💡 <strong>현실적 추천:</strong> 에이전트는 Go, 대시보드(웹)는 React/Vue + TypeScript 조합이 2026년 기준 가장 실용적입니다. MVP 단계에서는 Python + FastAPI로 빠르게 검증하고, 나중에 Go로 재작성하는 전략도 유효합니다.
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 10. 알림 시스템 설계 (NEW) -->
+  <!-- ============================== -->
+  <section id="s10">
+    <div class="section-label">10 — NEW</div>
+    <h2>알림(Alerting) 시스템 설계 <span class="new-badge">NEW</span></h2>
+
+    <p>모니터링의 핵심 가치는 "문제를 빠르게 알려주는 것"입니다. 알림 시스템의 설계가 부실하면 아무리 데이터를 잘 수집해도 무용지물입니다.</p>
+
+    <h3>알림 설계 4원칙</h3>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title" style="color:var(--danger)">❌ 나쁜 알림</div>
+        <ul class="point-list">
+          <li>같은 알림 100개 연속 발송 (알림 폭탄)</li>
+          <li>"CPU 80% 초과" → 5분 뒤 정상 → 반복</li>
+          <li>새벽 3시에 "디스크 72% 사용" (긴급 아님)</li>
+          <li>알림만 보내고 해결 방법 안 알려줌</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--accent3)">✅ 좋은 알림</div>
+        <ul class="point-list">
+          <li>중복 제거: 같은 문제는 1건만 발송</li>
+          <li>디바운싱: 5분 이상 지속 시에만 발송</li>
+          <li>심각도 분류: Critical → 즉시, Warning → 오전에</li>
+          <li>원인 추정 + 해결 가이드 함께 제공</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>알림 파이프라인 설계</h3>
+    <pre><span class="comment">// 알림 처리 흐름</span>
+
+메트릭 수집 → 임계값 평가 → <span class="warn">디바운싱</span> → <span class="warn">중복 제거</span> → <span class="warn">심각도 분류</span> → 채널 라우팅
+                                                                          ↓
+                                                               ┌─────────────────┐
+                                                               │ Critical → 전화  │
+                                                               │ Warning  → 카톡  │
+                                                               │ Info     → 슬랙  │
+                                                               └─────────────────┘
+
+<span class="comment">// 디바운싱 (채터링 방지)</span>
+<span class="highlight">규칙: CPU > 90% 가 5분 이상 지속될 때만 알림</span>
+<span class="comment">잠깐 스파이크 → 무시</span>
+<span class="comment">지속적 과부하 → 알림 발송</span>
+
+<span class="comment">// 중복 제거 (De-duplication)</span>
+<span class="highlight">동일 호스트 + 동일 메트릭 알림은 해소될 때까지 1건만</span>
+<span class="comment">해소되면 "복구됨" 알림 발송</span>
+
+<span class="comment">// 에스컬레이션</span>
+<span class="highlight">30분 미응답 → 다음 담당자에게 전달</span>
+<span class="highlight">1시간 미응답 → 팀장에게 전달</span></pre>
+
+    <h3>국내 알림 채널 연동</h3>
+    <table class="compare-table">
+      <tr><th>채널</th><th>API 방식</th><th>난이도</th><th>적합 상황</th></tr>
+      <tr><td><strong>카카오톡 알림톡</strong></td><td>알림톡 API (비즈메시지)</td><td>중</td><td>고객사 담당자에게 (공식적)</td></tr>
+      <tr><td><strong>카카오워크</strong></td><td>Webhook</td><td>하</td><td>사내 팀 알림</td></tr>
+      <tr><td><strong>Slack</strong></td><td>Webhook / Bot API</td><td>하</td><td>IT 기업 내부</td></tr>
+      <tr><td><strong>이메일 (SMTP)</strong></td><td>SMTP</td><td>하</td><td>공식 기록용</td></tr>
+      <tr><td><strong>SMS</strong></td><td>NHN Cloud, Twilio</td><td>중</td><td>Critical 알림</td></tr>
+      <tr><td><strong>전화 (Voice)</strong></td><td>Twilio Voice API</td><td>상</td><td>최상위 긴급 상황</td></tr>
+      <tr><td><strong>Telegram</strong></td><td>Bot API</td><td>하</td><td>개인/소규모 팀</td></tr>
+    </table>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 11. 핵심 논문 & 문서 분석 (NEW) -->
+  <!-- ============================== -->
+  <section id="s11">
+    <div class="section-label">11 — NEW</div>
+    <h2>핵심 논문 & 문서 분석 <span class="new-badge">RESEARCH</span></h2>
+
+    <p>모니터링 시스템의 이론적 기반이 되는 핵심 논문과 문서들입니다. "왜 현재의 도구들이 이렇게 설계되었는가"를 이해하는 데 필수적입니다.</p>
+
+    <!-- Paper 1: Google Dapper -->
+    <div class="card" style="border-left:3px solid #7c3aed">
+      <div class="card-title">📄 논문 1: Google Dapper (2010)</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>제목</td><td>Dapper, a Large-Scale Distributed Systems Tracing Infrastructure</td></tr>
+        <tr><td>저자</td><td>Benjamin H. Sigelman 외 (Google)</td></tr>
+        <tr><td>중요도</td><td><span class="badge badge-red">★★★★★ 필독</span> — 분산 추적의 기원. OpenTelemetry의 직접적 조상</td></tr>
+      </table>
+      <h4>3가지 설계 목표</h4>
+      <pre><span class="highlight">1. 낮은 오버헤드</span> — 추적이 서비스 성능에 미치는 영향 최소화
+<span class="highlight">2. 애플리케이션 투명성</span> — 개발자가 추적 코드를 직접 작성 불필요
+   → 핵심 라이브러리(RPC, 스레딩)에만 C++ ~1,500줄 계측
+<span class="highlight">3. 대규모 확장성</span> — 샘플링(0.01~1%)으로 오버헤드 제어</pre>
+
+      <h4>핵심 개념: Span과 Trace</h4>
+      <pre><span class="comment">// Dapper가 만든 개념 — OTel에서 지금도 그대로 사용</span>
+<span class="highlight">Trace</span> = 하나의 요청이 시스템을 통과하는 전체 경로 (트리 구조)
+<span class="highlight">Span</span>  = 하나의 서비스에서 처리되는 단위 작업
+         Trace ID + Span ID + Parent Span ID 저장
+
+<span class="comment">// 예: 검색 요청 추적</span>
+[Trace: 검색 요청]
+  └─ Span: 프론트엔드 (50ms)
+       ├─ Span: 광고 서비스 (20ms)
+       ├─ Span: 웹 검색 (120ms)
+       │    └─ Span: DB 쿼리 (80ms) ← <span class="danger">병목!</span>
+       └─ Span: 이미지 검색 (30ms)</pre>
+
+      <div class="warn-box">
+        ⚠️ Dapper → Zipkin(Twitter) → Jaeger(Uber) → OpenTracing → OpenTelemetry로 이어지는 계보. OTel의 구조를 이해하려면 이 논문이 출발점입니다.
+      </div>
+    </div>
+
+    <!-- Paper 2: Facebook Gorilla -->
+    <div class="card" style="border-left:3px solid var(--warn)">
+      <div class="card-title">📄 논문 2: Facebook Gorilla (2015)</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>제목</td><td>Gorilla: A Fast, Scalable, In-Memory Time Series Database</td></tr>
+        <tr><td>저자</td><td>Tuomas Pelkonen 외 (Facebook)</td></tr>
+        <tr><td>출처</td><td>VLDB 2015 (데이터베이스 분야 최고 학회)</td></tr>
+        <tr><td>중요도</td><td><span class="badge badge-red">★★★★★ 필독</span> — 시계열 DB 압축의 교과서. Prometheus TSDB가 직접 채용</td></tr>
+      </table>
+
+      <h4>핵심: 12배 압축 알고리즘</h4>
+      <pre><span class="comment">// Facebook: 초당 1,200만 데이터 포인트, 20억 고유 시계열</span>
+<span class="comment">// 기존 HBase 대비: 쿼리 지연 73배↓, 처리량 14배↑</span>
+
+데이터 포인트 = (타임스탬프 64bit + 값 64bit) = 16 bytes
+<span class="highlight">압축 후 평균 1.37 bytes → 12배 압축!</span>
+
+<span class="comment">// 타임스탬프: Delta of Delta 압축</span>
+30초 간격 수집 → 연속 delta 거의 동일 → delta의 delta 저장
+<span class="highlight">96%가 0 → 1비트로 표현</span>
+
+<span class="comment">// 값: XOR 압축</span>
+CPU 45.2% → 45.3% → 45.1% (조금씩 변화)
+연속 값의 XOR → 대부분 0
+<span class="highlight">59%가 이전과 동일 → 1비트로 표현</span></pre>
+
+      <h4>3가지 설계 원칙</h4>
+      <ul class="point-list">
+        <li><strong>"최근 데이터 > 오래된 데이터"</strong> — 장애 진단 시 최근 26시간이 핵심. 인메모리에 최근 데이터만 유지</li>
+        <li><strong>"집계가 개별 포인트보다 중요"</strong> — "평균 추세"를 보지, "3시 14분 22초의 47.3%"를 보지 않음</li>
+        <li><strong>"쓰기 가용성 최우선"</strong> — 모니터링 데이터는 유실되면 복구 불가. 항상 쓸 수 있어야 한다</li>
+      </ul>
+    </div>
+
+    <!-- Paper 3: Google SRE Book -->
+    <div class="card" style="border-left:3px solid var(--accent3)">
+      <div class="card-title">📄 문서 3: Google SRE Book — 4가지 골든 시그널 (2016)</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>제목</td><td>Site Reliability Engineering, Ch.6: Monitoring Distributed Systems</td></tr>
+        <tr><td>저자</td><td>Betsy Beyer 외 (Google)</td></tr>
+        <tr><td>출처</td><td>O'Reilly, 2016 (무료 공개: sre.google/sre-book)</td></tr>
+        <tr><td>중요도</td><td><span class="badge badge-red">★★★★★ 필독</span> — 모니터링 철학의 바이블. 알림 설계 원칙의 원전</td></tr>
+      </table>
+
+      <h4>4가지 골든 시그널</h4>
+      <pre><span class="highlight">1. Latency (지연시간)</span>  — 요청 처리 시간. p95/p99로 측정 (평균은 거짓말)
+<span class="highlight">2. Traffic (트래픽)</span>    — 시스템 부하량. 초당 요청 수(RPS)
+<span class="highlight">3. Errors (에러율)</span>    — 실패한 요청 비율. HTTP 5xx + 암시적 에러
+<span class="highlight">4. Saturation (포화도)</span> — 리소스 한계 접근도. CPU/메모리/디스크
+
+<span class="comment">// Google SRE 알림 원칙</span>
+<span class="warn">"알림이 울릴 때마다 긴급 대응할 수 있어야 한다"</span>
+<span class="warn">"자동으로 해결 가능한 문제는 알림이면 안 된다"</span>
+<span class="warn">"하루에 몇 번 이상 긴급 대응하면 피로해진다"</span></pre>
+
+      <div class="highlight-box">
+        💡 대시보드에 골든 시그널 4개를 기본 패널로 넣고, 알림은 이 4개 기반으로만 설정하면 80%의 장애를 커버할 수 있습니다.
+      </div>
+    </div>
+
+    <!-- Paper 4: OTel Research -->
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <div class="card-title">📄 논문 4: The Future of OpenTelemetry (IJCET, 2025)</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>저자</td><td>Vaidyanathan Sivakumaran (Bellevue University)</td></tr>
+        <tr><td>중요도</td><td><span class="badge badge-amber">★★★★ 추천</span> — OTel 도입의 실증 데이터</td></tr>
+      </table>
+      <h4>주요 연구 결과</h4>
+      <pre><span class="comment">// OTel 구현 성과 수치 (실증 연구 기반)</span>
+성능 오버헤드: CPU 1.8~4.2% (최적화 시 2.8% 이하)
+리소스 활용률: 37.8% 향상 (모니터링 최적화 적용 시)
+기본 구현 숙련: 평균 2.8개월 / 고급 역량: +5.3개월 추가
+체계적 교육 시 구현 오류 53% 감소
+
+<span class="comment">// 샘플링 전략 효과</span>
+Tail-based 샘플링 → 에러 감지 <span class="highlight">31.5% 향상</span>
+하이브리드 샘플링 → 스토리지 <span class="highlight">57.2% 절감</span>
+비즈니스 크리티컬: 100% 보존 / 일반: 2~15% 샘플링
+
+<span class="comment">// 도입 전략</span>
+파일럿(12~18%) 먼저 → 전체 배포 <span class="highlight">2.4배 빠름</span>
+파일럿 대비 심각 이슈 64.7% 감소</pre>
+    </div>
+
+    <!-- Paper 5: Observability 2.0 -->
+    <div class="card" style="border-left:3px solid var(--accent2)">
+      <div class="card-title">📄 문서 5: Observability 2.0 & AI 융합 트렌드 (2025~2026)</div>
+      <table class="compare-table">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>출처</td><td>The New Stack, APM Digest, Dynatrace 기술 블로그 종합</td></tr>
+        <tr><td>중요도</td><td><span class="badge badge-purple">★★★★ 추천</span> — 향후 2~3년 방향 예측</td></tr>
+      </table>
+      <h4>핵심 트렌드</h4>
+      <ul class="point-list">
+        <li><strong>AIOps 자동 근본 원인 분석:</strong> 메트릭-로그-트레이스를 AI가 자동 상관분석. "왜 느려졌는지" 추정</li>
+        <li><strong>OTel Profiling (4번째 신호):</strong> 기존 3가지에 코드 레벨 성능 분석 추가. eBPF 기반</li>
+        <li><strong>LLM 옵저버빌리티:</strong> AI 앱의 토큰 사용량·응답 품질·비용 모니터링 부상</li>
+        <li><strong>옵저버빌리티 시장 연간 15% 성장</strong> (Gartner 전망, 2022~2027)</li>
+        <li><strong>OTel이 Kubernetes 다음으로 CNCF에서 가장 활발한 프로젝트</strong></li>
+      </ul>
+    </div>
+
+    <h3>논문 전체 지도 & 읽기 순서</h3>
+    <table class="compare-table">
+      <tr><th>순서</th><th>논문/문서</th><th>분야</th><th>핵심 기여</th></tr>
+      <tr><td>1️⃣</td><td><strong>Google SRE Book</strong> Ch.6</td><td>모니터링 철학</td><td>4 Golden Signals, 알림 원칙</td></tr>
+      <tr><td>2️⃣</td><td><strong>Google Dapper</strong></td><td>분산 추적</td><td>Span/Trace 개념, 샘플링</td></tr>
+      <tr><td>3️⃣</td><td><strong>Facebook Gorilla</strong></td><td>시계열 DB</td><td>Delta-of-Delta + XOR 압축</td></tr>
+      <tr><td>4️⃣</td><td><strong>OTel Future</strong> (IJCET)</td><td>옵저버빌리티</td><td>도입 수치, 샘플링 전략</td></tr>
+      <tr><td>5️⃣</td><td><strong>Observability 2.0</strong></td><td>AI 융합</td><td>AIOps, Profiling 트렌드</td></tr>
+    </table>
+
+    <div class="highlight-box">
+      💡 <strong>학습 순서:</strong> SRE Book Ch.6 (무료, 한국어 번역 있음) → Dapper 요약본 → Gorilla 요약본 순서로 읽으면 모니터링의 "왜"를 깊이 이해할 수 있습니다.
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 12. 커스텀 납품 전략 -->
+  <!-- ============================== -->
+  <section id="s12">
+    <div class="section-label">12</div>
+    <h2>개발자 커스텀 납품 전략</h2>
+
+    <p>Zabbix 내부(C, PHP)를 건드릴 필요 없이, <strong>API 레이어 위에 커스텀 화면</strong>을 얹는 방식으로 납품합니다.</p>
+
+    <div class="layer-diagram">
+      <div class="layer" style="background:rgba(124,58,237,0.15);border-left:3px solid #7c3aed">
+        <div><div class="layer-name">커스텀 대시보드</div><div class="layer-desc">React / Vue.js + 익숙한 언어로 제작</div></div>
+        <span class="badge badge-purple">개발자가 만드는 부분</span>
+      </div>
+      <div class="layer" style="background:rgba(245,158,11,0.08);border-left:3px solid #f59e0b">
+        <div><div class="layer-name">Zabbix API / OTel Collector</div><div class="layer-desc">JSON 형식으로 데이터 주고받음. 어떤 언어에서도 호출 가능</div></div>
+        <span class="badge badge-amber">연결 지점</span>
+      </div>
+      <div class="layer" style="background:rgba(0,212,255,0.08);border-left:3px solid var(--accent)">
+        <div><div class="layer-name">Zabbix 코어 / Prometheus</div><div class="layer-desc">C, PHP / Go 그대로 유지. 건드리지 않음</div></div>
+        <span class="badge badge-blue">오픈소스 그대로</span>
+      </div>
+    </div>
+
+    <h3>유지보수 핵심: API 호출을 한 곳에 모으기</h3>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title" style="color:var(--danger)">❌ 나쁜 구조</div>
+        <pre><span class="danger">페이지A.js → Zabbix API 직접 호출
+페이지B.js → Zabbix API 직접 호출
+페이지C.js → Zabbix API 직접 호출
+
+API 바뀌면 전부 수정해야 함</span></pre>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--accent3)">✅ 좋은 구조</div>
+        <pre><span class="highlight">MonitoringService.js ← API 호출 여기만
+페이지A.js → MonitoringService 호출
+페이지B.js → MonitoringService 호출
+
+API 바뀌면 여기만 수정
+Zabbix → Prometheus 전환도 여기만</span></pre>
+      </div>
+    </div>
+
+    <h3>기존 납품 vs 커스텀 납품 비교</h3>
+    <table class="compare-table">
+      <tr><th>항목</th><th>기존 Zabbix 납품</th><th>커스텀 납품</th></tr>
+      <tr><td>인터페이스</td><td>영어 화면 그대로</td><td>한글 커스텀 화면</td></tr>
+      <tr><td>알림</td><td>이메일만</td><td>카카오톡 + 슬랙 + SMS</td></tr>
+      <tr><td>접근성</td><td>전문가만 가능</td><td>비전문가도 이해 가능</td></tr>
+      <tr><td>보고서</td><td>수작업</td><td>월간 보고서 자동 생성</td></tr>
+      <tr><td>서버 추가</td><td>전부 수작업</td><td>마법사로 자동화</td></tr>
+      <tr><td>원인 분석</td><td>전무</td><td>AI 기반 원인 추정 제공</td></tr>
+      <tr><td>모바일</td><td>없음</td><td>반응형 웹 + PWA</td></tr>
+    </table>
+
+    <h3>핵심 전략: 모니터링계의 Sentry</h3>
+
+    <p>Sentry는 "에러 추적 하나만" 파고들어 기업 가치 $3.5B(약 4조원)이 된 회사입니다. Datadog 같은 올인원 도구가 있음에도 별도로 쓰입니다. <strong>"이것 하나만큼은 얘가 최고"</strong>이기 때문입니다.</p>
+
+    <div class="strategy-box">
+      <div class="title">// SUCCESS_FORMULA.md</div>
+      <pre><span class="comment">// Sentry가 한 것</span>
+타겟 명확화  → "개발자, 에러 추적"
+설치 간단    → 코드 5줄로 연동
+즉시 가치    → 설치하자마자 에러 보임
+무료 티어    → 써보게 만들기
+유료 전환    → 팀/기업 기능은 유료
+
+<span class="comment">// 여러분이 적용할 수 있는 것</span>
+타겟 명확화  → "IT 전담 없는 중소기업"
+설치 간단    → 에이전트 파일 하나로 끝
+즉시 가치    → 설치 5분 안에 대시보드 뜸
+무료 티어    → 서버 3대까지 무료
+유료 전환    → 알림·보고서는 유료</pre>
+    </div>
+
+    <h3>수익 모델</h3>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🔨 납품형</div>
+        <pre>구축비:      500만~수천만원
+유지보수:    연 100만원~
+버전 업그레이드: 별도 견적
+
+<span class="comment">한 번 팔고 끝나는 구조
+시간을 파는 방식</span></pre>
+      </div>
+      <div class="card">
+        <div class="card-title">☁ SaaS 구독형</div>
+        <pre>월 구독료:  서버 10대 기준 5만원
+
+고객사 100곳
+= 월 500만원 <span class="highlight">고정 수익</span>
+= 잠자면서도 돈 들어오는 구조
+
+<span class="comment">제니퍼도 초기 납품형 → 구독형 전환</span></pre>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      💡 시작은 납품형으로 경험을 쌓고, 이후 SaaS로 전환하는 것이 현실적인 경로입니다.
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ============================== -->
+  <!-- 12. 개발 로드맵 & 학습 순서 -->
+  <!-- ============================== -->
+  <section id="s13">
+    <div class="section-label">13</div>
+    <h2>개발 로드맵 & 학습 순서</h2>
+
+    <h3>기술 학습 순서 (보강판) <span class="new-badge">ENHANCED</span></h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <strong>Uptime Kuma 설치 & 분석</strong> — Docker 한 줄로 설치. 코드 구조(Node.js + Vue.js + SQLite)를 분석하면 모니터링 MVP의 교과서. 알림 채널 연동 방식도 참고.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <strong>Grafana + Prometheus 연동</strong> — 30분 안에 예쁜 대시보드 완성. PromQL 기초 학습. 메트릭 수집-저장-시각화 파이프라인의 핵심 이해.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <strong>OpenTelemetry Collector 구축</strong> — OTel Collector를 설치하고, 간단한 애플리케이션에서 메트릭/트레이스를 보내보기. 벤더 중립 파이프라인 이해.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <strong>Zabbix 학습 + API 활용</strong> — 국내 납품용 핵심 도구. JSON-RPC API로 호스트 목록, 메트릭 조회, 알림 설정을 Python/JS에서 해보기.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <strong>간단한 에이전트 직접 만들기</strong> — Python으로 CPU/메모리/디스크를 수집하여 REST API로 전송하는 에이전트 제작. Go로 리팩토링하면 실력 급상승.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <strong>카카오톡 알림 연동</strong> — 알림톡 API 또는 카카오워크 Webhook으로 실제 알림 발송 구현. 디바운싱, 중복 제거 로직 추가.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <strong>실전 인터뷰</strong> — 주변 IT 담당자 5명에게 "모니터링 관련해서 제일 불편한 게 뭐예요?" 공통된 불편함 하나 발견.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">8</div>
+        <div class="step-content">
+          <strong>그 불편함 하나만 해결하는 도구 만들기</strong> — 무료로 써달라고 하고 피드백 받기. 반복.
+        </div>
+      </div>
+    </div>
+
+    <h3>현실적인 MVP 개발 로드맵</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content"><strong>3개월 MVP</strong> — 서버 에이전트 (CPU·메모리·디스크) + 웹 대시보드 + 카카오톡 알림. <span class="badge badge-green">여기까지만 해도 납품 가능</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content"><strong>6개월</strong> — 모바일 최적화 + 월간 보고서 자동 생성 + 서버 추가 마법사 + SNMP 네트워크 장비 모니터링</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content"><strong>1년</strong> — 이상 패턴 AI 감지 + 다중 고객사 관리 (SaaS화) + OpenTelemetry 호환 + 로그 수집</div>
+      </div>
+    </div>
+
+    <h3>추천 학습 자료 <span class="new-badge">ENHANCED</span></h3>
+    <table class="compare-table">
+      <tr><th>주제</th><th>자료</th><th>형태</th></tr>
+      <tr><td style="color:var(--danger)">📄 모니터링 철학</td><td>sre.google/sre-book (Ch.6)</td><td>무료 도서 (필독)</td></tr>
+      <tr><td style="color:var(--danger)">📄 분산 추적 기원</td><td>Google Dapper 논문 (research.google)</td><td>논문 (필독)</td></tr>
+      <tr><td style="color:var(--danger)">📄 시계열 DB 설계</td><td>Facebook Gorilla 논문 (VLDB 2015)</td><td>논문 (필독)</td></tr>
+      <tr><td>OTel 입문</td><td>opentelemetry.io/docs</td><td>공식 문서</td></tr>
+      <tr><td>Prometheus</td><td>prometheus.io/docs/introduction</td><td>공식 문서</td></tr>
+      <tr><td>PromQL</td><td>promlabs.com/promql-cheat-sheet</td><td>치트시트</td></tr>
+      <tr><td>Grafana</td><td>grafana.com/tutorials</td><td>튜토리얼</td></tr>
+      <tr><td>Zabbix API</td><td>zabbix.com/documentation/current/en/manual/api</td><td>API 문서</td></tr>
+      <tr><td>SigNoz</td><td>signoz.io/docs</td><td>공식 문서</td></tr>
+      <tr><td>Uptime Kuma</td><td>github.com/louislam/uptime-kuma</td><td>소스코드 분석</td></tr>
+      <tr><td>OTel 도입 실증</td><td>IJCET Vol.16 (2025) - Sivakumaran</td><td>학술 논문</td></tr>
+    </table>
+  </section>
+
+  <footer>
+    <div>MONITORING SYSTEM STUDY NOTES — ENHANCED EDITION</div>
+    <div style="margin-top:8px;color:#1e293b">
+      Zabbix · Prometheus · Grafana · SigNoz · Uptime Kuma · OpenTelemetry · Checkmk · VictoriaMetrics · Loki
+    </div>
+    <div style="margin-top:12px;color:#334155">2026.03 기준 리서치 반영 · 오픈소스 생태계 + 기술 지식 + 논문 분석 보강</div>
+  </footer>
+
+</div>
+
+</body>
+</html>
