@@ -55,4 +55,9 @@ owlmon/
 ## Conventions
 - 문서는 한국어 기본, 기술 용어는 영문 병기
 - 코드 주석: 한국어
-- Commit message: 영문
+- Commit message: Conventional Commits (한국어)
+  - 형식: `<type>(<scope>): <subject>`
+  - type: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
+  - scope: agent, api, web, infra, ci 등 (선택)
+  - subject: 한국어, 마침표 없음
+  - body: 선택, "왜" 변경했는지
