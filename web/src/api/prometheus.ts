@@ -38,14 +38,15 @@ export async function fetchHosts(): Promise<string[]> {
   return res.data?.data ?? []
 }
 
-// 호스트 다운 여부 확인 (마지막 메트릭 수신 후 90초 초과 시 다운으로 판단)
+// 호스트 다운 여부 확인 (최근 2분 내 데이터가 있으면 온라인)
 export async function fetchHostStatus(host: string): Promise<'online' | 'offline'> {
   const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
-    params: { query: `(time() - timestamp(system_cpu_usage_percent{host_name="${host}"})) > 90` },
+    params: { query: `count_over_time(system_cpu_usage_percent{host_name="${host}"}[2m])` },
   })
   const result = res.data?.data?.result
-  // 쿼리 결과가 있으면 90초 이상 데이터가 없는 것 → 오프라인
-  return result && result.length > 0 ? 'offline' : 'online'
+  // 결과 있음 → 최근 2분 내 데이터 수신 → 온라인
+  // 결과 없음 → 데이터 없거나 만료 → 오프라인
+  return result && result.length > 0 ? 'online' : 'offline'
 }
 
 // 전체 호스트 상태 맵 조회
@@ -54,13 +55,53 @@ export async function fetchAllHostStatuses(hosts: string[]): Promise<Record<stri
   return Object.fromEntries(hosts.map((h, i) => [h, statuses[i]]))
 }
 
+export interface ServiceCheck {
+  name: string
+  type: string
+  target: string
+  status: number
+  latencyMs: number | null
+}
+
+// 특정 호스트의 서비스 체크 결과 조회
+export async function fetchServiceChecks(host: string): Promise<ServiceCheck[]> {
+  const [statusRes, latencyRes] = await Promise.all([
+    axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      params: { query: `service_check_status{host_name="${host}"}` },
+    }),
+    axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      params: { query: `service_check_latency_ms{host_name="${host}"}` }, // unit 없이 정의했으므로 suffix 없음
+    }),
+  ])
+
+  const statusResults = statusRes.data?.data?.result ?? []
+  const latencyResults = latencyRes.data?.data?.result ?? []
+
+  // latency 맵 생성 (check_name 기준)
+  const latencyMap: Record<string, number> = {}
+  for (const r of latencyResults) {
+    latencyMap[r.metric.check_name] = parseFloat(r.value[1])
+  }
+
+  return statusResults.map((r: { metric: Record<string, string>; value: [number, string] }) => ({
+    name: r.metric.check_name,
+    type: r.metric.check_type,
+    target: r.metric.target,
+    status: parseFloat(r.value[1]),
+    latencyMs: latencyMap[r.metric.check_name] ?? null,
+  }))
+}
+
 // 특정 호스트의 현재 메트릭
+// 오프라인 상태일 경우 최근 1시간 내 마지막 값을 반환
 export async function fetchMetrics(host?: string) {
   const filter = host ? `{host_name="${host}"}` : ''
+
+  // last_over_time: 지정 범위 내 마지막 값 반환 (오프라인 시에도 직전 값 표시)
   const [cpu, memory, disk] = await Promise.all([
-    query(`system_cpu_usage_percent${filter}`),
-    query(`system_memory_usage_percent${filter}`),
-    query(`system_disk_usage_percent${filter}`),
+    query(`last_over_time(system_cpu_usage_percent${filter}[1h])`),
+    query(`last_over_time(system_memory_usage_percent${filter}[1h])`),
+    query(`last_over_time(system_disk_usage_percent${filter}[1h])`),
   ])
   return { cpu, memory, disk }
 }
