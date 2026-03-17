@@ -142,10 +142,41 @@
   <div class="item">
     <div class="item-header">
       <span class="item-title">HTTP/TCP 서비스 체크</span>
-      <span class="status-badge todo">예정</span>
+      <span class="status-badge done">완료</span>
     </div>
-    <div class="item-desc">웹사이트, 포트 응답 감시</div>
-    <div class="item-detail">HTTP 응답코드, 응답시간 / TCP 포트 열림 여부 / SSL 인증서 만료 감지.</div>
+    <div class="item-desc">에이전트 · collector/servicecheck.go</div>
+    <div class="item-detail">
+      설정 파일(<code>config.yaml</code>)에 체크 대상 목록 정의. HTTP 응답코드/응답시간, TCP 포트 열림 여부 수집.
+      <code>service_check_status</code>(1=정상, 0=장애), <code>service_check_latency_ms</code> 메트릭으로 Prometheus에 저장.
+      대시보드에 서비스 체크 카드로 표시.
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">오프라인 호스트 감지 개선</span>
+      <span class="status-badge done">완료</span>
+    </div>
+    <div class="item-desc">프론트엔드 · api/prometheus.ts</div>
+    <div class="item-detail">
+      기존 <code>timestamp()</code> 방식은 시리즈 만료 시 오프라인을 온라인으로 오판하는 문제 있었음.
+      <code>count_over_time([2m])</code>으로 교체 — 최근 2분 내 데이터 없으면 오프라인으로 판단.
+      오프라인 시 <code>last_over_time([1h])</code>으로 마지막 수집 값 표시.
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">JWT 기반 로그인/인증 구현</span>
+      <span class="status-badge done">완료</span>
+    </div>
+    <div class="item-desc">백엔드 서버 · server/</div>
+    <div class="item-detail">
+      Go 백엔드 서버(<code>server/</code>) 추가. 로그인 API가 JWT 발급, 이후 모든 Prometheus 조회는 JWT 인증 후 백엔드가 프록시.
+      비밀번호는 bcrypt 해시로 저장 — 환경변수(<code>OWLMON_PASSWORD_HASH</code>)로 관리.
+      공공기관 납품 시 설치 스크립트에서 <code>hashpw</code> 유틸로 해시 생성 후 설정.
+      JWT 유효기간 8시간 (업무시간 기준).
+    </div>
   </div>
 
   <div class="item">
@@ -154,16 +185,7 @@
       <span class="status-badge todo">예정</span>
     </div>
     <div class="item-desc">임계값 초과 / 서버 다운 알림</div>
-    <div class="item-detail">카카오톡 알림톡, 슬랙, 이메일. 디바운싱 + 중복 제거 + 심각도 분류 필수.</div>
-  </div>
-
-  <div class="item">
-    <div class="item-header">
-      <span class="item-title">로그인 / 인증</span>
-      <span class="status-badge todo">예정</span>
-    </div>
-    <div class="item-desc">현재 누구나 대시보드 접근 가능</div>
-    <div class="item-detail">API 키 또는 JWT 기반 인증. 멀티테넌트 대비 설계.</div>
+    <div class="item-detail">이메일, SMS 우선 (공공기관 기준). 디바운싱 + 중복 제거 + 심각도 분류 필수.</div>
   </div>
 
 </div>
