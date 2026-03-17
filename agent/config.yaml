@@ -1,0 +1,17 @@
+otlp_endpoint: "localhost:4317"
+
+checks:
+  - name: "Google"
+    type: http
+    target: "https://www.google.com"
+    interval: 60s
+
+  - name: "로컬 HTTP"
+    type: http
+    target: "http://localhost:3000"
+    interval: 60s
+
+  - name: "OTel Collector gRPC 포트"
+    type: tcp
+    target: "localhost:4317"
+    interval: 60s

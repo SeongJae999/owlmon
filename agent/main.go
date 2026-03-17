@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/seongJae/owlmon/agent/collector"
+	"github.com/seongJae/owlmon/agent/config"
 	"github.com/seongJae/owlmon/agent/exporter"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -16,8 +17,18 @@ import (
 )
 
 func main() {
-	// OTel Collector 주소 (환경변수 또는 기본값)
-	endpoint := getEnv("OWLMON_OTLP_ENDPOINT", "localhost:4317")
+	// 설정 파일 로드 (없으면 기본값으로 동작)
+	cfg, err := config.Load(getEnv("OWLMON_CONFIG", "config.yaml"))
+	if err != nil {
+		log.Printf("설정 파일 로드 실패, 기본값 사용: %v", err)
+		cfg = &config.Config{}
+	}
+
+	// 환경변수가 설정 파일보다 우선
+	endpoint := getEnv("OWLMON_OTLP_ENDPOINT", cfg.OTLPEndpoint)
+	if endpoint == "" {
+		endpoint = "localhost:4317"
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -53,7 +64,7 @@ func main() {
 
 	meter := provider.Meter("owlmon.agent")
 
-	// 각 수집기 초기화
+	// 시스템 메트릭 수집기 초기화
 	if _, err := collector.NewCPUCollector(meter); err != nil {
 		log.Fatalf("CPU 수집기 초기화 실패: %v", err)
 	}
@@ -64,8 +75,13 @@ func main() {
 		log.Fatalf("디스크 수집기 초기화 실패: %v", err)
 	}
 
+	// 서비스 체크 수집기 초기화 (설정 파일에 checks가 있을 때만)
+	if _, err := collector.NewServiceCheckCollector(meter, cfg.Checks); err != nil {
+		log.Fatalf("서비스 체크 수집기 초기화 실패: %v", err)
+	}
+
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)
-	log.Printf("수집 주기: 30초")
+	log.Printf("수집 주기: 30초 | 서비스 체크: %d개", len(cfg.Checks))
 
 	// 종료 시그널 대기 (Ctrl+C, SIGTERM)
 	quit := make(chan os.Signal, 1)
