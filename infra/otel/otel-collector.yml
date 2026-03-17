@@ -18,6 +18,8 @@ exporters:
   # Prometheus Remote Write로 메트릭 전송
   prometheusremotewrite:
     endpoint: "http://prometheus:9090/api/v1/write"
+    resource_to_telemetry_conversion:
+      enabled: true  # 리소스 속성(host.name 등)을 Prometheus 레이블로 변환
 
   # 디버그용 로그 출력
   debug:
