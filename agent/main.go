@@ -22,11 +22,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// OTLP gRPC exporter 생성
-	exp, err := exporter.NewOTLPExporter(ctx, endpoint)
+	// OTLP gRPC exporter 생성 (버퍼링 래퍼 포함)
+	otlpExp, err := exporter.NewOTLPExporter(ctx, endpoint)
 	if err != nil {
 		log.Fatalf("exporter 초기화 실패: %v", err)
 	}
+	exp := exporter.NewBufferedExporter(otlpExp)
 
 	// 리소스 정보 (어느 호스트에서 보낸 메트릭인지 식별)
 	hostname, _ := os.Hostname()
