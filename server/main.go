@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,15 +15,40 @@ import (
 	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/auth"
 	"github.com/seongJae/owlmon/server/handler"
+	"github.com/seongJae/owlmon/server/service"
 )
 
 func main() {
-	// 환경변수로 계정 관리 (납품 시 설치 스크립트에서 설정)
-	username     := getEnv("OWLMON_USERNAME", "admin")
-	passwordHash := getEnv("OWLMON_PASSWORD_HASH", "") // bcrypt 해시
-	jwtSecret    := getEnv("OWLMON_JWT_SECRET", "change-this-secret-in-production")
+	if service.IsService() {
+		// 서비스 모드: 로그를 파일로 저장
+		logFile, err := os.OpenFile(`C:\owlmon-server\service.log`,
+			os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			log.SetOutput(logFile)
+			defer logFile.Close()
+		}
+		log.Println("Windows 서비스 시작됨")
+		if err := service.Run(startServer); err != nil {
+			log.Fatalf("서비스 실행 실패: %v", err)
+		}
+		return
+	}
+	// 콘솔 모드: 시그널 대기
+	stop := startServer()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("OWLmon 서버 종료 중...")
+	stop()
+}
+
+// startServer는 서버를 시작하고 정지 함수를 반환합니다.
+func startServer() func() {
+	username := getEnv("OWLMON_USERNAME", "admin")
+	passwordHash := getEnv("OWLMON_PASSWORD_HASH", "")
+	jwtSecret := getEnv("OWLMON_JWT_SECRET", "change-this-secret-in-production")
 	prometheusURL := getEnv("OWLMON_PROMETHEUS_URL", "http://localhost:9090")
-	listenAddr   := getEnv("OWLMON_LISTEN", ":8080")
+	listenAddr := getEnv("OWLMON_LISTEN", ":8080")
 
 	if passwordHash == "" {
 		log.Fatal("OWLMON_PASSWORD_HASH 환경변수가 설정되지 않았습니다.\n" +
@@ -28,7 +56,7 @@ func main() {
 			"  go run ./cmd/hashpw <비밀번호>")
 	}
 
-	// 알림 체커 초기화 (SMTP 설정이 있을 때만 활성화)
+	// 알림 체커 초기화
 	smtpHost := getEnv("SMTP_HOST", "")
 	if smtpHost != "" {
 		emailCfg := &alert.EmailConfig{
@@ -45,7 +73,6 @@ func main() {
 		log.Println("SMTP_HOST 미설정 — 이메일 알림 비활성화")
 	}
 
-	// 핸들러 초기화
 	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret)
 	proxyHandler, err := handler.NewProxyHandler(prometheusURL)
 	if err != nil {
@@ -55,20 +82,28 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-
-	// 로그인 (인증 불필요)
 	r.Post("/api/auth/login", authHandler.Login)
-
-	// Prometheus 프록시 (JWT 필요) - 경로 그대로 Prometheus에 전달
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTMiddleware(jwtSecret))
 		r.Handle("/api/v1/*", proxyHandler)
 	})
 
-	log.Printf("OWLmon 서버 시작: %s", listenAddr)
-	log.Printf("Prometheus: %s", prometheusURL)
-	if err := http.ListenAndServe(listenAddr, r); err != nil {
-		log.Fatalf("서버 시작 실패: %v", err)
+	srv := &http.Server{Addr: listenAddr, Handler: r}
+
+	go func() {
+		log.Printf("OWLmon 서버 시작: %s", listenAddr)
+		log.Printf("Prometheus: %s", prometheusURL)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("서버 시작 실패: %v", err)
+		}
+	}()
+
+	return func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("서버 종료 실패: %v", err)
+		}
 	}
 }
 
