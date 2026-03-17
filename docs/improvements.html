@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OWLmon 개선 사항</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.7; }
+    .container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+    h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .subtitle { color: #94a3b8; margin-bottom: 48px; }
+    h2 { font-size: 1.3rem; font-weight: 600; color: #fff; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; }
+    h3 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 24px 0 12px; }
+
+    p { color: #94a3b8; margin-bottom: 12px; }
+    strong { color: #e2e8f0; }
+    code { background: #1e293b; color: #7dd3fc; padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.875rem; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .done { background: #14532d; color: #86efac; }
+    .todo { background: #1e3a5f; color: #7dd3fc; }
+    .wont { background: #1e293b; color: #475569; }
+
+    .item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .item-title { font-weight: 600; color: #e2e8f0; }
+    .item-desc { color: #64748b; font-size: 0.875rem; }
+    .item-detail { color: #94a3b8; font-size: 0.875rem; margin-top: 8px; }
+
+    .note { background: #1e3a5f; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; color: #93c5fd; font-size: 0.875rem; }
+    .warn { background: #422006; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; color: #fde68a; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>OWLmon 개선 사항</h1>
+  <p class="subtitle">개발 중 발견된 문제, 개선 내용, 향후 과제 정리</p>
+
+  <!-- 완료된 개선 -->
+  <h2>완료된 개선</h2>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">host_name 레이블 누락 수정</span>
+      <span class="status-badge done">완료</span>
+    </div>
+    <div class="item-desc">인프라 · OTel Collector 설정</div>
+    <div class="item-detail">
+      OTel Collector가 에이전트의 리소스 속성(<code>host.name</code>)을 Prometheus 레이블로 변환하지 않는 문제.
+      <code>infra/otel/otel-collector.yml</code>에 <code>resource_to_telemetry_conversion: enabled: true</code> 추가로 해결.
+      다중 호스트 구분에 필수.
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">Collector 재시도 설정 추가</span>
+      <span class="status-badge done">완료</span>
+    </div>
+    <div class="item-desc">에이전트 · exporter/otlp.go</div>
+    <div class="item-detail">
+      Collector 일시 다운 시 데이터가 즉시 유실되는 문제. OTLP exporter에 retry 설정 추가:
+      초기 간격 5초, 최대 간격 30초, 최대 재시도 5분.
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">인메모리 버퍼링 구현</span>
+      <span class="status-badge done">완료</span>
+    </div>
+    <div class="item-desc">에이전트 · exporter/buffered.go</div>
+    <div class="item-detail">
+      Collector 연결 실패 시 메트릭 데이터를 메모리에 보관(최대 100개 배치, 약 50분치)하다가
+      재연결 시 자동 전송. 버퍼 초과 시 가장 오래된 데이터부터 제거.
+    </div>
+  </div>
+
+  <!-- 알려진 한계 -->
+  <h2>알려진 한계</h2>
+
+  <div class="warn">
+    에이전트 자체가 꺼진 동안의 데이터는 복구 불가능합니다. 버퍼링은 에이전트가 살아있고 Collector만 다운된 경우에만 유효합니다. 이는 모든 Push 모델 모니터링의 근본적 한계입니다.
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">에이전트 다운 시 데이터 공백</span>
+      <span class="status-badge wont">근본적 한계</span>
+    </div>
+    <div class="item-desc">에이전트가 꺼진 구간은 데이터 없음</div>
+    <div class="item-detail">
+      Prometheus 기본 만료 시간(5분) 이후에도 에이전트가 재연결 안 되면 시리즈 만료.
+      재시작 후 30초 이내 새 데이터 수신 시 자동 복구됨.
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">버퍼 영속성 없음</span>
+      <span class="status-badge todo">향후 과제</span>
+    </div>
+    <div class="item-desc">에이전트 재시작 시 버퍼 데이터 소실</div>
+    <div class="item-detail">
+      현재 인메모리 버퍼라 에이전트 재시작 시 버퍼 초기화됨.
+      파일 기반 버퍼(SQLite 또는 WAL 파일)로 개선 시 재시작 후에도 미전송 데이터 유지 가능.
+    </div>
+  </div>
+
+  <!-- 향후 과제 -->
+  <h2>향후 과제</h2>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">파일 기반 영속 버퍼</span>
+      <span class="status-badge todo">예정</span>
+    </div>
+    <div class="item-desc">에이전트 재시작 후에도 미전송 데이터 보존</div>
+    <div class="item-detail">SQLite 또는 WAL 파일에 버퍼 저장. 에이전트 재시작 시 이전 버퍼 복구 후 전송.</div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">HTTP/TCP 서비스 체크</span>
+      <span class="status-badge todo">예정</span>
+    </div>
+    <div class="item-desc">웹사이트, 포트 응답 감시</div>
+    <div class="item-detail">HTTP 응답코드, 응답시간 / TCP 포트 열림 여부 / SSL 인증서 만료 감지.</div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">알림 연동</span>
+      <span class="status-badge todo">예정</span>
+    </div>
+    <div class="item-desc">임계값 초과 / 서버 다운 알림</div>
+    <div class="item-detail">카카오톡 알림톡, 슬랙, 이메일. 디바운싱 + 중복 제거 + 심각도 분류 필수.</div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">로그인 / 인증</span>
+      <span class="status-badge todo">예정</span>
+    </div>
+    <div class="item-desc">현재 누구나 대시보드 접근 가능</div>
+    <div class="item-detail">API 키 또는 JWT 기반 인증. 멀티테넌트 대비 설계.</div>
+  </div>
+
+</div>
+</body>
+</html>
