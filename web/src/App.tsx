@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import MetricCard from './components/MetricCard'
-import { fetchMetrics, fetchHosts, fetchAllHostStatuses, queryRange } from './api/prometheus'
+import ServiceCheckCard from './components/ServiceCheckCard'
+import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchServiceChecks, queryRange } from './api/prometheus'
+import type { ServiceCheck } from './api/prometheus'
 
 interface Metrics {
   cpu: number | null
@@ -20,6 +22,7 @@ export default function App() {
   const [selectedHost, setSelectedHost] = useState<string>('')
   const [metrics, setMetrics] = useState<Metrics>({ cpu: null, memory: null, disk: null })
   const [chartData, setChartData] = useState<ChartData>({ cpu: [], memory: [], disk: [] })
+  const [serviceChecks, setServiceChecks] = useState<ServiceCheck[]>([])
   const [lastUpdated, setLastUpdated] = useState<string>('-')
 
   // 호스트 목록 초기 로드
@@ -32,16 +35,18 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     if (!selectedHost || hosts.length === 0) return
-    const [current, cpuRange, memRange, diskRange, statuses] = await Promise.all([
+    const [current, cpuRange, memRange, diskRange, statuses, checks] = await Promise.all([
       fetchMetrics(selectedHost),
       queryRange(`system_cpu_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_memory_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_disk_usage_percent{host_name="${selectedHost}"}`),
       fetchAllHostStatuses(hosts),
+      fetchServiceChecks(selectedHost),
     ])
     setMetrics(current)
     setChartData({ cpu: cpuRange, memory: memRange, disk: diskRange })
     setHostStatuses(statuses)
+    setServiceChecks(checks)
     setLastUpdated(new Date().toLocaleTimeString('ko-KR'))
   }, [selectedHost, hosts])
 
@@ -107,14 +112,7 @@ export default function App() {
                     gap: 6,
                   }}
                 >
-                  {/* 상태 점 */}
-                  <span style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: dotColor,
-                    flexShrink: 0,
-                  }} />
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
                   {host}
                 </button>
               )
@@ -137,37 +135,37 @@ export default function App() {
             gap: 8,
           }}>
             <span>●</span>
-            <span><strong>{selectedHost}</strong> — 에이전트 연결이 끊겼습니다. 마지막 데이터를 표시하고 있습니다.</span>
+            <span><strong>{selectedHost}</strong> — 에이전트 연결이 끊겼습니다. 최근 1시간 내 마지막 수집 값을 표시합니다.</span>
           </div>
         )}
 
-        {/* 메트릭 카드 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
-          <MetricCard
-            title="CPU 사용률"
-            value={metrics.cpu}
-            data={chartData.cpu}
-            color="#7dd3fc"
-            warning={70}
-            critical={90}
-          />
-          <MetricCard
-            title="메모리 사용률"
-            value={metrics.memory}
-            data={chartData.memory}
-            color="#a78bfa"
-            warning={80}
-            critical={95}
-          />
-          <MetricCard
-            title="디스크 사용률"
-            value={metrics.disk}
-            data={chartData.disk}
-            color="#34d399"
-            warning={75}
-            critical={90}
-          />
+        {/* 시스템 메트릭 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 32 }}>
+          <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={70} critical={90} />
+          <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={80} critical={95} />
+          <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={75} critical={90} />
         </div>
+
+        {/* 서비스 체크 */}
+        {serviceChecks.length > 0 && (
+          <>
+            <h2 style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, marginBottom: 12, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              서비스 체크
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+              {serviceChecks.map((check) => (
+                <ServiceCheckCard
+                  key={check.name}
+                  name={check.name}
+                  type={check.type}
+                  target={check.target}
+                  status={check.status}
+                  latencyMs={check.latencyMs}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
       </div>
     </div>
