@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OWLmon 기술스택 상세 정리</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.7; }
+    .container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+    h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .subtitle { color: #94a3b8; margin-bottom: 48px; }
+    h2 { font-size: 1.3rem; font-weight: 600; color: #fff; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; }
+    h3 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 24px 0 12px; }
+
+    p { color: #94a3b8; margin-bottom: 12px; }
+    strong { color: #e2e8f0; }
+    code { background: #1e293b; color: #7dd3fc; padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.875rem; }
+
+    pre {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+      font-family: 'Consolas', monospace;
+      font-size: 0.875rem;
+      color: #e2e8f0;
+      line-height: 1.8;
+    }
+    pre .key { color: #7dd3fc; }
+    pre .val { color: #86efac; }
+    pre .comment { color: #475569; }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th { background: #1e293b; color: #94a3b8; font-weight: 600; text-align: left; padding: 10px 14px; font-size: 0.875rem; }
+    td { padding: 10px 14px; border-top: 1px solid #1e293b; color: #cbd5e1; font-size: 0.875rem; }
+    tr:hover td { background: #1a2234; }
+
+    .tier-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    .tier1 { background: #14532d; color: #86efac; }
+    .tier2 { background: #1e3a5f; color: #7dd3fc; }
+    .tier3 { background: #2d1b69; color: #c4b5fd; }
+
+    .phase-block {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 12px 0;
+    }
+    .phase-title { font-weight: 700; color: #7dd3fc; margin-bottom: 12px; font-size: 0.9rem; }
+    .phase-row { display: flex; gap: 12px; margin-bottom: 6px; font-size: 0.875rem; }
+    .phase-label { color: #475569; width: 70px; flex-shrink: 0; font-family: 'Consolas', monospace; }
+    .phase-content { color: #94a3b8; }
+
+    ul { padding-left: 20px; margin: 12px 0; }
+    li { color: #94a3b8; margin-bottom: 6px; }
+
+    .todo-list { list-style: none; padding: 0; }
+    .todo-list li { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid #1e293b; }
+    .todo-list li:first-child { border-top: none; }
+    .checkbox { width: 16px; height: 16px; border: 2px solid #334155; border-radius: 3px; flex-shrink: 0; }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .spec-item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .spec-label { color: #475569; font-size: 0.75rem; margin-bottom: 4px; }
+    .spec-value { color: #7dd3fc; font-size: 1.1rem; font-weight: 700; font-family: 'Consolas', monospace; }
+
+    .note { background: #1e3a5f; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; color: #93c5fd; font-size: 0.875rem; }
+    .warn { background: #422006; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; color: #fde68a; font-size: 0.875rem; }
+
+    ol { padding-left: 20px; margin: 12px 0; }
+    ol li { color: #94a3b8; margin-bottom: 8px; }
+    ol li strong { color: #e2e8f0; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>OWLmon 기술스택 상세 정리</h1>
+  <p class="subtitle">모니터링 도구 생태계 분석 및 OWLmon 개발 기술 선택 근거</p>
+
+  <!-- 1. 모니터링 도구 생태계 -->
+  <h2>1. 모니터링 도구 생태계</h2>
+
+  <h3>Tier 1 — 핵심 학습 대상</h3>
+  <table>
+    <tr><th>도구</th><th>카테고리</th><th>언어</th><th>OTel</th><th>왜 배워야 하나</th></tr>
+    <tr>
+      <td><strong>Prometheus</strong></td><td>메트릭</td><td>Go</td>
+      <td><span class="tier-badge tier1">완벽</span></td>
+      <td>클라우드 메트릭 수집의 표준, PromQL 필수</td>
+    </tr>
+    <tr>
+      <td><strong>Grafana</strong></td><td>시각화</td><td>Go/TS</td>
+      <td><span class="tier-badge tier1">완벽</span></td>
+      <td>대시보드 시각화 표준, 커스텀 패널 개발 참고</td>
+    </tr>
+    <tr>
+      <td><strong>Zabbix</strong></td><td>인프라</td><td>C/PHP</td>
+      <td><span class="tier-badge tier3">제한적</span></td>
+      <td>국내 공공/제조/금융 납품 시 필수</td>
+    </tr>
+    <tr>
+      <td><strong>Uptime Kuma</strong></td><td>업타임</td><td>Node.js</td>
+      <td><span class="tier-badge" style="background:#1e293b;color:#64748b">X</span></td>
+      <td>MVP 코드 구조 벤치마크 (Node.js+Vue.js+SQLite)</td>
+    </tr>
+  </table>
+
+  <h3>Tier 2 — 확장 시 고려</h3>
+  <table>
+    <tr><th>도구</th><th>카테고리</th><th>언어</th><th>언제 필요한가</th></tr>
+    <tr><td><strong>SigNoz</strong></td><td>올인원</td><td>Go/TS</td><td>OTel 네이티브 올인원 필요 시</td></tr>
+    <tr><td><strong>VictoriaMetrics</strong></td><td>TSDB</td><td>Go</td><td>Prometheus 스케일 한계 도달 시</td></tr>
+    <tr><td><strong>Loki</strong></td><td>로그</td><td>Go</td><td>Grafana 스택 로그 분석 추가 시</td></tr>
+    <tr><td><strong>Checkmk</strong></td><td>인프라</td><td>Python/C++</td><td>Zabbix 대안 제안 필요 시</td></tr>
+  </table>
+
+  <h3>Tier 3 — 참고/벤치마크</h3>
+  <table>
+    <tr><th>도구</th><th>참고 포인트</th></tr>
+    <tr><td><strong>OpenObserve</strong></td><td>Rust 기반 초경량, S3 스토리지 활용 아이디어</td></tr>
+    <tr><td><strong>Gatus</strong></td><td>Go 기반 YAML 설정, 합성 모니터링 구현 참고</td></tr>
+    <tr><td><strong>OneUptime</strong></td><td>모니터링+상태페이지+인시던트 올인원 UX 참고</td></tr>
+  </table>
+
+  <!-- 2. OWLmon 개발 기술스택 -->
+  <h2>2. OWLmon 개발 기술스택</h2>
+
+  <div class="phase-block">
+    <div class="phase-title">Phase 1 — MVP (3개월)</div>
+    <div class="phase-row"><span class="phase-label">[수집]</span><span class="phase-content">Go 에이전트 + gopsutil → CPU/메모리/디스크 수집</span></div>
+    <div class="phase-row"><span class="phase-label">[전송]</span><span class="phase-content">OTLP/gRPC → OTel Collector</span></div>
+    <div class="phase-row"><span class="phase-label">[저장]</span><span class="phase-content">Prometheus TSDB (내장)</span></div>
+    <div class="phase-row"><span class="phase-label">[시각화]</span><span class="phase-content">React + TypeScript + Recharts/Visx</span></div>
+    <div class="phase-row"><span class="phase-label">[알림]</span><span class="phase-content">카카오워크 Webhook + Telegram Bot API</span></div>
+    <div class="phase-row"><span class="phase-label">[배포]</span><span class="phase-content">Docker Compose</span></div>
+  </div>
+
+  <div class="phase-block">
+    <div class="phase-title">Phase 2 — 성숙 (6개월)</div>
+    <div class="phase-row"><span class="phase-label">[전송]</span><span class="phase-content">OTLP/gRPC (OpenTelemetry 호환)</span></div>
+    <div class="phase-row"><span class="phase-label">[저장]</span><span class="phase-content">VictoriaMetrics (장기 보관)</span></div>
+    <div class="phase-row"><span class="phase-label">[시각화]</span><span class="phase-content">+ 모바일 반응형 PWA</span></div>
+    <div class="phase-row"><span class="phase-label">[알림]</span><span class="phase-content">+ 카카오톡 알림톡 API + SMS</span></div>
+    <div class="phase-row"><span class="phase-label">[보고서]</span><span class="phase-content">월간 PDF 자동 생성</span></div>
+    <div class="phase-row"><span class="phase-label">[네트워크]</span><span class="phase-content">SNMP v2c/v3 폴링</span></div>
+  </div>
+
+  <div class="phase-block">
+    <div class="phase-title">Phase 3 — SaaS (1년)</div>
+    <div class="phase-row"><span class="phase-label">[수집]</span><span class="phase-content">+ 로그 수집 파이프라인</span></div>
+    <div class="phase-row"><span class="phase-label">[저장]</span><span class="phase-content">ClickHouse (고카디널리티, 로그+트레이스)</span></div>
+    <div class="phase-row"><span class="phase-label">[AI]</span><span class="phase-content">이상 패턴 감지 (시계열 anomaly detection)</span></div>
+    <div class="phase-row"><span class="phase-label">[멀티테넌트]</span><span class="phase-content">고객사별 격리된 데이터/대시보드</span></div>
+    <div class="phase-row"><span class="phase-label">[OTel]</span><span class="phase-content">완전한 OTel Collector 호환</span></div>
+  </div>
+
+  <!-- 3. 핵심 프로토콜 -->
+  <h2>3. 핵심 프로토콜</h2>
+
+  <h3>SNMP (네트워크 장비)</h3>
+  <ul>
+    <li>v2c: GetBulk 지원, 보안 약함 → 내부망 전용</li>
+    <li>v3: 인증+암호화 → 권장</li>
+    <li>수집 대상: 라우터, 스위치, UPS, 프린터</li>
+    <li>Go 라이브러리: <code>gosnmp</code></li>
+  </ul>
+
+  <h3>OTLP (OpenTelemetry Protocol)</h3>
+  <ul>
+    <li>gRPC (port 4317) / HTTP (port 4318)</li>
+    <li>Metrics + Logs + Traces 통합</li>
+    <li>Protobuf 직렬화 (JSON 대비 10x 효율)</li>
+  </ul>
+
+  <h3>PromQL (메트릭 쿼리)</h3>
+  <ul>
+    <li>Prometheus/VictoriaMetrics/Grafana 공용</li>
+    <li>핵심 함수: <code>rate()</code>, <code>histogram_quantile()</code>, <code>increase()</code></li>
+    <li>4 Golden Signals 쿼리 패턴 숙지 필수</li>
+  </ul>
+
+  <h3>WebSocket (실시간 대시보드)</h3>
+  <ul>
+    <li>대시보드 실시간 갱신용</li>
+    <li>Uptime Kuma 참고: Socket.IO 사용</li>
+  </ul>
+
+  <!-- 4. 시계열 DB 선택 가이드 -->
+  <h2>4. 시계열 DB 선택 가이드</h2>
+  <table>
+    <tr><th>규모</th><th>추천 TSDB</th><th>이유</th></tr>
+    <tr><td>MVP (서버 ~10대)</td><td><strong>Prometheus 내장</strong></td><td>설치 간편, 충분한 성능</td></tr>
+    <tr><td>중규모 (서버 ~100대)</td><td><strong>VictoriaMetrics</strong></td><td>높은 압축률, PromQL 호환</td></tr>
+    <tr><td>대규모 (서버 100대+)</td><td><strong>ClickHouse</strong></td><td>고카디널리티, SQL 지원, 로그 통합</td></tr>
+  </table>
+
+  <div class="warn">
+    <strong>카디널리티 주의:</strong> 레이블에 user_id, session_id 등 무한 증가 값 금지.
+    서버별/서비스별/리전별 레이블만 사용. Prometheus는 고카디널리티에 취약 → 필요 시 ClickHouse 전환.
+  </div>
+
+  <!-- 5. 에이전트 설계 스펙 -->
+  <h2>5. 에이전트 설계 스펙</h2>
+  <div class="spec-grid">
+    <div class="spec-item"><div class="spec-label">메모리 목표</div><div class="spec-value">&lt; 10MB</div></div>
+    <div class="spec-item"><div class="spec-label">CPU 목표</div><div class="spec-value">&lt; 1%</div></div>
+    <div class="spec-item"><div class="spec-label">시스템 메트릭 수집 주기</div><div class="spec-value">30초</div></div>
+    <div class="spec-item"><div class="spec-label">서비스 체크 주기</div><div class="spec-value">60초</div></div>
+  </div>
+  <ul>
+    <li>버퍼링: 연결 끊김 시 로컬 버퍼 → 복구 후 전송</li>
+    <li>보안: TLS 통신 + API 키 인증</li>
+    <li>업데이트: 중앙 관리 자동 업데이트</li>
+  </ul>
+
+  <!-- 6. 핵심 논문/문서 -->
+  <h2>6. 핵심 논문/문서 (읽기 순서)</h2>
+  <ol>
+    <li><strong>Google SRE Book Ch.6</strong> — 4 Golden Signals, 알림 원칙</li>
+    <li><strong>Google Dapper (2010)</strong> — Span/Trace 개념, OTel의 기원</li>
+    <li><strong>Facebook Gorilla (VLDB 2015)</strong> — Delta-of-Delta + XOR 압축, TSDB 설계</li>
+    <li><strong>OTel Future (IJCET 2025)</strong> — 도입 실증 데이터, 샘플링 전략</li>
+    <li><strong>Observability 2.0</strong> — AIOps, OTel Profiling, LLM 모니터링 트렌드</li>
+  </ol>
+
+  <!-- 7. 보완이 필요한 영역 -->
+  <h2>7. 보완이 필요한 영역</h2>
+
+  <h3>아키텍처 결정 필요</h3>
+  <ul class="todo-list">
+    <li><span class="checkbox"></span>Frontend 프레임워크 확정 (React vs Vue)</li>
+    <li><span class="checkbox"></span>DB 선택: MVP에서 SQLite vs PostgreSQL</li>
+    <li><span class="checkbox"></span>인증/인가 방식 (JWT, API Key, OAuth)</li>
+    <li><span class="checkbox"></span>배포 전략 (Docker Compose → K8s)</li>
+  </ul>
+
+  <h3>리서치 보강</h3>
+  <ul class="todo-list">
+    <li><span class="checkbox"></span>카카오톡 알림톡 API 실제 연동 테스트</li>
+    <li><span class="checkbox"></span>SNMP v3 실제 장비 테스트</li>
+    <li><span class="checkbox"></span>경쟁사 분석 (국내: 와탭, 제니퍼, 데이터독 코리아)</li>
+    <li><span class="checkbox"></span>가격 정책 벤치마크</li>
+  </ul>
+
+</div>
+</body>
+</html>

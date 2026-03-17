@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OWLmon 에이전트 개발 가이드</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.7; }
+    .container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+    h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .subtitle { color: #94a3b8; margin-bottom: 48px; }
+    h2 { font-size: 1.3rem; font-weight: 600; color: #fff; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; }
+    h3 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin: 24px 0 12px; }
+
+    p { color: #94a3b8; margin-bottom: 12px; }
+    strong { color: #e2e8f0; }
+    code { background: #1e293b; color: #7dd3fc; padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.875rem; }
+
+    pre {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+      font-family: 'Consolas', monospace;
+      font-size: 0.875rem;
+      color: #e2e8f0;
+      line-height: 1.6;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th { background: #1e293b; color: #94a3b8; font-weight: 600; text-align: left; padding: 10px 14px; font-size: 0.875rem; }
+    td { padding: 10px 14px; border-top: 1px solid #1e293b; color: #cbd5e1; font-size: 0.875rem; }
+    tr:hover td { background: #1a2234; }
+
+    .badge { display: inline-block; background: #1e3a5f; color: #7dd3fc; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge.green { background: #14532d; color: #86efac; }
+    .badge.yellow { background: #422006; color: #fde68a; }
+
+    .flow {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 16px 0;
+      font-family: 'Consolas', monospace;
+      font-size: 0.875rem;
+      color: #94a3b8;
+      line-height: 2;
+    }
+    .flow .label { color: #7dd3fc; font-weight: 600; }
+    .flow .arrow { color: #475569; }
+
+    ul { padding-left: 20px; margin: 12px 0; }
+    li { color: #94a3b8; margin-bottom: 6px; }
+
+    .todo-list { list-style: none; padding: 0; }
+    .todo-list li { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid #1e293b; }
+    .todo-list li:first-child { border-top: none; }
+    .checkbox { width: 16px; height: 16px; border: 2px solid #334155; border-radius: 3px; flex-shrink: 0; }
+
+    .note { background: #1e3a5f; border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0; color: #93c5fd; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>OWLmon 에이전트 개발 가이드</h1>
+  <p class="subtitle">모니터링 대상 서버에 설치되어 시스템 메트릭을 수집하고 OTel Collector로 전송하는 Go 에이전트</p>
+
+  <!-- 왜 Go인가 -->
+  <h2>왜 Go인가?</h2>
+  <p>Python으로 MVP를 만들 수도 있지만, 에이전트는 <strong>항상 떠 있는 프로세스</strong>라 언어 선택이 중요합니다.</p>
+  <table>
+    <tr><th>항목</th><th>Python</th><th>Go</th></tr>
+    <tr><td>메모리</td><td>~50MB</td><td>~10MB</td></tr>
+    <tr><td>바이너리</td><td>런타임 필요</td><td>단일 실행파일</td></tr>
+    <tr><td>배포</td><td>pip + 의존성 관리</td><td>파일 하나 복사</td></tr>
+    <tr><td>성능</td><td>상대적으로 느림</td><td>네이티브 수준</td></tr>
+  </table>
+  <div class="note">목표: 메모리 10MB 이하, CPU 1% 이하 — Go가 유리합니다.</div>
+
+  <!-- 코드 구조 -->
+  <h2>코드 구조</h2>
+  <pre>agent/
+├── main.go              # 진입점: MeterProvider 초기화, 수집기 등록, 종료 처리
+├── collector/
+│   ├── cpu.go          # CPU 사용률 수집 (전체 평균 %)
+│   ├── memory.go       # 메모리 사용률 + 사용량(bytes) 수집
+│   └── disk.go         # 마운트포인트별 디스크 사용률 수집
+└── exporter/
+    └── otlp.go         # OTel Collector로 gRPC 전송</pre>
+
+  <h3>데이터 흐름</h3>
+  <div class="flow">
+    <div><span class="label">[서버 OS]</span></div>
+    <div><span class="arrow">    ↓ gopsutil (30초마다)</span></div>
+    <div><span class="label">[collector/cpu, memory, disk]</span></div>
+    <div><span class="arrow">    ↓ OTel SDK (메트릭 누적)</span></div>
+    <div><span class="label">[MeterProvider → PeriodicReader]</span></div>
+    <div><span class="arrow">    ↓ gRPC (OTLP)</span></div>
+    <div><span class="label">[OTel Collector :4317]</span></div>
+    <div><span class="arrow">    ↓</span></div>
+    <div><span class="label">[Prometheus / 대시보드]</span></div>
+  </div>
+
+  <!-- 수집 메트릭 -->
+  <h2>수집 메트릭</h2>
+  <table>
+    <tr><th>메트릭 이름</th><th>단위</th><th>설명</th></tr>
+    <tr><td><code>system.cpu.usage</code></td><td>%</td><td>전체 CPU 평균 사용률</td></tr>
+    <tr><td><code>system.memory.usage_percent</code></td><td>%</td><td>메모리 사용률</td></tr>
+    <tr><td><code>system.memory.used_bytes</code></td><td>bytes</td><td>메모리 사용량</td></tr>
+    <tr><td><code>system.disk.usage_percent</code></td><td>%</td><td>마운트포인트별 디스크 사용률</td></tr>
+  </table>
+  <p>디스크 메트릭에는 <code>mountpoint</code>, <code>device</code> 레이블이 붙어 파티션별로 구분됩니다.</p>
+
+  <!-- 환경변수 -->
+  <h2>환경변수</h2>
+  <table>
+    <tr><th>변수</th><th>기본값</th><th>설명</th></tr>
+    <tr><td><code>OWLMON_OTLP_ENDPOINT</code></td><td><code>localhost:4317</code></td><td>OTel Collector gRPC 주소</td></tr>
+  </table>
+
+  <!-- 빌드 및 실행 -->
+  <h2>빌드 및 실행</h2>
+
+  <h3>의존성 패키지</h3>
+  <pre><span style="color:#475569"># 시스템 메트릭 수집</span>
+go get github.com/shirou/gopsutil/v3
+
+<span style="color:#475569"># OTel SDK + OTLP gRPC exporter</span>
+go get go.opentelemetry.io/otel/sdk/metric
+go get go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc</pre>
+
+  <h3>빌드</h3>
+  <pre>cd agent/
+go build -o owlmon-agent .</pre>
+
+  <h3>실행</h3>
+  <pre><span style="color:#475569"># 기본 실행 (OTel Collector가 localhost:4317에 있어야 함)</span>
+./owlmon-agent
+
+<span style="color:#475569"># OTel Collector 주소 지정</span>
+OWLMON_OTLP_ENDPOINT=192.168.1.10:4317 ./owlmon-agent</pre>
+
+  <h3>로컬 테스트 (OTel Collector 없이)</h3>
+  <p><code>docker-compose.yml</code>에 OTel Collector가 포함되어 있습니다.</p>
+  <pre><span style="color:#475569"># 프로젝트 루트에서</span>
+docker-compose up -d otel-collector
+./owlmon-agent</pre>
+
+  <!-- 수집 주기 -->
+  <h2>수집 주기</h2>
+  <ul>
+    <li><strong>시스템 메트릭</strong> (CPU, 메모리, 디스크): 30초</li>
+    <li>주기 변경은 <code>main.go</code>의 <code>metric.WithInterval</code> 값을 수정합니다.</li>
+  </ul>
+
+  <!-- 향후 추가 예정 -->
+  <h2>향후 추가 예정</h2>
+  <ul class="todo-list">
+    <li><span class="checkbox"></span>네트워크 I/O 수집 (<code>net.IOCounters</code>)</li>
+    <li><span class="checkbox"></span>서비스 체크 (TCP 포트, HTTP 응답)</li>
+    <li><span class="checkbox"></span>버퍼링 — OTel Collector 연결 끊김 시 로컬 큐 저장 후 재전송</li>
+    <li><span class="checkbox"></span>TLS 인증 (<code>otlpmetricgrpc.WithTLSClientConfig</code>)</li>
+    <li><span class="checkbox"></span>설정 파일 (<code>config.yaml</code>) 지원</li>
+  </ul>
+
+</div>
+</body>
+</html>
