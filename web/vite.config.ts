@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Prometheus API 프록시 (CORS 방지)
-      '/api/v1': 'http://localhost:9090',
+      // 모든 /api 요청을 백엔드 서버로 프록시
+      '/api': 'http://localhost:8080',
     },
   },
 })

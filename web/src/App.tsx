@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import MetricCard from './components/MetricCard'
 import ServiceCheckCard from './components/ServiceCheckCard'
+import LoginPage from './components/LoginPage'
 import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchServiceChecks, queryRange } from './api/prometheus'
+import { isLoggedIn, logout } from './api/auth'
 import type { ServiceCheck } from './api/prometheus'
 
 interface Metrics {
@@ -17,6 +19,16 @@ interface ChartData {
 }
 
 export default function App() {
+  const [loggedIn, setLoggedIn] = useState(isLoggedIn())
+
+  if (!loggedIn) {
+    return <LoginPage onLogin={() => setLoggedIn(true)} />
+  }
+
+  return <Dashboard onLogout={() => { logout(); setLoggedIn(false) }} />
+}
+
+function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [hosts, setHosts] = useState<string[]>([])
   const [hostStatuses, setHostStatuses] = useState<Record<string, 'online' | 'offline'>>({})
   const [selectedHost, setSelectedHost] = useState<string>('')
@@ -59,6 +71,7 @@ export default function App() {
   const isOffline = hostStatuses[selectedHost] === 'offline'
 
   return (
+
     <div style={{ background: '#0f1117', minHeight: '100vh', padding: '32px 24px', fontFamily: 'Segoe UI, sans-serif' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
@@ -70,19 +83,11 @@ export default function App() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ color: '#475569', fontSize: 13 }}>마지막 갱신: {lastUpdated}</span>
-            <button
-              onClick={refresh}
-              style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
-                color: '#94a3b8',
-                padding: '6px 14px',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
-            >
+            <button onClick={refresh} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               새로고침
+            </button>
+            <button onClick={onLogout} style={{ background: 'none', border: '1px solid #334155', color: '#475569', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              로그아웃
             </button>
           </div>
         </div>
