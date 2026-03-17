@@ -181,11 +181,16 @@
 
   <div class="item">
     <div class="item-header">
-      <span class="item-title">알림 연동</span>
-      <span class="status-badge todo">예정</span>
+      <span class="item-title">이메일 알림 연동</span>
+      <span class="status-badge done">완료</span>
     </div>
-    <div class="item-desc">임계값 초과 / 서버 다운 알림</div>
-    <div class="item-detail">이메일, SMS 우선 (공공기관 기준). 디바운싱 + 중복 제거 + 심각도 분류 필수.</div>
+    <div class="item-desc">백엔드 서버 · server/alert/</div>
+    <div class="item-detail">
+      CPU 90% / 메모리 95% / 디스크 85%(경고)·90%(위험) / 서버 다운 / 서비스 연속 3회 실패 감지 시 이메일 발송.
+      쿨다운 30분으로 중복 알림 방지. Gmail·네이버 SMTP 지원 (공공기관 배포 시 내부 메일서버로 교체).
+      SMTP 미설정 시 알림 기능 자동 비활성화 — 서버 구동에는 영향 없음.
+      환경변수: <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USERNAME</code>, <code>SMTP_PASSWORD</code>, <code>SMTP_FROM</code>, <code>SMTP_TO</code>
+    </div>
   </div>
 
 </div>

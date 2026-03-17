@@ -4,10 +4,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/auth"
 	"github.com/seongJae/owlmon/server/handler"
 )
@@ -24,6 +26,23 @@ func main() {
 		log.Fatal("OWLMON_PASSWORD_HASH 환경변수가 설정되지 않았습니다.\n" +
 			"다음 명령어로 해시를 생성하세요:\n" +
 			"  go run ./cmd/hashpw <비밀번호>")
+	}
+
+	// 알림 체커 초기화 (SMTP 설정이 있을 때만 활성화)
+	smtpHost := getEnv("SMTP_HOST", "")
+	if smtpHost != "" {
+		emailCfg := &alert.EmailConfig{
+			Host:     smtpHost,
+			Port:     getEnv("SMTP_PORT", "587"),
+			Username: getEnv("SMTP_USERNAME", ""),
+			Password: getEnv("SMTP_PASSWORD", ""),
+			From:     getEnv("SMTP_FROM", ""),
+			To:       strings.Split(getEnv("SMTP_TO", ""), ","),
+		}
+		checker := alert.NewChecker(prometheusURL, emailCfg)
+		checker.Start(30 * time.Second)
+	} else {
+		log.Println("SMTP_HOST 미설정 — 이메일 알림 비활성화")
 	}
 
 	// 핸들러 초기화

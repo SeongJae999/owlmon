@@ -11,7 +11,7 @@ user_invocable: true
 ## 커밋 메시지 형식
 
 ```
-<type>(<scope>): <subject>
+<type>: <subject>
 
 <body>
 ```
@@ -34,10 +34,9 @@ user_invocable: true
 
 ## 규칙
 
-1. **subject**: 영문, 소문자 시작, 마침표 없음, 명령형 (add, fix, update)
-2. **scope**: 선택사항, 변경 범위를 괄호로 표시 (agent, api, web, infra, ci)
-3. **body**: 선택사항, "왜" 변경했는지 설명, 한국어 가능
-4. **breaking change**: 하위 호환 깨지면 `!` 추가 — `feat(api)!: change auth flow`
+1. **subject**: 한국어, 마침표 없음
+2. **body**: 선택사항, "왜" 변경했는지 설명, 한국어
+3. **scope 사용 안 함**: `feat(api):` 같은 괄호 scope 붙이지 않음
 
 ## 수행 절차
 
