@@ -127,9 +127,6 @@
     </div>
   </div>
 
-  <!-- 향후 과제 -->
-  <h2>향후 과제</h2>
-
   <div class="item">
     <div class="item-header">
       <span class="item-title">파일 기반 영속 버퍼</span>
@@ -191,6 +188,46 @@
       SMTP 미설정 시 알림 기능 자동 비활성화 — 서버 구동에는 영향 없음.
       환경변수: <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USERNAME</code>, <code>SMTP_PASSWORD</code>, <code>SMTP_FROM</code>, <code>SMTP_TO</code>
     </div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">Windows 서비스 자동 시작</span>
+      <span class="status-badge done">완료</span>
+    </div>
+    <div class="item-desc">에이전트 · agent/service/, 서버 · server/service/</div>
+    <div class="item-detail">
+      에이전트/서버 모두 Windows 서비스로 등록. 재부팅·정전 후 자동 시작.
+      <code>scripts/install-agent-windows.ps1</code> / <code>install-server-windows.ps1</code> 원클릭 설치.
+      Linux는 systemd 유닛 파일 방식으로 동일 지원 (<code>install-agent-linux.sh</code> / <code>install-server-linux.sh</code>).
+      서버 SMTP 설정은 레지스트리에 영구 저장 — 재설치 불필요.
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">알림 수신 설정 UI</span>
+      <span class="status-badge done">완료</span>
+    </div>
+    <div class="item-desc">프론트엔드 · AlertSettings.tsx, 백엔드 · handler/alert.go</div>
+    <div class="item-detail">
+      대시보드 상단 "알림 설정" 버튼 → 모달에서 수신자 추가/삭제, CPU/메모리/디스크 임계값 변경.
+      설정은 <code>alert-config.json</code>에 영구 저장 (실행 파일 옆). 서버 재시작 없이 30초 내 반영.
+      MetricCard 경고/위험 색상도 설정된 임계값과 연동.
+      이메일 형식 검증 포함.
+    </div>
+  </div>
+
+  <!-- 향후 과제 -->
+  <h2>향후 과제</h2>
+
+  <div class="item">
+    <div class="item-header">
+      <span class="item-title">카카오워크 알림</span>
+      <span class="status-badge todo">예정</span>
+    </div>
+    <div class="item-desc">웹훅 방식, 무료</div>
+    <div class="item-detail">카카오워크 웹훅 URL 등록 시 이메일과 병행 발송. 공공기관 실무 대응.</div>
   </div>
 
 </div>

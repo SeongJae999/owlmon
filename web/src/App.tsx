@@ -2,8 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import MetricCard from './components/MetricCard'
 import ServiceCheckCard from './components/ServiceCheckCard'
 import LoginPage from './components/LoginPage'
+import AlertSettings from './components/AlertSettings'
 import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchServiceChecks, queryRange } from './api/prometheus'
 import { isLoggedIn, logout } from './api/auth'
+import { getAlertConfig, type AlertConfig } from './api/alert'
 import type { ServiceCheck } from './api/prometheus'
 
 interface Metrics {
@@ -36,6 +38,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [chartData, setChartData] = useState<ChartData>({ cpu: [], memory: [], disk: [] })
   const [serviceChecks, setServiceChecks] = useState<ServiceCheck[]>([])
   const [lastUpdated, setLastUpdated] = useState<string>('-')
+  const [showAlertSettings, setShowAlertSettings] = useState(false)
+  const [alertCfg, setAlertCfg] = useState<AlertConfig | null>(null)
+
+  useEffect(() => {
+    getAlertConfig().then(setAlertCfg).catch(() => {})
+  }, [])
 
   // 호스트 목록 초기 로드
   useEffect(() => {
@@ -85,6 +93,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <span style={{ color: '#475569', fontSize: 13 }}>마지막 갱신: {lastUpdated}</span>
             <button onClick={refresh} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               새로고침
+            </button>
+            <button onClick={() => setShowAlertSettings(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              알림 설정
             </button>
             <button onClick={onLogout} style={{ background: 'none', border: '1px solid #334155', color: '#475569', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               로그아웃
@@ -146,9 +157,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
         {/* 시스템 메트릭 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 32 }}>
-          <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={70} critical={90} />
-          <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={80} critical={95} />
-          <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={75} critical={90} />
+          <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={alertCfg ? alertCfg.cpu_threshold * 0.8 : 70} critical={alertCfg?.cpu_threshold ?? 90} />
+          <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80} critical={alertCfg?.mem_threshold ?? 95} />
+          <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={alertCfg?.disk_warn ?? 85} critical={alertCfg?.disk_crit ?? 90} />
         </div>
 
         {/* 서비스 체크 */}
@@ -173,6 +184,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
       </div>
+
+      {showAlertSettings && <AlertSettings onClose={() => {
+        setShowAlertSettings(false)
+        getAlertConfig().then(setAlertCfg).catch(() => {})
+      }} />}
     </div>
   )
 }

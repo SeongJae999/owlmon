@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -56,6 +57,11 @@ func startServer() func() {
 			"  go run ./cmd/hashpw <비밀번호>")
 	}
 
+	// 알림 설정 저장소 (실행 파일 옆에 저장)
+	exePath, _ := os.Executable()
+	configPath := filepath.Join(filepath.Dir(exePath), "alert-config.json")
+	configStore := alert.NewConfigStore(configPath)
+
 	// 알림 체커 초기화
 	smtpHost := getEnv("SMTP_HOST", "")
 	if smtpHost != "" {
@@ -67,7 +73,7 @@ func startServer() func() {
 			From:     getEnv("SMTP_FROM", ""),
 			To:       strings.Split(getEnv("SMTP_TO", ""), ","),
 		}
-		checker := alert.NewChecker(prometheusURL, emailCfg)
+		checker := alert.NewChecker(prometheusURL, emailCfg, configStore)
 		checker.Start(30 * time.Second)
 	} else {
 		log.Println("SMTP_HOST 미설정 — 이메일 알림 비활성화")
@@ -78,6 +84,7 @@ func startServer() func() {
 	if err != nil {
 		log.Fatalf("Prometheus 프록시 초기화 실패: %v", err)
 	}
+	alertHandler := handler.NewAlertHandler(configStore)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -86,6 +93,8 @@ func startServer() func() {
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTMiddleware(jwtSecret))
 		r.Handle("/api/v1/*", proxyHandler)
+		r.Get("/api/alert/config", alertHandler.GetConfig)
+		r.Post("/api/alert/config", alertHandler.SetConfig)
 	})
 
 	srv := &http.Server{Addr: listenAddr, Handler: r}
