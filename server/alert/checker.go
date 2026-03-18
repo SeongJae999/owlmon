@@ -1,12 +1,14 @@
 package alert
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -14,18 +16,27 @@ const (
 	consecutiveFailThreshold = 3 // 서비스 체크 연속 실패 횟수
 )
 
+// HistorySaver는 알림 히스토리를 저장하는 인터페이스입니다.
+type HistorySaver interface {
+	Save(ctx context.Context, host, category, severity, subject, body string) error
+}
+
 // Checker는 Prometheus를 주기적으로 조회하여 알림 조건을 평가합니다.
 type Checker struct {
 	prometheusURL string
 	email         *EmailConfig
 	state         *State
+	configStore   *ConfigStore
+	history       HistorySaver // nil이면 저장 안 함
 }
 
-func NewChecker(prometheusURL string, email *EmailConfig) *Checker {
+func NewChecker(prometheusURL string, email *EmailConfig, configStore *ConfigStore, history HistorySaver) *Checker {
 	return &Checker{
 		prometheusURL: prometheusURL,
 		email:         email,
 		state:         NewState(),
+		configStore:   configStore,
+		history:       history,
 	}
 }
 
@@ -42,15 +53,19 @@ func (c *Checker) Start(interval time.Duration) {
 }
 
 func (c *Checker) check() {
-	// 시스템 메트릭 체크
-	c.checkMetric("CPU", "max(system_cpu_usage_percent) by (host_name)", 90, 0)
-	c.checkMetric("메모리", "max(system_memory_usage_percent) by (host_name)", 95, 0)
-	c.checkDisk()
+	cfg := c.configStore.Get()
+	if !cfg.Enabled {
+		return
+	}
+	// 수신자 목록을 동적으로 반영
+	if len(cfg.Recipients) > 0 {
+		c.email.To = cfg.Recipients
+	}
 
-	// 서버 다운 체크
+	c.checkMetric("CPU", "max(system_cpu_usage_percent) by (host_name)", cfg.CPUThreshold, 0)
+	c.checkMetric("메모리", "max(system_memory_usage_percent) by (host_name)", cfg.MemThreshold, 0)
+	c.checkDisk(cfg.DiskWarn, cfg.DiskCrit)
 	c.checkServerDown()
-
-	// 서비스 체크 실패
 	c.checkServiceFailures()
 }
 
@@ -68,14 +83,14 @@ func (c *Checker) checkMetric(name, promql string, critical, warning float64) {
 			if c.state.ShouldAlert(key) {
 				subject := fmt.Sprintf("🚨 %s %s 위험 (%.1f%%)", host, name, val)
 				body := fmt.Sprintf("호스트: %s\n항목: %s 사용률\n현재 값: %.1f%%\n임계값: %.0f%%\n\n즉시 확인이 필요합니다.", host, name, val, critical)
-				c.sendAlert(subject, body)
+				c.sendAlert(host, strings.ToLower(name), "critical", subject, body)
 			}
 		}
 	}
 }
 
-// checkDisk는 디스크를 경고(85%)/위험(90%) 두 단계로 체크합니다.
-func (c *Checker) checkDisk() {
+// checkDisk는 디스크를 경고/위험 두 단계로 체크합니다.
+func (c *Checker) checkDisk(warn, crit float64) {
 	results, err := c.query("max(system_disk_usage_percent) by (host_name, mountpoint)")
 	if err != nil {
 		return
@@ -85,19 +100,19 @@ func (c *Checker) checkDisk() {
 		mount := r.metric["mountpoint"]
 		val := r.value
 
-		if val >= 90 {
+		if val >= crit {
 			key := fmt.Sprintf("디스크:%s:%s:critical", host, mount)
 			if c.state.ShouldAlert(key) {
 				subject := fmt.Sprintf("🚨 %s 디스크 위험 (%s %.1f%%)", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크가 거의 꽉 찼습니다. 즉시 용량을 확보하세요.", host, mount, val)
-				c.sendAlert(subject, body)
+				c.sendAlert(host, "disk", "critical", subject, body)
 			}
-		} else if val >= 85 {
+		} else if val >= warn {
 			key := fmt.Sprintf("디스크:%s:%s:warning", host, mount)
 			if c.state.ShouldAlert(key) {
 				subject := fmt.Sprintf("⚠️ %s 디스크 경고 (%s %.1f%%)", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크 용량이 부족해지고 있습니다. 확인해 주세요.", host, mount, val)
-				c.sendAlert(subject, body)
+				c.sendAlert(host, "disk", "warning", subject, body)
 			}
 		}
 	}
@@ -120,7 +135,7 @@ func (c *Checker) checkServerDown() {
 			if c.state.ShouldAlert(key) {
 				subject := fmt.Sprintf("🔴 %s 서버 연결 끊김", host)
 				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 끊겼습니다. 서버 상태를 확인하세요.", host)
-				c.sendAlert(subject, body)
+				c.sendAlert(host, "down", "critical", subject, body)
 			}
 		}
 	}
@@ -143,7 +158,7 @@ func (c *Checker) checkServiceFailures() {
 			if count == consecutiveFailThreshold {
 				subject := fmt.Sprintf("🚨 %s 서비스 장애 (%s)", host, name)
 				body := fmt.Sprintf("호스트: %s\n서비스: %s\n대상: %s\n\n%d회 연속 응답 실패. 서비스 상태를 확인하세요.", host, name, target, count)
-				c.sendAlert(subject, body)
+				c.sendAlert(host, "service", "critical", subject, body)
 			}
 		} else {
 			c.state.ResetFailure(key)
@@ -151,11 +166,16 @@ func (c *Checker) checkServiceFailures() {
 	}
 }
 
-func (c *Checker) sendAlert(subject, body string) {
+func (c *Checker) sendAlert(host, category, severity, subject, body string) {
 	if err := c.email.Send(subject, body); err != nil {
 		log.Printf("알림 이메일 발송 실패: %v", err)
 	} else {
 		log.Printf("알림 발송: %s", subject)
+	}
+	if c.history != nil {
+		if err := c.history.Save(context.Background(), host, category, severity, subject, body); err != nil {
+			log.Printf("알림 히스토리 저장 실패: %v", err)
+		}
 	}
 }
 

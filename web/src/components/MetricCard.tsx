@@ -73,7 +73,7 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
             contentStyle={{ background: '#0f1117', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
             labelStyle={{ color: '#94a3b8' }}
             itemStyle={{ color: '#e2e8f0' }}
-            formatter={(v: number) => [`${v}${unit}`, title]}
+            formatter={(v) => [`${v}${unit}`, title]}
           />
           <Area type="monotone" dataKey="value" stroke={color} fill={`url(#grad-${title})`} strokeWidth={2} dot={false} />
         </AreaChart>

@@ -43,5 +43,9 @@ docker-compose.override.yml
 *.log
 logs/
 
+# 서버 런타임 파일
+server/service.log
+alert-config.json
+
 # Claude 로컬 설정 (개인별 다름, skills는 공유)
 .claude/settings.local.json

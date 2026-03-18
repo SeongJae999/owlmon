@@ -44,6 +44,23 @@ services:
       - ./infra/otel/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     restart: unless-stopped
 
+  # PostgreSQL (알림 히스토리, 사용자 관리)
+  postgres:
+    image: postgres:16-alpine
+    container_name: owlmon-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=owlmon
+      - POSTGRES_USER=owlmon
+      - POSTGRES_PASSWORD=owlmon
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+
 volumes:
   prometheus-data:
   grafana-data:
+  postgres-data:

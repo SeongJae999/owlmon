@@ -15,6 +15,7 @@ SMTP_USERNAME=""
 SMTP_PASSWORD=""
 SMTP_FROM=""
 SMTP_TO=""
+POSTGRES_DSN=""
 INSTALL_DIR="/opt/owlmon-server"
 SERVICE_NAME="owlmon-server"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,6 +34,7 @@ while [[ $# -gt 0 ]]; do
         --smtp-password) SMTP_PASSWORD="$2";  shift 2 ;;
         --smtp-from)     SMTP_FROM="$2";      shift 2 ;;
         --smtp-to)       SMTP_TO="$2";        shift 2 ;;
+        --postgres-dsn)  POSTGRES_DSN="$2";  shift 2 ;;
         --install-dir)   INSTALL_DIR="$2";    shift 2 ;;
         *) echo "알 수 없는 옵션: $1"; exit 1 ;;
     esac
@@ -83,6 +85,11 @@ Environment=SMTP_USERNAME=$SMTP_USERNAME
 Environment=SMTP_PASSWORD=$SMTP_PASSWORD
 Environment=SMTP_FROM=$SMTP_FROM
 Environment=SMTP_TO=$SMTP_TO"
+fi
+
+if [[ -n "$POSTGRES_DSN" ]]; then
+    ENV_LINES="$ENV_LINES
+Environment=POSTGRES_DSN=$POSTGRES_DSN"
 fi
 
 cat > /etc/systemd/system/$SERVICE_NAME.service <<EOF

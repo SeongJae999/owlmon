@@ -13,8 +13,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/auth"
+	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/handler"
 	"github.com/seongJae/owlmon/server/service"
 )
@@ -45,6 +47,9 @@ func main() {
 
 // startServer는 서버를 시작하고 정지 함수를 반환합니다.
 func startServer() func() {
+	// .env 파일 로드 (.env가 환경변수보다 우선, 없으면 무시)
+	_ = godotenv.Overload()
+
 	username := getEnv("OWLMON_USERNAME", "admin")
 	passwordHash := getEnv("OWLMON_PASSWORD_HASH", "")
 	jwtSecret := getEnv("OWLMON_JWT_SECRET", "change-this-secret-in-production")
@@ -62,6 +67,23 @@ func startServer() func() {
 	configPath := filepath.Join(filepath.Dir(exePath), "alert-config.json")
 	configStore := alert.NewConfigStore(configPath)
 
+	// PostgreSQL 연결 (설정된 경우)
+	var historySaver alert.HistorySaver
+	var historyStore *db.AlertHistoryStore
+	pgDSN := getEnv("POSTGRES_DSN", "")
+	if pgDSN != "" {
+		pool, err := db.Connect(context.Background(), pgDSN)
+		if err != nil {
+			log.Printf("PostgreSQL 연결 실패 (알림 히스토리 비활성화): %v", err)
+		} else {
+			saver := db.NewHistorySaver(pool)
+			historySaver = saver
+			historyStore = db.NewAlertHistoryStore(pool)
+		}
+	} else {
+		log.Println("POSTGRES_DSN 미설정 — 알림 히스토리 비활성화")
+	}
+
 	// 알림 체커 초기화
 	smtpHost := getEnv("SMTP_HOST", "")
 	if smtpHost != "" {
@@ -73,7 +95,7 @@ func startServer() func() {
 			From:     getEnv("SMTP_FROM", ""),
 			To:       strings.Split(getEnv("SMTP_TO", ""), ","),
 		}
-		checker := alert.NewChecker(prometheusURL, emailCfg, configStore)
+		checker := alert.NewChecker(prometheusURL, emailCfg, configStore, historySaver)
 		checker.Start(30 * time.Second)
 	} else {
 		log.Println("SMTP_HOST 미설정 — 이메일 알림 비활성화")
@@ -95,6 +117,10 @@ func startServer() func() {
 		r.Handle("/api/v1/*", proxyHandler)
 		r.Get("/api/alert/config", alertHandler.GetConfig)
 		r.Post("/api/alert/config", alertHandler.SetConfig)
+		if historyStore != nil {
+			historyHandler := handler.NewHistoryHandler(historyStore)
+			r.Get("/api/alert/history", historyHandler.List)
+		}
 	})
 
 	srv := &http.Server{Addr: listenAddr, Handler: r}

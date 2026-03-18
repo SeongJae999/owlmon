@@ -17,6 +17,8 @@ param(
     [string]$SmtpFrom = "",
     [string]$SmtpTo = "",
 
+    [string]$PostgresDSN = "",          # PostgreSQL DSN (알림 히스토리 저장)
+
     [string]$InstallDir = "C:\owlmon-server"
 )
 
@@ -88,6 +90,9 @@ if ($SmtpHost -ne "") {
     $envVars += "SMTP_FROM=$SmtpFrom"
     $envVars += "SMTP_TO=$SmtpTo"
 }
+if ($PostgresDSN -ne "") {
+    $envVars += "POSTGRES_DSN=$PostgresDSN"
+}
 $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
 Set-ItemProperty -Path $regPath -Name "Environment" -Value $envVars -Type MultiString
 
@@ -104,6 +109,11 @@ if ($SmtpHost -ne "") {
     Write-Host "이메일 알림: 활성화 ($SmtpTo)"
 } else {
     Write-Host "이메일 알림: 비활성화 (SmtpHost 미설정)" -ForegroundColor Gray
+}
+if ($PostgresDSN -ne "") {
+    Write-Host "알림 히스토리: 활성화 (PostgreSQL)"
+} else {
+    Write-Host "알림 히스토리: 비활성화 (PostgresDSN 미설정)" -ForegroundColor Gray
 }
 Write-Host ""
 Write-Host "서비스 관리 명령어:" -ForegroundColor Gray

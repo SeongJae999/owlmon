@@ -3,6 +3,7 @@ import MetricCard from './components/MetricCard'
 import ServiceCheckCard from './components/ServiceCheckCard'
 import LoginPage from './components/LoginPage'
 import AlertSettings from './components/AlertSettings'
+import AlertHistory from './components/AlertHistory'
 import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchServiceChecks, queryRange } from './api/prometheus'
 import { isLoggedIn, logout } from './api/auth'
 import { getAlertConfig, type AlertConfig } from './api/alert'
@@ -39,6 +40,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [serviceChecks, setServiceChecks] = useState<ServiceCheck[]>([])
   const [lastUpdated, setLastUpdated] = useState<string>('-')
   const [showAlertSettings, setShowAlertSettings] = useState(false)
+  const [showAlertHistory, setShowAlertHistory] = useState(false)
   const [alertCfg, setAlertCfg] = useState<AlertConfig | null>(null)
 
   useEffect(() => {
@@ -93,6 +95,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <span style={{ color: '#475569', fontSize: 13 }}>마지막 갱신: {lastUpdated}</span>
             <button onClick={refresh} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               새로고침
+            </button>
+            <button onClick={() => setShowAlertHistory(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              알림 히스토리
             </button>
             <button onClick={() => setShowAlertSettings(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               알림 설정
@@ -189,6 +194,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         setShowAlertSettings(false)
         getAlertConfig().then(setAlertCfg).catch(() => {})
       }} />}
+      {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
     </div>
   )
 }

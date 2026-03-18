@@ -18,3 +18,18 @@ export async function setAlertConfig(cfg: AlertConfig): Promise<AlertConfig> {
   const res = await axios.post('/api/alert/config', cfg)
   return res.data
 }
+
+export interface AlertRecord {
+  id: number
+  sent_at: string
+  host: string
+  category: string
+  severity: string
+  subject: string
+  body: string
+}
+
+export async function getAlertHistory(limit = 100): Promise<AlertRecord[]> {
+  const res = await axios.get('/api/alert/history', { params: { limit } })
+  return res.data
+}
