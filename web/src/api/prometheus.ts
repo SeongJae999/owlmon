@@ -102,8 +102,8 @@ export async function fetchMetrics(host?: string) {
     query(`last_over_time(system_cpu_usage_percent${filter}[1h])`),
     query(`last_over_time(system_memory_usage_percent${filter}[1h])`),
     query(`max(last_over_time(system_disk_usage_percent${filter}[1h]))`),
-    query(`last_over_time(system_network_rx_bytes_per_second${filter}[1h])`),
-    query(`last_over_time(system_network_tx_bytes_per_second${filter}[1h])`),
+    query(`sum(last_over_time(system_network_rx_bytes_per_second${filter}[1h]))`),
+    query(`sum(last_over_time(system_network_tx_bytes_per_second${filter}[1h]))`),
   ])
   return { cpu, memory, disk, rx, tx }
 }
