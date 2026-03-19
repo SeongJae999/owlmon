@@ -47,5 +47,8 @@ logs/
 server/service.log
 alert-config.json
 
+# Docker 볼륨 데이터 (로컬 전용)
+data/
+
 # Claude 로컬 설정 (개인별 다름, skills는 공유)
 .claude/settings.local.json

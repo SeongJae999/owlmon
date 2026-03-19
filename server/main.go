@@ -62,9 +62,18 @@ func startServer() func() {
 			"  go run ./cmd/hashpw <비밀번호>")
 	}
 
-	// 알림 설정 저장소 (실행 파일 옆에 저장)
-	exePath, _ := os.Executable()
-	configPath := filepath.Join(filepath.Dir(exePath), "alert-config.json")
+	// 알림 설정 저장소 (OWLMON_DATA_DIR 우선, 없으면 실행 파일 옆)
+	dataDir := getEnv("OWLMON_DATA_DIR", "")
+	if dataDir == "" {
+		exePath, _ := os.Executable()
+		// go run 시 tmp 경로 방지: 실행 파일이 tmp 폴더면 현재 디렉토리 사용
+		if strings.Contains(filepath.ToSlash(exePath), "/tmp/") || strings.Contains(exePath, `\AppData\Local\Temp\`) {
+			dataDir = "."
+		} else {
+			dataDir = filepath.Dir(exePath)
+		}
+	}
+	configPath := filepath.Join(dataDir, "alert-config.json")
 	configStore := alert.NewConfigStore(configPath)
 
 	// PostgreSQL 연결 (설정된 경우)

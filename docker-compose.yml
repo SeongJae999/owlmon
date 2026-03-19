@@ -10,10 +10,10 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
+      - ./data/prometheus:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=7d"
+      - "--storage.tsdb.retention.time=30d"
       - "--web.enable-remote-write-receiver"  # Remote Write 수신 활성화
     restart: unless-stopped
 
@@ -25,7 +25,7 @@ services:
       - "3000:3000"
     volumes:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
-      - grafana-data:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=owlmon
@@ -56,11 +56,7 @@ services:
       - POSTGRES_PASSWORD=owlmon
       - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     restart: unless-stopped
 
-volumes:
-  prometheus-data:
-  grafana-data:
-  postgres-data:
