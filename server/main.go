@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/tls"
+	"encoding/hex"
 	"log"
 	"net/http"
 	"os"
@@ -52,7 +55,14 @@ func startServer() func() {
 
 	username := getEnv("OWLMON_USERNAME", "admin")
 	passwordHash := getEnv("OWLMON_PASSWORD_HASH", "")
-	jwtSecret := getEnv("OWLMON_JWT_SECRET", "change-this-secret-in-production")
+	jwtSecret := getEnv("OWLMON_JWT_SECRET", "")
+	if jwtSecret == "" || jwtSecret == "change-this-secret-in-production" {
+		b := make([]byte, 32)
+		rand.Read(b)
+		jwtSecret = hex.EncodeToString(b)
+		log.Printf("⚠️  OWLMON_JWT_SECRET 미설정 — 임시 시크릿 생성됨 (재시작 시 로그인 세션 초기화됨)")
+		log.Printf("   .env에 다음을 추가하세요: OWLMON_JWT_SECRET=%s", jwtSecret)
+	}
 	prometheusURL := getEnv("OWLMON_PROMETHEUS_URL", "http://localhost:9090")
 	listenAddr := getEnv("OWLMON_LISTEN", ":8080")
 
@@ -134,12 +144,27 @@ func startServer() func() {
 		}
 	})
 
+	tlsCert := getEnv("OWLMON_TLS_CERT", "")
+	tlsKey := getEnv("OWLMON_TLS_KEY", "")
+
 	srv := &http.Server{Addr: listenAddr, Handler: r}
 
 	go func() {
 		log.Printf("OWLmon 서버 시작: %s", listenAddr)
 		log.Printf("Prometheus: %s", prometheusURL)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if tlsCert != "" && tlsKey != "" {
+			cert, loadErr := tls.LoadX509KeyPair(tlsCert, tlsKey)
+			if loadErr != nil {
+				log.Fatalf("TLS 인증서 로드 실패: %v", loadErr)
+			}
+			srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+			log.Printf("HTTPS 활성화 (인증서: %s)", tlsCert)
+			err = srv.ListenAndServeTLS("", "")
+		} else {
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			log.Fatalf("서버 시작 실패: %v", err)
 		}
 	}()

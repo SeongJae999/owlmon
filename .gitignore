@@ -13,6 +13,7 @@ env/
 # Go
 bin/
 *.exe
+!scripts/*.exe
 
 # Node.js
 node_modules/
@@ -38,6 +39,9 @@ credentials.json
 
 # Docker
 docker-compose.override.yml
+
+# 개발 스크립트 런타임 파일
+.dev-pids.json
 
 # 로그
 *.log
