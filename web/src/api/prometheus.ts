@@ -98,10 +98,12 @@ export async function fetchMetrics(host?: string) {
   const filter = host ? `{host_name="${host}"}` : ''
 
   // last_over_time: 지정 범위 내 마지막 값 반환 (오프라인 시에도 직전 값 표시)
-  const [cpu, memory, disk] = await Promise.all([
+  const [cpu, memory, disk, rx, tx] = await Promise.all([
     query(`last_over_time(system_cpu_usage_percent${filter}[1h])`),
     query(`last_over_time(system_memory_usage_percent${filter}[1h])`),
     query(`last_over_time(system_disk_usage_percent${filter}[1h])`),
+    query(`last_over_time(system_network_rx_bytes_per_second${filter}[1h])`),
+    query(`last_over_time(system_network_tx_bytes_per_second${filter}[1h])`),
   ])
-  return { cpu, memory, disk }
+  return { cpu, memory, disk, rx, tx }
 }

@@ -86,6 +86,9 @@ func startAgent() func() {
 	if _, err := collector.NewServiceCheckCollector(meter, cfg.Checks); err != nil {
 		log.Fatalf("서비스 체크 수집기 초기화 실패: %v", err)
 	}
+	if _, err := collector.NewNetworkCollector(meter); err != nil {
+		log.Fatalf("네트워크 수집기 초기화 실패: %v", err)
+	}
 
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)
 	log.Printf("수집 주기: 30초 | 서비스 체크: %d개", len(cfg.Checks))

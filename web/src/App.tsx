@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import MetricCard from './components/MetricCard'
 import ServiceCheckCard from './components/ServiceCheckCard'
 import LoginPage from './components/LoginPage'
@@ -13,12 +14,16 @@ interface Metrics {
   cpu: number | null
   memory: number | null
   disk: number | null
+  rx: number | null
+  tx: number | null
 }
 
 interface ChartData {
   cpu: { time: string; value: number }[]
   memory: { time: string; value: number }[]
   disk: { time: string; value: number }[]
+  rx: { time: string; value: number }[]
+  tx: { time: string; value: number }[]
 }
 
 export default function App() {
@@ -35,8 +40,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [hosts, setHosts] = useState<string[]>([])
   const [hostStatuses, setHostStatuses] = useState<Record<string, 'online' | 'offline'>>({})
   const [selectedHost, setSelectedHost] = useState<string>('')
-  const [metrics, setMetrics] = useState<Metrics>({ cpu: null, memory: null, disk: null })
-  const [chartData, setChartData] = useState<ChartData>({ cpu: [], memory: [], disk: [] })
+  const [metrics, setMetrics] = useState<Metrics>({ cpu: null, memory: null, disk: null, rx: null, tx: null })
+  const [chartData, setChartData] = useState<ChartData>({ cpu: [], memory: [], disk: [], rx: [], tx: [] })
   const [serviceChecks, setServiceChecks] = useState<ServiceCheck[]>([])
   const [lastUpdated, setLastUpdated] = useState<string>('-')
   const [showAlertSettings, setShowAlertSettings] = useState(false)
@@ -58,17 +63,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const refresh = useCallback(async () => {
     if (!selectedHost || hosts.length === 0) return
-    const [current, cpuRange, memRange, diskRange, statuses, checks, alerts] = await Promise.all([
+    const [current, cpuRange, memRange, diskRange, rxRange, txRange, statuses, checks, alerts] = await Promise.all([
       fetchMetrics(selectedHost),
       queryRange(`system_cpu_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_memory_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_disk_usage_percent{host_name="${selectedHost}"}`),
+      queryRange(`system_network_rx_bytes_per_second{host_name="${selectedHost}"}`),
+      queryRange(`system_network_tx_bytes_per_second{host_name="${selectedHost}"}`),
       fetchAllHostStatuses(hosts),
       fetchServiceChecks(selectedHost),
       getAlertStatus(),
     ])
     setMetrics(current)
-    setChartData({ cpu: cpuRange, memory: memRange, disk: diskRange })
+    setChartData({ cpu: cpuRange, memory: memRange, disk: diskRange, rx: rxRange, tx: txRange })
     setHostStatuses(statuses)
     setServiceChecks(checks)
     setActiveAlerts(alerts)
@@ -186,6 +193,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={alertCfg ? alertCfg.cpu_threshold * 0.8 : 70} critical={alertCfg?.cpu_threshold ?? 90} />
           <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80} critical={alertCfg?.mem_threshold ?? 95} />
           <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={alertCfg?.disk_warn ?? 85} critical={alertCfg?.disk_crit ?? 90} />
+          <NetworkCard title="네트워크 수신 (RX)" valueBps={metrics.rx} data={chartData.rx} color="#f472b6" />
+          <NetworkCard title="네트워크 송신 (TX)" valueBps={metrics.tx} data={chartData.tx} color="#fb923c" />
         </div>
 
         {/* 서비스 체크 */}
@@ -211,11 +220,55 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
       </div>
 
+      {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
       {showAlertSettings && <AlertSettings onClose={() => {
         setShowAlertSettings(false)
         getAlertConfig().then(setAlertCfg).catch(() => {})
       }} />}
-      {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
+    </div>
+  )
+}
+
+function formatBps(bps: number | null): string {
+  if (bps === null) return '-'
+  if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
+  if (bps >= 1024) return `${(bps / 1024).toFixed(1)} KB/s`
+  return `${bps.toFixed(0)} B/s`
+}
+
+function NetworkCard({ title, valueBps, data, color }: {
+  title: string
+  valueBps: number | null
+  data: { time: string; value: number }[]
+  color: string
+}) {
+  return (
+    <div style={{ background: '#1e293b', borderRadius: 12, padding: '20px 24px', border: '1px solid #334155' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 500 }}>{title}</span>
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: '#f1f5f9', marginBottom: 16 }}>
+        {formatBps(valueBps)}
+      </div>
+      <ResponsiveContainer width="100%" height={80}>
+        <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={`grad-net-${title}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="time" hide />
+          <YAxis hide />
+          <Tooltip
+            contentStyle={{ background: '#0f1117', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+            labelStyle={{ color: '#94a3b8' }}
+            itemStyle={{ color: '#e2e8f0' }}
+            formatter={(v) => [formatBps(typeof v === 'number' ? v : null), title]}
+          />
+          <Area type="monotone" dataKey="value" stroke={color} fill={`url(#grad-net-${title})`} strokeWidth={2} dot={false} />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   )
 }
