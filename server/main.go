@@ -23,6 +23,7 @@ import (
 	"github.com/seongJae/owlmon/server/handler"
 	"github.com/seongJae/owlmon/server/report"
 	"github.com/seongJae/owlmon/server/service"
+	snmppkg "github.com/seongJae/owlmon/server/snmp"
 )
 
 func main() {
@@ -77,6 +78,7 @@ func startServer() func() {
 	var configStore alert.ConfigStorer
 	var historySaver alert.HistorySaver
 	var historyStore *db.AlertHistoryStore
+	var snmpDeviceStore *db.SNMPDeviceStore
 	pgDSN := getEnv("POSTGRES_DSN", "")
 	if pgDSN != "" {
 		pool, err := db.Connect(context.Background(), pgDSN)
@@ -87,6 +89,7 @@ func startServer() func() {
 			configStore = db.NewAlertConfigStore(pool)
 			historySaver = db.NewHistorySaver(pool)
 			historyStore = db.NewAlertHistoryStore(pool)
+			snmpDeviceStore = db.NewSNMPDeviceStore(pool)
 		}
 	}
 	// PostgreSQL 미연결 시 파일 기반 폴백
@@ -130,12 +133,42 @@ func startServer() func() {
 	alertHandler := handler.NewAlertHandler(configStore)
 	statusHandler := handler.NewStatusHandler(prometheusURL, configStore)
 
-	// 월간 보고서
-	var reportHandler *handler.ReportHandler
+	// 월간 보고서 (이메일 없어도 미리보기는 가능)
+	reporter := report.NewReporter(prometheusURL, emailCfg, configStore)
 	if emailCfg != nil {
-		reporter := report.NewReporter(prometheusURL, emailCfg, configStore)
 		reporter.Start()
-		reportHandler = handler.NewReportHandler(reporter)
+	}
+	reportHandler := handler.NewReportHandler(reporter)
+
+	// SNMP 폴러 (PostgreSQL 연결된 경우에만)
+	snmpPoller := snmppkg.NewPoller()
+	var snmpHandler *handler.SNMPHandler
+	if snmpDeviceStore != nil {
+		snmpHandler = handler.NewSNMPHandler(snmpDeviceStore, snmpPoller)
+		// 기존 장비 로드 후 폴링 시작
+		go func() {
+			devices, err := snmpDeviceStore.List(context.Background())
+			if err != nil {
+				log.Printf("SNMP 장비 목록 로드 실패: %v", err)
+				return
+			}
+			log.Printf("SNMP 장비 %d개 로드", len(devices))
+			ticker := time.NewTicker(60 * time.Second)
+			defer ticker.Stop()
+			// 즉시 1회 폴링
+			for _, dev := range devices {
+				go snmpPoller.Poll(dev)
+			}
+			for range ticker.C {
+				devs, err := snmpDeviceStore.List(context.Background())
+				if err != nil {
+					continue
+				}
+				for _, dev := range devs {
+					go snmpPoller.Poll(dev)
+				}
+			}
+		}()
 	}
 
 	r := chi.NewRouter()
@@ -152,9 +185,13 @@ func startServer() func() {
 			historyHandler := handler.NewHistoryHandler(historyStore)
 			r.Get("/api/alert/history", historyHandler.List)
 		}
-		if reportHandler != nil {
-			r.Get("/api/report/preview", reportHandler.Preview)
-			r.Post("/api/report/send", reportHandler.Send)
+		r.Get("/api/report/preview", reportHandler.Preview)
+		r.Post("/api/report/send", reportHandler.Send)
+		if snmpHandler != nil {
+			r.Get("/api/snmp/devices", snmpHandler.ListDevices)
+			r.Post("/api/snmp/devices", snmpHandler.AddDevice)
+			r.Delete("/api/snmp/devices/{id}", snmpHandler.DeleteDevice)
+			r.Get("/api/snmp/status", snmpHandler.GetStatus)
 		}
 	})
 

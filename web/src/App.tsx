@@ -7,6 +7,7 @@ import AlertSettings from './components/AlertSettings'
 import AlertHistory from './components/AlertHistory'
 import HostOverview from './components/HostOverview'
 import MonthlyReportModal from './components/MonthlyReport'
+import SNMPDashboard from './components/SNMPDashboard'
 import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchAllHostMetrics, fetchServiceChecks, queryRange } from './api/prometheus'
 import { isLoggedIn, logout } from './api/auth'
 import { getAlertConfig, getAlertStatus, type AlertConfig, type ActiveAlert } from './api/alert'
@@ -221,6 +222,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <NetworkCard title="네트워크 수신 (RX)" valueBps={metrics.rx} data={chartData.rx} color="#f472b6" />
             <NetworkCard title="네트워크 송신 (TX)" valueBps={metrics.tx} data={chartData.tx} color="#fb923c" />
           </div>
+
+          <SNMPDashboard />
 
           {serviceChecks.length > 0 && (
             <>
