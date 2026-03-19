@@ -78,12 +78,18 @@ func (c *Checker) checkMetric(name, promql string, critical, warning float64) {
 	for _, r := range results {
 		host := r.metric["host_name"]
 		val := r.value
+		key := fmt.Sprintf("%s:%s:critical", name, host)
 		if val >= critical {
-			key := fmt.Sprintf("%s:%s:critical", name, host)
 			if c.state.ShouldAlert(key) {
 				subject := fmt.Sprintf("🚨 %s %s 위험 (%.1f%%)", host, name, val)
 				body := fmt.Sprintf("호스트: %s\n항목: %s 사용률\n현재 값: %.1f%%\n임계값: %.0f%%\n\n즉시 확인이 필요합니다.", host, name, val, critical)
 				c.sendAlert(host, strings.ToLower(name), "critical", subject, body)
+			}
+		} else {
+			if c.state.ClearIfFiring(key) {
+				subject := fmt.Sprintf("✅ %s %s 정상 복구 (%.1f%%)", host, name, val)
+				body := fmt.Sprintf("호스트: %s\n항목: %s 사용률\n현재 값: %.1f%%\n\n정상 범위로 돌아왔습니다.", host, name, val)
+				c.sendAlert(host, strings.ToLower(name), "info", subject, body)
 			}
 		}
 	}
@@ -99,20 +105,27 @@ func (c *Checker) checkDisk(warn, crit float64) {
 		host := r.metric["host_name"]
 		mount := r.metric["mountpoint"]
 		val := r.value
+		critKey := fmt.Sprintf("디스크:%s:%s:critical", host, mount)
+		warnKey := fmt.Sprintf("디스크:%s:%s:warning", host, mount)
 
 		if val >= crit {
-			key := fmt.Sprintf("디스크:%s:%s:critical", host, mount)
-			if c.state.ShouldAlert(key) {
+			if c.state.ShouldAlert(critKey) {
 				subject := fmt.Sprintf("🚨 %s 디스크 위험 (%s %.1f%%)", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크가 거의 꽉 찼습니다. 즉시 용량을 확보하세요.", host, mount, val)
 				c.sendAlert(host, "disk", "critical", subject, body)
 			}
 		} else if val >= warn {
-			key := fmt.Sprintf("디스크:%s:%s:warning", host, mount)
-			if c.state.ShouldAlert(key) {
+			c.state.ClearIfFiring(critKey)
+			if c.state.ShouldAlert(warnKey) {
 				subject := fmt.Sprintf("⚠️ %s 디스크 경고 (%s %.1f%%)", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크 용량이 부족해지고 있습니다. 확인해 주세요.", host, mount, val)
 				c.sendAlert(host, "disk", "warning", subject, body)
+			}
+		} else {
+			if c.state.ClearIfFiring(critKey) || c.state.ClearIfFiring(warnKey) {
+				subject := fmt.Sprintf("✅ %s 디스크 정상 복구 (%s %.1f%%)", host, mount, val)
+				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n정상 범위로 돌아왔습니다.", host, mount, val)
+				c.sendAlert(host, "disk", "info", subject, body)
 			}
 		}
 	}
@@ -130,12 +143,18 @@ func (c *Checker) checkServerDown() {
 		if err != nil {
 			continue
 		}
+		key := fmt.Sprintf("down:%s", host)
 		if len(results) == 0 {
-			key := fmt.Sprintf("down:%s", host)
 			if c.state.ShouldAlert(key) {
 				subject := fmt.Sprintf("🔴 %s 서버 연결 끊김", host)
 				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 끊겼습니다. 서버 상태를 확인하세요.", host)
 				c.sendAlert(host, "down", "critical", subject, body)
+			}
+		} else {
+			if c.state.ClearIfFiring(key) {
+				subject := fmt.Sprintf("✅ %s 서버 연결 복구", host)
+				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 복구되었습니다.", host)
+				c.sendAlert(host, "down", "info", subject, body)
 			}
 		}
 	}
@@ -159,8 +178,14 @@ func (c *Checker) checkServiceFailures() {
 				subject := fmt.Sprintf("🚨 %s 서비스 장애 (%s)", host, name)
 				body := fmt.Sprintf("호스트: %s\n서비스: %s\n대상: %s\n\n%d회 연속 응답 실패. 서비스 상태를 확인하세요.", host, name, target, count)
 				c.sendAlert(host, "service", "critical", subject, body)
+				c.state.ShouldAlert(key) // firing 상태 표시
 			}
 		} else {
+			if c.state.ClearIfFiring(key) {
+				subject := fmt.Sprintf("✅ %s 서비스 복구 (%s)", host, name)
+				body := fmt.Sprintf("호스트: %s\n서비스: %s\n대상: %s\n\n서비스가 정상적으로 응답하고 있습니다.", host, name, target)
+				c.sendAlert(host, "service", "info", subject, body)
+			}
 			c.state.ResetFailure(key)
 		}
 	}
