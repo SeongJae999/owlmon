@@ -17,6 +17,15 @@ type EmailConfig struct {
 	To       []string // 수신 주소 목록
 }
 
+// SendTo는 지정한 수신자 목록에 이메일을 발송합니다.
+func (c *EmailConfig) SendTo(to []string, subject, body string) error {
+	orig := c.To
+	c.To = to
+	err := c.Send(subject, body)
+	c.To = orig
+	return err
+}
+
 // Send는 알림 이메일을 발송합니다.
 func (c *EmailConfig) Send(subject, body string) error {
 	auth := smtp.PlainAuth("", c.Username, c.Password, c.Host)

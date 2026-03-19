@@ -21,6 +21,7 @@ import (
 	"github.com/seongJae/owlmon/server/auth"
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/handler"
+	"github.com/seongJae/owlmon/server/report"
 	"github.com/seongJae/owlmon/server/service"
 )
 
@@ -105,8 +106,9 @@ func startServer() func() {
 
 	// 알림 체커 초기화
 	smtpHost := getEnv("SMTP_HOST", "")
+	var emailCfg *alert.EmailConfig
 	if smtpHost != "" {
-		emailCfg := &alert.EmailConfig{
+		emailCfg = &alert.EmailConfig{
 			Host:     smtpHost,
 			Port:     getEnv("SMTP_PORT", "587"),
 			Username: getEnv("SMTP_USERNAME", ""),
@@ -128,6 +130,14 @@ func startServer() func() {
 	alertHandler := handler.NewAlertHandler(configStore)
 	statusHandler := handler.NewStatusHandler(prometheusURL, configStore)
 
+	// 월간 보고서
+	var reportHandler *handler.ReportHandler
+	if emailCfg != nil {
+		reporter := report.NewReporter(prometheusURL, emailCfg, configStore)
+		reporter.Start()
+		reportHandler = handler.NewReportHandler(reporter)
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -141,6 +151,10 @@ func startServer() func() {
 		if historyStore != nil {
 			historyHandler := handler.NewHistoryHandler(historyStore)
 			r.Get("/api/alert/history", historyHandler.List)
+		}
+		if reportHandler != nil {
+			r.Get("/api/report/preview", reportHandler.Preview)
+			r.Post("/api/report/send", reportHandler.Send)
 		}
 	})
 

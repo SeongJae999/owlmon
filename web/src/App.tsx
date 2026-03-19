@@ -6,6 +6,7 @@ import LoginPage from './components/LoginPage'
 import AlertSettings from './components/AlertSettings'
 import AlertHistory from './components/AlertHistory'
 import HostOverview from './components/HostOverview'
+import MonthlyReportModal from './components/MonthlyReport'
 import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchAllHostMetrics, fetchServiceChecks, queryRange } from './api/prometheus'
 import { isLoggedIn, logout } from './api/auth'
 import { getAlertConfig, getAlertStatus, type AlertConfig, type ActiveAlert } from './api/alert'
@@ -47,6 +48,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [lastUpdated, setLastUpdated] = useState<string>('-')
   const [showAlertSettings, setShowAlertSettings] = useState(false)
   const [showAlertHistory, setShowAlertHistory] = useState(false)
+  const [showMonthlyReport, setShowMonthlyReport] = useState(false)
   const [alertCfg, setAlertCfg] = useState<AlertConfig | null>(null)
   const [activeAlerts, setActiveAlerts] = useState<ActiveAlert[]>([])
   const [hostMetrics, setHostMetrics] = useState<Record<string, { cpu: number | null; memory: number | null; disk: number | null }>>({})
@@ -113,6 +115,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             <button onClick={() => setViewMode(viewMode === 'overview' ? 'detail' : 'overview')} style={{ background: viewMode === 'overview' ? '#0ea5e9' : '#1e293b', border: '1px solid #334155', color: viewMode === 'overview' ? '#fff' : '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               {viewMode === 'overview' ? '상세 보기' : '전체 현황'}
+            </button>
+            <button onClick={() => setShowMonthlyReport(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              월간 보고서
             </button>
             <button onClick={() => setShowAlertHistory(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               알림 히스토리
@@ -240,6 +245,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
       </div>
 
+      {showMonthlyReport && <MonthlyReportModal onClose={() => setShowMonthlyReport(false)} />}
       {showAlertHistory && <AlertHistory onClose={() => setShowAlertHistory(false)} />}
       {showAlertSettings && <AlertSettings onClose={() => {
         setShowAlertSettings(false)
