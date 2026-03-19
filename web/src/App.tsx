@@ -67,7 +67,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       fetchMetrics(selectedHost),
       queryRange(`system_cpu_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_memory_usage_percent{host_name="${selectedHost}"}`),
-      queryRange(`system_disk_usage_percent{host_name="${selectedHost}"}`),
+      queryRange(`max(system_disk_usage_percent{host_name="${selectedHost}"})`),
       queryRange(`system_network_rx_bytes_per_second{host_name="${selectedHost}"}`),
       queryRange(`system_network_tx_bytes_per_second{host_name="${selectedHost}"}`),
       fetchAllHostStatuses(hosts),
