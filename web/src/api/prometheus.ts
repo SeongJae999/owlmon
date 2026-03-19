@@ -92,6 +92,36 @@ export async function fetchServiceChecks(host: string): Promise<ServiceCheck[]> 
   }))
 }
 
+// 전체 호스트 메트릭 요약 (Overview용)
+export async function fetchAllHostMetrics(): Promise<Record<string, { cpu: number | null; memory: number | null; disk: number | null }>> {
+  const queryAll = async (promql: string): Promise<Record<string, number>> => {
+    const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, { params: { query: promql } })
+    const result = res.data?.data?.result ?? []
+    const map: Record<string, number> = {}
+    for (const r of result) {
+      if (r.metric.host_name) map[r.metric.host_name] = parseFloat(r.value[1])
+    }
+    return map
+  }
+
+  const [cpuMap, memMap, diskMap] = await Promise.all([
+    queryAll('max(last_over_time(system_cpu_usage_percent[1h])) by (host_name)'),
+    queryAll('max(last_over_time(system_memory_usage_percent[1h])) by (host_name)'),
+    queryAll('max(last_over_time(system_disk_usage_percent[1h])) by (host_name)'),
+  ])
+
+  const hosts = new Set([...Object.keys(cpuMap), ...Object.keys(memMap), ...Object.keys(diskMap)])
+  const result: Record<string, { cpu: number | null; memory: number | null; disk: number | null }> = {}
+  for (const host of hosts) {
+    result[host] = {
+      cpu: cpuMap[host] ?? null,
+      memory: memMap[host] ?? null,
+      disk: diskMap[host] ?? null,
+    }
+  }
+  return result
+}
+
 // 특정 호스트의 현재 메트릭
 // 오프라인 상태일 경우 최근 1시간 내 마지막 값을 반환
 export async function fetchMetrics(host?: string) {

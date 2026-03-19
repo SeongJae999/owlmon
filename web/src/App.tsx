@@ -5,7 +5,8 @@ import ServiceCheckCard from './components/ServiceCheckCard'
 import LoginPage from './components/LoginPage'
 import AlertSettings from './components/AlertSettings'
 import AlertHistory from './components/AlertHistory'
-import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchServiceChecks, queryRange } from './api/prometheus'
+import HostOverview from './components/HostOverview'
+import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchAllHostMetrics, fetchServiceChecks, queryRange } from './api/prometheus'
 import { isLoggedIn, logout } from './api/auth'
 import { getAlertConfig, getAlertStatus, type AlertConfig, type ActiveAlert } from './api/alert'
 import type { ServiceCheck } from './api/prometheus'
@@ -48,6 +49,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [showAlertHistory, setShowAlertHistory] = useState(false)
   const [alertCfg, setAlertCfg] = useState<AlertConfig | null>(null)
   const [activeAlerts, setActiveAlerts] = useState<ActiveAlert[]>([])
+  const [hostMetrics, setHostMetrics] = useState<Record<string, { cpu: number | null; memory: number | null; disk: number | null }>>({})
+  const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview')
 
   useEffect(() => {
     getAlertConfig().then(setAlertCfg).catch(() => {})
@@ -63,7 +66,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const refresh = useCallback(async () => {
     if (!selectedHost || hosts.length === 0) return
-    const [current, cpuRange, memRange, diskRange, rxRange, txRange, statuses, checks, alerts] = await Promise.all([
+    const [current, cpuRange, memRange, diskRange, rxRange, txRange, statuses, checks, alerts, allMetrics] = await Promise.all([
       fetchMetrics(selectedHost),
       queryRange(`system_cpu_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_memory_usage_percent{host_name="${selectedHost}"}`),
@@ -73,12 +76,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       fetchAllHostStatuses(hosts),
       fetchServiceChecks(selectedHost),
       getAlertStatus(),
+      fetchAllHostMetrics(),
     ])
     setMetrics(current)
     setChartData({ cpu: cpuRange, memory: memRange, disk: diskRange, rx: rxRange, tx: txRange })
     setHostStatuses(statuses)
     setServiceChecks(checks)
     setActiveAlerts(alerts)
+    setHostMetrics(allMetrics)
     setLastUpdated(new Date().toLocaleTimeString('ko-KR'))
   }, [selectedHost, hosts])
 
@@ -106,6 +111,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <button onClick={refresh} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               새로고침
             </button>
+            <button onClick={() => setViewMode(viewMode === 'overview' ? 'detail' : 'overview')} style={{ background: viewMode === 'overview' ? '#0ea5e9' : '#1e293b', border: '1px solid #334155', color: viewMode === 'overview' ? '#fff' : '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              {viewMode === 'overview' ? '상세 보기' : '전체 현황'}
+            </button>
             <button onClick={() => setShowAlertHistory(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               알림 히스토리
             </button>
@@ -118,8 +126,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
 
+        {/* 전체 호스트 Overview */}
+        {viewMode === 'overview' && hosts.length > 0 && (
+          <HostOverview
+            hosts={hosts}
+            hostStatuses={hostStatuses}
+            hostMetrics={hostMetrics}
+            activeAlerts={activeAlerts}
+            onSelect={(host) => { setSelectedHost(host); setViewMode('detail') }}
+          />
+        )}
+
         {/* 호스트 탭 */}
-        {hosts.length > 0 && (
+        {viewMode === 'detail' && hosts.length > 0 && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 28, borderBottom: '1px solid #1e293b' }}>
             {hosts.map((host) => {
               const status = hostStatuses[host]
@@ -152,7 +171,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
         {/* 활성 알림 배너 */}
-        {activeAlerts.length > 0 && (
+        {viewMode === 'detail' && activeAlerts.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {activeAlerts.map((a, i) => (
               <div key={i} style={{
@@ -170,7 +189,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
         {/* 오프라인 배너 */}
-        {isOffline && (
+        {viewMode === 'detail' && isOffline && (
           <div style={{
             background: '#450a0a',
             border: '1px solid #ef4444',
@@ -188,35 +207,36 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {/* 시스템 메트릭 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 32 }}>
-          <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={alertCfg ? alertCfg.cpu_threshold * 0.8 : 70} critical={alertCfg?.cpu_threshold ?? 90} />
-          <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80} critical={alertCfg?.mem_threshold ?? 95} />
-          <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={alertCfg?.disk_warn ?? 85} critical={alertCfg?.disk_crit ?? 90} />
-          <NetworkCard title="네트워크 수신 (RX)" valueBps={metrics.rx} data={chartData.rx} color="#f472b6" />
-          <NetworkCard title="네트워크 송신 (TX)" valueBps={metrics.tx} data={chartData.tx} color="#fb923c" />
-        </div>
+        {/* 상세 보기 */}
+        {viewMode === 'detail' && <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 32 }}>
+            <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={alertCfg ? alertCfg.cpu_threshold * 0.8 : 70} critical={alertCfg?.cpu_threshold ?? 90} />
+            <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80} critical={alertCfg?.mem_threshold ?? 95} />
+            <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={alertCfg?.disk_warn ?? 85} critical={alertCfg?.disk_crit ?? 90} />
+            <NetworkCard title="네트워크 수신 (RX)" valueBps={metrics.rx} data={chartData.rx} color="#f472b6" />
+            <NetworkCard title="네트워크 송신 (TX)" valueBps={metrics.tx} data={chartData.tx} color="#fb923c" />
+          </div>
 
-        {/* 서비스 체크 */}
-        {serviceChecks.length > 0 && (
-          <>
-            <h2 style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, marginBottom: 12, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              서비스 체크
-            </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-              {serviceChecks.map((check) => (
-                <ServiceCheckCard
-                  key={check.name}
-                  name={check.name}
-                  type={check.type}
-                  target={check.target}
-                  status={check.status}
-                  latencyMs={check.latencyMs}
-                />
-              ))}
-            </div>
-          </>
-        )}
+          {serviceChecks.length > 0 && (
+            <>
+              <h2 style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, marginBottom: 12, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                서비스 체크
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                {serviceChecks.map((check) => (
+                  <ServiceCheckCard
+                    key={check.name}
+                    name={check.name}
+                    type={check.type}
+                    target={check.target}
+                    status={check.status}
+                    latencyMs={check.latencyMs}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </>}
 
       </div>
 
