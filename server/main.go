@@ -116,6 +116,7 @@ func startServer() func() {
 		log.Fatalf("Prometheus 프록시 초기화 실패: %v", err)
 	}
 	alertHandler := handler.NewAlertHandler(configStore)
+	statusHandler := handler.NewStatusHandler(prometheusURL, configStore)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -126,6 +127,7 @@ func startServer() func() {
 		r.Handle("/api/v1/*", proxyHandler)
 		r.Get("/api/alert/config", alertHandler.GetConfig)
 		r.Post("/api/alert/config", alertHandler.SetConfig)
+		r.Get("/api/alert/status", statusHandler.GetStatus)
 		if historyStore != nil {
 			historyHandler := handler.NewHistoryHandler(historyStore)
 			r.Get("/api/alert/history", historyHandler.List)

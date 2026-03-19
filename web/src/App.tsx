@@ -6,7 +6,7 @@ import AlertSettings from './components/AlertSettings'
 import AlertHistory from './components/AlertHistory'
 import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchServiceChecks, queryRange } from './api/prometheus'
 import { isLoggedIn, logout } from './api/auth'
-import { getAlertConfig, type AlertConfig } from './api/alert'
+import { getAlertConfig, getAlertStatus, type AlertConfig, type ActiveAlert } from './api/alert'
 import type { ServiceCheck } from './api/prometheus'
 
 interface Metrics {
@@ -42,6 +42,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [showAlertSettings, setShowAlertSettings] = useState(false)
   const [showAlertHistory, setShowAlertHistory] = useState(false)
   const [alertCfg, setAlertCfg] = useState<AlertConfig | null>(null)
+  const [activeAlerts, setActiveAlerts] = useState<ActiveAlert[]>([])
 
   useEffect(() => {
     getAlertConfig().then(setAlertCfg).catch(() => {})
@@ -57,18 +58,20 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const refresh = useCallback(async () => {
     if (!selectedHost || hosts.length === 0) return
-    const [current, cpuRange, memRange, diskRange, statuses, checks] = await Promise.all([
+    const [current, cpuRange, memRange, diskRange, statuses, checks, alerts] = await Promise.all([
       fetchMetrics(selectedHost),
       queryRange(`system_cpu_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_memory_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_disk_usage_percent{host_name="${selectedHost}"}`),
       fetchAllHostStatuses(hosts),
       fetchServiceChecks(selectedHost),
+      getAlertStatus(),
     ])
     setMetrics(current)
     setChartData({ cpu: cpuRange, memory: memRange, disk: diskRange })
     setHostStatuses(statuses)
     setServiceChecks(checks)
+    setActiveAlerts(alerts)
     setLastUpdated(new Date().toLocaleTimeString('ko-KR'))
   }, [selectedHost, hosts])
 
@@ -138,6 +141,24 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 </button>
               )
             })}
+          </div>
+        )}
+
+        {/* 활성 알림 배너 */}
+        {activeAlerts.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {activeAlerts.map((a, i) => (
+              <div key={i} style={{
+                background: a.severity === 'critical' ? '#450a0a' : '#422006',
+                border: `1px solid ${a.severity === 'critical' ? '#ef4444' : '#f59e0b'}`,
+                borderRadius: 8, padding: '10px 16px',
+                color: a.severity === 'critical' ? '#fca5a5' : '#fcd34d',
+                fontSize: 13, display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <span>{a.severity === 'critical' ? '🚨' : '⚠️'}</span>
+                <span><strong>{a.host}</strong> — {a.message}</span>
+              </div>
+            ))}
           </div>
         )}
 

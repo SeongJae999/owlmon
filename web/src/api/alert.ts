@@ -33,3 +33,16 @@ export async function getAlertHistory(limit = 100): Promise<AlertRecord[]> {
   const res = await axios.get('/api/alert/history', { params: { limit } })
   return res.data
 }
+
+export interface ActiveAlert {
+  host: string
+  category: string
+  severity: string
+  value: number
+  message: string
+}
+
+export async function getAlertStatus(): Promise<ActiveAlert[]> {
+  const res = await axios.get('/api/alert/status')
+  return res.data
+}
