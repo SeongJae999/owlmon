@@ -8,10 +8,10 @@ import (
 )
 
 type AlertHandler struct {
-	store *alert.ConfigStore
+	store alert.ConfigStorer
 }
 
-func NewAlertHandler(store *alert.ConfigStore) *AlertHandler {
+func NewAlertHandler(store alert.ConfigStorer) *AlertHandler {
 	return &AlertHandler{store: store}
 }
 

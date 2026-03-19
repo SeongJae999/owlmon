@@ -26,11 +26,11 @@ type Checker struct {
 	prometheusURL string
 	email         *EmailConfig
 	state         *State
-	configStore   *ConfigStore
+	configStore   ConfigStorer
 	history       HistorySaver // nil이면 저장 안 함
 }
 
-func NewChecker(prometheusURL string, email *EmailConfig, configStore *ConfigStore, history HistorySaver) *Checker {
+func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStorer, history HistorySaver) *Checker {
 	return &Checker{
 		prometheusURL: prometheusURL,
 		email:         email,

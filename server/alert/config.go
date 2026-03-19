@@ -27,6 +27,12 @@ func defaultConfig() *AlertConfig {
 	}
 }
 
+// ConfigStorer는 알림 설정을 읽고 쓰는 인터페이스입니다.
+type ConfigStorer interface {
+	Get() AlertConfig
+	Set(AlertConfig) error
+}
+
 // ConfigStore는 알림 설정을 파일로 저장하고 동시 접근을 관리합니다.
 type ConfigStore struct {
 	mu       sync.RWMutex

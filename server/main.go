@@ -62,35 +62,35 @@ func startServer() func() {
 			"  go run ./cmd/hashpw <비밀번호>")
 	}
 
-	// 알림 설정 저장소 (OWLMON_DATA_DIR 우선, 없으면 실행 파일 옆)
-	dataDir := getEnv("OWLMON_DATA_DIR", "")
-	if dataDir == "" {
-		exePath, _ := os.Executable()
-		// go run 시 tmp 경로 방지: 실행 파일이 tmp 폴더면 현재 디렉토리 사용
-		if strings.Contains(filepath.ToSlash(exePath), "/tmp/") || strings.Contains(exePath, `\AppData\Local\Temp\`) {
-			dataDir = "."
-		} else {
-			dataDir = filepath.Dir(exePath)
-		}
-	}
-	configPath := filepath.Join(dataDir, "alert-config.json")
-	configStore := alert.NewConfigStore(configPath)
-
 	// PostgreSQL 연결 (설정된 경우)
+	var configStore alert.ConfigStorer
 	var historySaver alert.HistorySaver
 	var historyStore *db.AlertHistoryStore
 	pgDSN := getEnv("POSTGRES_DSN", "")
 	if pgDSN != "" {
 		pool, err := db.Connect(context.Background(), pgDSN)
 		if err != nil {
-			log.Printf("PostgreSQL 연결 실패 (알림 히스토리 비활성화): %v", err)
+			log.Printf("PostgreSQL 연결 실패: %v", err)
 		} else {
-			saver := db.NewHistorySaver(pool)
-			historySaver = saver
+			log.Println("PostgreSQL 연결 성공")
+			configStore = db.NewAlertConfigStore(pool)
+			historySaver = db.NewHistorySaver(pool)
 			historyStore = db.NewAlertHistoryStore(pool)
 		}
-	} else {
-		log.Println("POSTGRES_DSN 미설정 — 알림 히스토리 비활성화")
+	}
+	// PostgreSQL 미연결 시 파일 기반 폴백
+	if configStore == nil {
+		log.Println("POSTGRES_DSN 미설정 — 알림 설정/히스토리를 파일로 저장")
+		dataDir := getEnv("OWLMON_DATA_DIR", "")
+		if dataDir == "" {
+			exePath, _ := os.Executable()
+			if strings.Contains(filepath.ToSlash(exePath), "/tmp/") || strings.Contains(exePath, `\AppData\Local\Temp\`) {
+				dataDir = "."
+			} else {
+				dataDir = filepath.Dir(exePath)
+			}
+		}
+		configStore = alert.NewConfigStore(filepath.Join(dataDir, "alert-config.json"))
 	}
 
 	// 알림 체커 초기화
