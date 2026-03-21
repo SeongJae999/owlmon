@@ -8,9 +8,11 @@ import AlertHistory from './components/AlertHistory'
 import HostOverview from './components/HostOverview'
 import MonthlyReportModal from './components/MonthlyReport'
 import SNMPDashboard from './components/SNMPDashboard'
+import AssetManagement from './components/AssetManagement'
 import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchAllHostMetrics, fetchServiceChecks, queryRange } from './api/prometheus'
 import { isLoggedIn, logout } from './api/auth'
-import { getAlertConfig, getAlertStatus, type AlertConfig, type ActiveAlert } from './api/alert'
+import { getAlertConfig, getAlertStatus, ackAlert, getMaintenanceHosts, setMaintenance, type AlertConfig, type ActiveAlert } from './api/alert'
+import { fetchUptime } from './api/asset'
 import type { ServiceCheck } from './api/prometheus'
 
 interface Metrics {
@@ -48,11 +50,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [serviceChecks, setServiceChecks] = useState<ServiceCheck[]>([])
   const [lastUpdated, setLastUpdated] = useState<string>('-')
   const [showAlertSettings, setShowAlertSettings] = useState(false)
+  const [showAssetManagement, setShowAssetManagement] = useState(false)
+  const [uptimes, setUptimes] = useState<Record<string, number>>({})
   const [showAlertHistory, setShowAlertHistory] = useState(false)
   const [showMonthlyReport, setShowMonthlyReport] = useState(false)
   const [alertCfg, setAlertCfg] = useState<AlertConfig | null>(null)
   const [activeAlerts, setActiveAlerts] = useState<ActiveAlert[]>([])
   const [hostMetrics, setHostMetrics] = useState<Record<string, { cpu: number | null; memory: number | null; disk: number | null }>>({})
+  const [maintenanceHosts, setMaintenanceHosts] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview')
 
   useEffect(() => {
@@ -69,7 +74,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const refresh = useCallback(async () => {
     if (!selectedHost || hosts.length === 0) return
-    const [current, cpuRange, memRange, diskRange, rxRange, txRange, statuses, checks, alerts, allMetrics] = await Promise.all([
+    const [current, cpuRange, memRange, diskRange, rxRange, txRange, statuses, checks, alerts, allMetrics, uptimeData, maintenanceData] = await Promise.all([
       fetchMetrics(selectedHost),
       queryRange(`system_cpu_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_memory_usage_percent{host_name="${selectedHost}"}`),
@@ -80,6 +85,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       fetchServiceChecks(selectedHost),
       getAlertStatus(),
       fetchAllHostMetrics(),
+      fetchUptime(),
+      getMaintenanceHosts(),
     ])
     setMetrics(current)
     setChartData({ cpu: cpuRange, memory: memRange, disk: diskRange, rx: rxRange, tx: txRange })
@@ -87,6 +94,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setServiceChecks(checks)
     setActiveAlerts(alerts)
     setHostMetrics(allMetrics)
+    setUptimes(uptimeData)
+    setMaintenanceHosts(maintenanceData)
     setLastUpdated(new Date().toLocaleTimeString('ko-KR'))
   }, [selectedHost, hosts])
 
@@ -126,6 +135,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <button onClick={() => setShowAlertSettings(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               알림 설정
             </button>
+            <button onClick={() => setShowAssetManagement(true)} style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+              자산 관리
+            </button>
             <button onClick={onLogout} style={{ background: 'none', border: '1px solid #334155', color: '#475569', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
               로그아웃
             </button>
@@ -139,7 +151,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             hostStatuses={hostStatuses}
             hostMetrics={hostMetrics}
             activeAlerts={activeAlerts}
+            uptimes={uptimes}
+            maintenanceHosts={maintenanceHosts}
             onSelect={(host) => { setSelectedHost(host); setViewMode('detail') }}
+            onToggleMaintenance={async (host, enabled) => {
+              await setMaintenance(host, enabled)
+              refresh()
+            }}
           />
         )}
 
@@ -177,18 +195,27 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
         {/* 활성 알림 배너 */}
-        {viewMode === 'detail' && activeAlerts.length > 0 && (
+        {viewMode === 'detail' && activeAlerts.filter(a => !a.in_maintenance).length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-            {activeAlerts.map((a, i) => (
+            {activeAlerts.filter(a => !a.in_maintenance).map((a, i) => (
               <div key={i} style={{
-                background: a.severity === 'critical' ? '#450a0a' : '#422006',
-                border: `1px solid ${a.severity === 'critical' ? '#ef4444' : '#f59e0b'}`,
+                background: a.acked ? '#1e293b' : a.severity === 'critical' ? '#450a0a' : '#422006',
+                border: `1px solid ${a.acked ? '#475569' : a.severity === 'critical' ? '#ef4444' : '#f59e0b'}`,
                 borderRadius: 8, padding: '10px 16px',
-                color: a.severity === 'critical' ? '#fca5a5' : '#fcd34d',
+                color: a.acked ? '#64748b' : a.severity === 'critical' ? '#fca5a5' : '#fcd34d',
                 fontSize: 13, display: 'flex', alignItems: 'center', gap: 10,
               }}>
-                <span>{a.severity === 'critical' ? '🚨' : '⚠️'}</span>
-                <span><strong>{a.host}</strong> — {a.message}</span>
+                <span>{a.acked ? '✓' : a.severity === 'critical' ? '🚨' : '⚠️'}</span>
+                <span style={{ flex: 1 }}><strong>{a.host}</strong> — {a.message}</span>
+                {a.acked
+                  ? <span style={{ fontSize: 11, color: '#475569' }}>확인됨</span>
+                  : <button
+                      onClick={async () => { await ackAlert(a.host, a.category, a.severity); refresh() }}
+                      style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, flexShrink: 0 }}
+                    >
+                      확인
+                    </button>
+                }
               </div>
             ))}
           </div>
@@ -254,6 +281,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         setShowAlertSettings(false)
         getAlertConfig().then(setAlertCfg).catch(() => {})
       }} />}
+      {showAssetManagement && <AssetManagement onClose={() => setShowAssetManagement(false)} />}
     </div>
   )
 }

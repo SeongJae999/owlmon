@@ -40,9 +40,24 @@ export interface ActiveAlert {
   severity: string
   value: number
   message: string
+  acked: boolean
+  in_maintenance: boolean
 }
 
 export async function getAlertStatus(): Promise<ActiveAlert[]> {
   const res = await axios.get('/api/alert/status')
   return res.data
+}
+
+export async function ackAlert(host: string, category: string, severity: string): Promise<void> {
+  await axios.post('/api/alert/ack', { host, category, severity })
+}
+
+export async function getMaintenanceHosts(): Promise<string[]> {
+  const res = await axios.get<string[]>('/api/maintenance')
+  return res.data
+}
+
+export async function setMaintenance(host: string, enabled: boolean): Promise<void> {
+  await axios.post('/api/maintenance', { host, enabled })
 }

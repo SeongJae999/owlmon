@@ -27,6 +27,19 @@ CREATE TABLE IF NOT EXISTS alert_config (
 );
 INSERT INTO alert_config (id) VALUES (1) ON CONFLICT DO NOTHING;
 
+-- 자산 관리 (장비별 IP/위치/도입일/보증 만료 등)
+CREATE TABLE IF NOT EXISTS assets (
+    id               BIGSERIAL PRIMARY KEY,
+    host_name        TEXT NOT NULL UNIQUE,       -- 모니터링 호스트명과 연결
+    ip               TEXT NOT NULL DEFAULT '',
+    location         TEXT NOT NULL DEFAULT '',   -- 위치 (예: 2층 서버실)
+    description      TEXT NOT NULL DEFAULT '',   -- 장비 설명
+    purchase_date    DATE,                        -- 도입일
+    warranty_expires DATE,                        -- 보증 만료일
+    notes            TEXT NOT NULL DEFAULT '',
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- SNMP 네트워크 장비
 CREATE TABLE IF NOT EXISTS snmp_devices (
     id          BIGSERIAL PRIMARY KEY,

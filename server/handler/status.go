@@ -6,26 +6,30 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/seongJae/owlmon/server/alert"
 )
 
 // ActiveAlert는 현재 임계값을 초과 중인 알림 항목입니다.
 type ActiveAlert struct {
-	Host     string  `json:"host"`
-	Category string  `json:"category"` // cpu, memory, disk, down
-	Severity string  `json:"severity"` // warning, critical
-	Value    float64 `json:"value"`
-	Message  string  `json:"message"`
+	Host          string  `json:"host"`
+	Category      string  `json:"category"` // cpu, memory, disk, down
+	Severity      string  `json:"severity"` // warning, critical
+	Value         float64 `json:"value"`
+	Message       string  `json:"message"`
+	Acked         bool    `json:"acked"`          // 확인됨 여부
+	InMaintenance bool    `json:"in_maintenance"` // 유지보수 모드 여부
 }
 
 type StatusHandler struct {
 	prometheusURL string
 	configStore   alert.ConfigStorer
+	checker       *alert.Checker // nil이면 ack/유지보수 정보 없음
 }
 
-func NewStatusHandler(prometheusURL string, configStore alert.ConfigStorer) *StatusHandler {
-	return &StatusHandler{prometheusURL: prometheusURL, configStore: configStore}
+func NewStatusHandler(prometheusURL string, configStore alert.ConfigStorer, checker *alert.Checker) *StatusHandler {
+	return &StatusHandler{prometheusURL: prometheusURL, configStore: configStore, checker: checker}
 }
 
 // GetStatus는 현재 임계값 초과 중인 항목 목록을 반환합니다.
@@ -106,8 +110,50 @@ func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	if alerts == nil {
 		alerts = []ActiveAlert{}
 	}
+	// acked / in_maintenance 주석 추가
+	if h.checker != nil {
+		for i := range alerts {
+			alerts[i].Acked = h.checker.IsAcked(alerts[i].Host, alerts[i].Category, alerts[i].Severity)
+			alerts[i].InMaintenance = h.checker.IsInMaintenance(alerts[i].Host)
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(alerts)
+}
+
+// GetUptime은 이번 달 호스트별 가동률(%)을 반환합니다.
+// GET /api/uptime
+func (h *StatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	daysElapsed := now.Day() // 이번 달 경과 일수 (1~31)
+	durationStr := fmt.Sprintf("%dd", daysElapsed)
+	expectedSamples := float64(daysElapsed * 24 * 120) // 30초 간격 = 시간당 120개
+
+	hosts, err := h.labelValues("host_name")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	result := make(map[string]float64)
+	for _, host := range hosts {
+		results, err := h.query(fmt.Sprintf(
+			`count_over_time(system_cpu_usage_percent{host_name="%s"}[%s])`,
+			host, durationStr,
+		))
+		if err != nil || len(results) == 0 {
+			result[host] = 0
+			continue
+		}
+		pct := results[0].value / expectedSamples * 100
+		if pct > 100 {
+			pct = 100
+		}
+		result[host] = pct
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 type promResult struct {

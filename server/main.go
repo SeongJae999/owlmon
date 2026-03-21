@@ -79,6 +79,7 @@ func startServer() func() {
 	var historySaver alert.HistorySaver
 	var historyStore *db.AlertHistoryStore
 	var snmpDeviceStore *db.SNMPDeviceStore
+	var assetStore *db.AssetStore
 	pgDSN := getEnv("POSTGRES_DSN", "")
 	if pgDSN != "" {
 		pool, err := db.Connect(context.Background(), pgDSN)
@@ -90,6 +91,7 @@ func startServer() func() {
 			historySaver = db.NewHistorySaver(pool)
 			historyStore = db.NewAlertHistoryStore(pool)
 			snmpDeviceStore = db.NewSNMPDeviceStore(pool)
+			assetStore = db.NewAssetStore(pool)
 		}
 	}
 	// PostgreSQL 미연결 시 파일 기반 폴백
@@ -107,7 +109,7 @@ func startServer() func() {
 		configStore = alert.NewConfigStore(filepath.Join(dataDir, "alert-config.json"))
 	}
 
-	// 알림 체커 초기화
+	// 알림 체커 초기화 (이메일 없어도 ack/유지보수 기능을 위해 항상 생성)
 	smtpHost := getEnv("SMTP_HOST", "")
 	var emailCfg *alert.EmailConfig
 	if smtpHost != "" {
@@ -119,10 +121,12 @@ func startServer() func() {
 			From:     getEnv("SMTP_FROM", ""),
 			To:       strings.Split(getEnv("SMTP_TO", ""), ","),
 		}
-		checker := alert.NewChecker(prometheusURL, emailCfg, configStore, historySaver)
-		checker.Start(30 * time.Second)
 	} else {
 		log.Println("SMTP_HOST 미설정 — 이메일 알림 비활성화")
+	}
+	checker := alert.NewChecker(prometheusURL, emailCfg, configStore, historySaver)
+	if emailCfg != nil {
+		checker.Start(30 * time.Second)
 	}
 
 	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret)
@@ -130,8 +134,8 @@ func startServer() func() {
 	if err != nil {
 		log.Fatalf("Prometheus 프록시 초기화 실패: %v", err)
 	}
-	alertHandler := handler.NewAlertHandler(configStore)
-	statusHandler := handler.NewStatusHandler(prometheusURL, configStore)
+	alertHandler := handler.NewAlertHandler(configStore, checker)
+	statusHandler := handler.NewStatusHandler(prometheusURL, configStore, checker)
 
 	// 월간 보고서 (이메일 없어도 미리보기는 가능)
 	reporter := report.NewReporter(prometheusURL, emailCfg, configStore)
@@ -180,7 +184,11 @@ func startServer() func() {
 		r.Handle("/api/v1/*", proxyHandler)
 		r.Get("/api/alert/config", alertHandler.GetConfig)
 		r.Post("/api/alert/config", alertHandler.SetConfig)
+		r.Post("/api/alert/ack", alertHandler.AckAlert)
+		r.Get("/api/maintenance", alertHandler.GetMaintenance)
+		r.Post("/api/maintenance", alertHandler.SetMaintenance)
 		r.Get("/api/alert/status", statusHandler.GetStatus)
+		r.Get("/api/uptime", statusHandler.GetUptime)
 		if historyStore != nil {
 			historyHandler := handler.NewHistoryHandler(historyStore)
 			r.Get("/api/alert/history", historyHandler.List)
@@ -192,6 +200,12 @@ func startServer() func() {
 			r.Post("/api/snmp/devices", snmpHandler.AddDevice)
 			r.Delete("/api/snmp/devices/{id}", snmpHandler.DeleteDevice)
 			r.Get("/api/snmp/status", snmpHandler.GetStatus)
+		}
+		if assetStore != nil {
+			assetHandler := handler.NewAssetHandler(assetStore)
+			r.Get("/api/assets", assetHandler.List)
+			r.Put("/api/assets", assetHandler.Upsert)
+			r.Delete("/api/assets/{id}", assetHandler.Delete)
 		}
 	})
 

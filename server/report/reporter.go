@@ -34,7 +34,7 @@ type MonthlyReport struct {
 // Reporter는 월간 보고서를 생성하고 이메일로 발송합니다.
 type Reporter struct {
 	prometheusURL string
-	email         *alert.EmailConfig
+	email         *alert.EmailConfig // nil이면 이메일 발송 불가
 	configStore   alert.ConfigStorer
 }
 
@@ -44,6 +44,11 @@ func NewReporter(prometheusURL string, email *alert.EmailConfig, configStore ale
 		email:         email,
 		configStore:   configStore,
 	}
+}
+
+// CanSend는 이메일 발송이 가능한지 반환합니다.
+func (r *Reporter) CanSend() bool {
+	return r.email != nil
 }
 
 // Start는 매월 1일 09:00에 지난달 보고서를 자동 발송합니다.
@@ -111,6 +116,10 @@ func (r *Reporter) Generate(year int, month time.Month) (*MonthlyReport, error) 
 
 // SendReport는 보고서를 생성하여 이메일로 발송합니다.
 func (r *Reporter) SendReport(year int, month time.Month) error {
+	if r.email == nil {
+		return fmt.Errorf("SMTP가 설정되지 않아 이메일 발송이 불가합니다")
+	}
+
 	rep, err := r.Generate(year, month)
 	if err != nil {
 		return err

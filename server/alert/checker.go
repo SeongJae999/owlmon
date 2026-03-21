@@ -58,7 +58,7 @@ func (c *Checker) check() {
 		return
 	}
 	// 수신자 목록을 동적으로 반영
-	if len(cfg.Recipients) > 0 {
+	if c.email != nil && len(cfg.Recipients) > 0 {
 		c.email.To = cfg.Recipients
 	}
 
@@ -87,6 +87,7 @@ func (c *Checker) checkMetric(name, promql string, critical, warning float64) {
 			}
 		} else {
 			if c.state.ClearIfFiring(key) {
+				c.state.ClearAck(host, strings.ToLower(name), "critical")
 				subject := fmt.Sprintf("✅ %s %s 정상 복구 (%.1f%%)", host, name, val)
 				body := fmt.Sprintf("호스트: %s\n항목: %s 사용률\n현재 값: %.1f%%\n\n정상 범위로 돌아왔습니다.", host, name, val)
 				c.sendAlert(host, strings.ToLower(name), "info", subject, body)
@@ -123,6 +124,8 @@ func (c *Checker) checkDisk(warn, crit float64) {
 			}
 		} else {
 			if c.state.ClearIfFiring(critKey) || c.state.ClearIfFiring(warnKey) {
+				c.state.ClearAck(host, "disk", "critical")
+				c.state.ClearAck(host, "disk", "warning")
 				subject := fmt.Sprintf("✅ %s 디스크 정상 복구 (%s %.1f%%)", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n정상 범위로 돌아왔습니다.", host, mount, val)
 				c.sendAlert(host, "disk", "info", subject, body)
@@ -152,6 +155,7 @@ func (c *Checker) checkServerDown() {
 			}
 		} else {
 			if c.state.ClearIfFiring(key) {
+				c.state.ClearAck(host, "down", "critical")
 				subject := fmt.Sprintf("✅ %s 서버 연결 복구", host)
 				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 복구되었습니다.", host)
 				c.sendAlert(host, "down", "info", subject, body)
@@ -182,6 +186,7 @@ func (c *Checker) checkServiceFailures() {
 			}
 		} else {
 			if c.state.ClearIfFiring(key) {
+				c.state.ClearAck(host, "service", "critical")
 				subject := fmt.Sprintf("✅ %s 서비스 복구 (%s)", host, name)
 				body := fmt.Sprintf("호스트: %s\n서비스: %s\n대상: %s\n\n서비스가 정상적으로 응답하고 있습니다.", host, name, target)
 				c.sendAlert(host, "service", "info", subject, body)
@@ -192,16 +197,56 @@ func (c *Checker) checkServiceFailures() {
 }
 
 func (c *Checker) sendAlert(host, category, severity, subject, body string) {
-	if err := c.email.Send(subject, body); err != nil {
-		log.Printf("알림 이메일 발송 실패: %v", err)
-	} else {
-		log.Printf("알림 발송: %s", subject)
+	// 유지보수 모드: 이메일 및 히스토리 저장 모두 억제
+	if c.state.IsInMaintenance(host) {
+		log.Printf("유지보수 모드 — 알림 억제: %s", subject)
+		return
+	}
+	// 확인된 알림: 이메일만 억제, 히스토리는 저장
+	if severity != "info" && c.state.IsAcked(host, category, severity) {
+		log.Printf("알림 확인됨 — 이메일 억제: %s", subject)
+		if c.history != nil {
+			_ = c.history.Save(context.Background(), host, category, severity, subject, body)
+		}
+		return
+	}
+	if c.email != nil {
+		if err := c.email.Send(subject, body); err != nil {
+			log.Printf("알림 이메일 발송 실패: %v", err)
+		} else {
+			log.Printf("알림 발송: %s", subject)
+		}
 	}
 	if c.history != nil {
 		if err := c.history.Save(context.Background(), host, category, severity, subject, body); err != nil {
 			log.Printf("알림 히스토리 저장 실패: %v", err)
 		}
 	}
+}
+
+// Ack는 알림을 확인 처리합니다.
+func (c *Checker) Ack(host, category, severity string) {
+	c.state.Ack(host, category, severity)
+}
+
+// IsAcked는 알림이 확인됐는지 반환합니다.
+func (c *Checker) IsAcked(host, category, severity string) bool {
+	return c.state.IsAcked(host, category, severity)
+}
+
+// SetMaintenance는 호스트의 유지보수 모드를 설정합니다.
+func (c *Checker) SetMaintenance(host string, on bool) {
+	c.state.SetMaintenance(host, on)
+}
+
+// IsInMaintenance는 호스트가 유지보수 모드인지 반환합니다.
+func (c *Checker) IsInMaintenance(host string) bool {
+	return c.state.IsInMaintenance(host)
+}
+
+// MaintenanceHosts는 유지보수 중인 호스트 목록을 반환합니다.
+func (c *Checker) MaintenanceHosts() []string {
+	return c.state.MaintenanceHosts()
 }
 
 // --- Prometheus 조회 헬퍼 ---
