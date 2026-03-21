@@ -55,7 +55,7 @@ func startAgent() func() {
 	if err != nil {
 		log.Fatalf("exporter 초기화 실패: %v", err)
 	}
-	exp := exporter.NewBufferedExporter(otlpExp)
+	exp := exporter.NewBufferedExporter(otlpExp, "owlmon-buffer.json")
 
 	hostname, _ := os.Hostname()
 	res := resource.NewWithAttributes(
