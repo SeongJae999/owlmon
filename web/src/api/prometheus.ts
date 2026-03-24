@@ -105,9 +105,9 @@ export async function fetchAllHostMetrics(): Promise<Record<string, { cpu: numbe
   }
 
   const [cpuMap, memMap, diskMap] = await Promise.all([
-    queryAll('max(last_over_time(system_cpu_usage_percent[1h])) by (host_name)'),
-    queryAll('max(last_over_time(system_memory_usage_percent[1h])) by (host_name)'),
-    queryAll('max(last_over_time(system_disk_usage_percent[1h])) by (host_name)'),
+    queryAll('max(last_over_time(system_cpu_usage_percent[2m])) by (host_name)'),
+    queryAll('max(last_over_time(system_memory_usage_percent[2m])) by (host_name)'),
+    queryAll('max(last_over_time(system_disk_usage_percent[2m])) by (host_name)'),
   ])
 
   const hosts = new Set([...Object.keys(cpuMap), ...Object.keys(memMap), ...Object.keys(diskMap)])
@@ -129,11 +129,11 @@ export async function fetchMetrics(host?: string) {
 
   // last_over_time: 지정 범위 내 마지막 값 반환 (오프라인 시에도 직전 값 표시)
   const [cpu, memory, disk, rx, tx] = await Promise.all([
-    query(`last_over_time(system_cpu_usage_percent${filter}[1h])`),
-    query(`last_over_time(system_memory_usage_percent${filter}[1h])`),
-    query(`max(last_over_time(system_disk_usage_percent${filter}[1h]))`),
-    query(`sum(last_over_time(system_network_rx_bytes_per_second${filter}[1h]))`),
-    query(`sum(last_over_time(system_network_tx_bytes_per_second${filter}[1h]))`),
+    query(`last_over_time(system_cpu_usage_percent${filter}[2m])`),
+    query(`last_over_time(system_memory_usage_percent${filter}[2m])`),
+    query(`max(last_over_time(system_disk_usage_percent${filter}[2m]))`),
+    query(`sum(last_over_time(system_network_rx_bytes_per_second${filter}[2m]))`),
+    query(`sum(last_over_time(system_network_tx_bytes_per_second${filter}[2m]))`),
   ])
   return { cpu, memory, disk, rx, tx }
 }
