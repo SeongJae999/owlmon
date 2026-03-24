@@ -2,23 +2,24 @@
 
 ## Project Overview
 OWLmon은 한국 시장을 타겟으로 한 모니터링 솔루션 프로젝트입니다.
-"IT 전담 없는 중소기업"을 주요 고객으로, Zabbix/Prometheus 기반 커스텀 대시보드 + 카카오톡 알림 연동을 핵심으로 합니다.
+"IT 전담 없는 학교/공공기관"을 주요 고객으로, Zabbix/Prometheus 기반 커스텀 대시보드 + 알림 연동을 핵심으로 합니다.
 
 ## Current Phase
-- **Research & Planning** (Pre-development)
-- `monitoring-enhanced.html`: 13개 섹션의 종합 리서치 문서 (기술스택, 아키텍처, 논문, 로드맵)
+- **MVP 개발 완료** — 서버 에이전트 + 웹 대시보드 + 이메일 알림 + SNMP + 이상탐지
+- `docs/monitoring-enhanced.html`: 13개 섹션의 종합 리서치 문서 (기술스택, 아키텍처, 논문, 로드맵)
 
-## Tech Stack (Planned)
-- **Agent**: Python (MVP) → Go (Production)
-- **Backend API**: Python FastAPI (MVP) → Go (Production)
-- **Frontend**: React/Vue + TypeScript
-- **TSDB**: Prometheus TSDB (MVP) → VictoriaMetrics/ClickHouse (Scale)
-- **Alerting**: Kakao Talk API, Kakao Work Webhook, Slack, SMS
-- **Protocols**: SNMP v2c/v3, OTLP/gRPC, REST API, WebSocket
-- **Infra**: Docker, OpenTelemetry Collector
+## Tech Stack
+- **Agent**: Go (gopsutil, OTLP push)
+- **Backend API**: Go (chi router, JWT 인증)
+- **Frontend**: React + TypeScript (Vite, Recharts)
+- **TSDB**: Prometheus
+- **DB**: PostgreSQL (알림 히스토리, SNMP 장비, 자산 관리)
+- **Alerting**: SMTP 이메일
+- **Protocols**: SNMP v2c, REST API
+- **Anomaly Detection**: Z-score + 이동평균, 선형회귀 디스크 예측 (순수 Go, 외부 의존성 zero)
 
 ## Architecture Pattern
-OpenTelemetry 통합 파이프라인 (패턴 C) 기반, Push 모델 에이전트 채용
+Push 모델 에이전트 → Prometheus → OWLmon 서버 (알림 + 이상탐지 + API) → React 대시보드
 
 ## Key Principles
 - 에이전트는 경량 (목표 10MB 이하 메모리, CPU 1% 이하)
@@ -28,9 +29,10 @@ OpenTelemetry 통합 파이프라인 (패턴 C) 기반, Push 모델 에이전트
 - 알림: 디바운싱 + 중복 제거 + 심각도 분류 필수
 
 ## MVP Roadmap
-1. **3개월**: 서버 에이전트(CPU/메모리/디스크) + 웹 대시보드 + 카카오톡 알림
-2. **6개월**: 모바일 최적화 + 월간 보고서 + SNMP 네트워크 모니터링
-3. **1년**: AI 이상 감지 + SaaS 멀티테넌트 + OTel 호환 + 로그 수집
+1. ~~**3개월**: 서버 에이전트 + 웹 대시보드 + 알림~~ ✅ 완료
+2. ~~**6개월**: 월간 보고서 + SNMP 네트워크 모니터링~~ ✅ 완료
+3. **현재**: 이상탐지 Phase 1 (Z-score, 디스크 예측) ✅ 완료 → Phase 2 (Isolation Forest) 대기
+4. **다음**: 모바일 최적화 + SSL 인증서 만료 알림 + 로그 수집
 
 ## Business Model
 - 초기: 납품형 (구축비 500만~수천만원)
@@ -40,16 +42,36 @@ OpenTelemetry 통합 파이프라인 (패턴 C) 기반, Push 모델 에이전트
 ## File Structure
 ```
 owlmon/
-├── CLAUDE.md                    # 이 파일
-├── monitoring-enhanced.html     # 종합 리서치 문서
-├── docs/                        # 기술 문서
-│   └── TECH-STACK.md           # 기술스택 상세 정리
+├── CLAUDE.md                       # 이 파일
+├── agent/                          # 에이전트 (Go)
+│   ├── main.go                     # 엔트리포인트
+│   ├── collector/                  # 메트릭 수집 (CPU, 메모리, 디스크, 네트워크)
+│   └── service/                    # Windows/Unix 서비스
+├── server/                         # 서버 (Go)
+│   ├── main.go                     # 엔트리포인트, 라우팅
+│   ├── alert/                      # 알림 (Checker, State, Config, Email)
+│   ├── anomaly/                    # 이상탐지 엔진
+│   │   ├── detector.go             #   Z-score + 이동평균 (계절성 보정)
+│   │   └── predictor.go            #   선형회귀 디스크 예측
+│   ├── auth/                       # JWT 인증
+│   ├── db/                         # PostgreSQL 저장소
+│   ├── handler/                    # HTTP 핸들러
+│   │   ├── anomaly.go              #   이상탐지 API
+│   │   └── ...
+│   ├── report/                     # 월간 보고서
+│   ├── snmp/                       # SNMP 폴러
+│   └── service/                    # Windows/Unix 서비스
+├── web/                            # 프론트엔드 (React + TypeScript)
+│   └── src/
+│       ├── api/                    # API 클라이언트
+│       │   ├── anomaly.ts          #   이상탐지 API
+│       │   └── ...
+│       └── components/             # UI 컴포넌트
+│           ├── AnomalyPanel.tsx    #   이상탐지 패널
+│           └── ...
+├── docs/                           # 기술 문서
 └── .claude/
-    ├── settings.local.json
-    └── skills/                  # Claude Code custom skills
-        ├── monitoring-research.md
-        ├── agent-dev.md
-        └── alert-design.md
+    └── skills/                     # Claude Code custom skills
 ```
 
 ## Conventions
