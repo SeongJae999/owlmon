@@ -1,3 +1,5 @@
+//go:build windows
+
 // service/windows.go - Windows 서비스 래퍼
 package service
 
