@@ -34,9 +34,19 @@ func NewDiskCollector(meter metric.Meter) (*DiskCollector, error) {
 		}
 
 		for _, p := range partitions {
+			// 가상/pseudo 파일시스템 제외 (devfs, tmpfs, autofs 등)
+			switch p.Fstype {
+			case "devfs", "tmpfs", "autofs", "overlay", "squashfs", "fuse", "fusectl",
+				"cgroup", "cgroup2", "proc", "sysfs", "debugfs", "securityfs":
+				continue
+			}
+
 			usage, err := disk.Usage(p.Mountpoint)
 			if err != nil {
 				continue // 접근 불가 파티션은 건너뜀
+			}
+			if usage.Total == 0 {
+				continue // 전체 용량 0 (autofs 등 가상 마운트) 제외
 			}
 			o.ObserveFloat64(usageGauge, usage.UsedPercent,
 				metric.WithAttributeSet(attribute.NewSet(
