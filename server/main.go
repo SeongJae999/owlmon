@@ -125,9 +125,8 @@ func startServer() func() {
 		log.Println("SMTP_HOST 미설정 — 이메일 알림 비활성화")
 	}
 	checker := alert.NewChecker(prometheusURL, emailCfg, configStore, historySaver)
-	if emailCfg != nil {
-		checker.Start(30 * time.Second)
-	}
+	// 이상탐지는 이메일 없이도 항상 실행 (알림 체크 + Z-score + 디스크 예측)
+	checker.Start(30 * time.Second)
 
 	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret)
 	proxyHandler, err := handler.NewProxyHandler(prometheusURL)
@@ -136,6 +135,7 @@ func startServer() func() {
 	}
 	alertHandler := handler.NewAlertHandler(configStore, checker)
 	statusHandler := handler.NewStatusHandler(prometheusURL, configStore, checker)
+	anomalyHandler := handler.NewAnomalyHandler(checker.Detector, checker.Predictor)
 
 	// 월간 보고서 (이메일 없어도 미리보기는 가능)
 	reporter := report.NewReporter(prometheusURL, emailCfg, configStore)
@@ -201,6 +201,10 @@ func startServer() func() {
 			r.Delete("/api/snmp/devices/{id}", snmpHandler.DeleteDevice)
 			r.Get("/api/snmp/status", snmpHandler.GetStatus)
 		}
+		r.Get("/api/anomaly", anomalyHandler.GetAnomalies)
+		r.Get("/api/anomaly/disk", anomalyHandler.GetDiskPredictions)
+		r.Post("/api/anomaly/test", anomalyHandler.InjectTestData)
+		r.Delete("/api/anomaly/test", anomalyHandler.ClearTestData)
 		if assetStore != nil {
 			assetHandler := handler.NewAssetHandler(assetStore)
 			r.Get("/api/assets", assetHandler.List)

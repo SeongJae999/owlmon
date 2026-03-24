@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/seongJae/owlmon/server/anomaly"
 )
 
 const (
@@ -28,6 +30,8 @@ type Checker struct {
 	state         *State
 	configStore   ConfigStorer
 	history       HistorySaver // nil이면 저장 안 함
+	Detector      *anomaly.Detector
+	Predictor     *anomaly.Predictor
 }
 
 func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStorer, history HistorySaver) *Checker {
@@ -37,6 +41,8 @@ func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStor
 		state:         NewState(),
 		configStore:   configStore,
 		history:       history,
+		Detector:      anomaly.NewDetector(),
+		Predictor:     anomaly.NewPredictor(),
 	}
 }
 
@@ -67,6 +73,8 @@ func (c *Checker) check() {
 	c.checkDisk(cfg.DiskWarn, cfg.DiskCrit)
 	c.checkServerDown()
 	c.checkServiceFailures()
+	c.feedAnomalyDetector()
+	c.feedDiskPredictor()
 }
 
 // checkMetric은 단일 메트릭 임계값을 체크합니다.
@@ -282,6 +290,64 @@ func (c *Checker) query(promql string) ([]metricResult, error) {
 		out = append(out, metricResult{metric: r.Metric, value: val})
 	}
 	return out, nil
+}
+
+// feedAnomalyDetector는 CPU/메모리 메트릭을 이상탐지 엔진에 주입합니다.
+func (c *Checker) feedAnomalyDetector() {
+	now := time.Now()
+
+	// CPU
+	if results, err := c.query("max(system_cpu_usage_percent) by (host_name)"); err == nil {
+		for _, r := range results {
+			host := r.metric["host_name"]
+			if a := c.Detector.Feed(host, "cpu", r.value, now); a != nil {
+				key := fmt.Sprintf("anomaly:cpu:%s", host)
+				if a.Severity == "critical" && c.state.ShouldAlert(key) {
+					subject := fmt.Sprintf("🔍 %s CPU 이상 감지 (Z=%.1f)", host, a.ZScore)
+					c.sendAlert(host, "anomaly_cpu", a.Severity, subject, a.Message)
+				}
+			}
+		}
+	}
+
+	// 메모리
+	if results, err := c.query("max(system_memory_usage_percent) by (host_name)"); err == nil {
+		for _, r := range results {
+			host := r.metric["host_name"]
+			if a := c.Detector.Feed(host, "memory", r.value, now); a != nil {
+				key := fmt.Sprintf("anomaly:memory:%s", host)
+				if a.Severity == "critical" && c.state.ShouldAlert(key) {
+					subject := fmt.Sprintf("🔍 %s 메모리 이상 감지 (Z=%.1f)", host, a.ZScore)
+					c.sendAlert(host, "anomaly_memory", a.Severity, subject, a.Message)
+				}
+			}
+		}
+	}
+}
+
+// feedDiskPredictor는 디스크 사용률을 예측 엔진에 주입합니다.
+func (c *Checker) feedDiskPredictor() {
+	now := time.Now()
+	results, err := c.query("max(system_disk_usage_percent) by (host_name, mountpoint)")
+	if err != nil {
+		return
+	}
+	for _, r := range results {
+		host := r.metric["host_name"]
+		mount := r.metric["mountpoint"]
+		pred := c.Predictor.Feed(host, mount, r.value, now)
+		if pred == nil {
+			continue
+		}
+		// 7일 이내 고갈 예상 + R² ≥ 0.5이면 알림
+		if pred.DaysLeft >= 0 && pred.DaysLeft <= 7 && pred.R2 >= 0.5 {
+			key := fmt.Sprintf("diskpred:%s:%s", host, mount)
+			if c.state.ShouldAlert(key) {
+				subject := fmt.Sprintf("📈 %s 디스크 고갈 예측 (%s, %.0f일 후)", host, mount, pred.DaysLeft)
+				c.sendAlert(host, "disk_prediction", "warning", subject, pred.Message)
+			}
+		}
+	}
 }
 
 func (c *Checker) labelValues(label string) ([]string, error) {
