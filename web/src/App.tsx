@@ -13,6 +13,7 @@ import { fetchMetrics, fetchHosts, fetchAllHostStatuses, fetchAllHostMetrics, fe
 import { isLoggedIn, logout } from './api/auth'
 import { getAlertConfig, getAlertStatus, ackAlert, getMaintenanceHosts, setMaintenance, type AlertConfig, type ActiveAlert } from './api/alert'
 import { fetchUptime } from './api/asset'
+import { getAnomalyData, type AnomalyResponse } from './api/anomaly'
 import type { ServiceCheck } from './api/prometheus'
 
 interface Metrics {
@@ -59,6 +60,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [hostMetrics, setHostMetrics] = useState<Record<string, { cpu: number | null; memory: number | null; disk: number | null }>>({})
   const [maintenanceHosts, setMaintenanceHosts] = useState<string[]>([])
   const [viewMode, setViewMode] = useState<'overview' | 'detail'>('overview')
+  const [anomalyData, setAnomalyData] = useState<AnomalyResponse | null>(null)
 
   useEffect(() => {
     getAlertConfig().then(setAlertCfg).catch(() => {})
@@ -74,7 +76,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const refresh = useCallback(async () => {
     if (!selectedHost || hosts.length === 0) return
-    const [current, cpuRange, memRange, diskRange, rxRange, txRange, statuses, checks, alerts, allMetrics, uptimeData, maintenanceData] = await Promise.all([
+    const [current, cpuRange, memRange, diskRange, rxRange, txRange, statuses, checks, alerts, allMetrics, uptimeData, maintenanceData, anomaly] = await Promise.all([
       fetchMetrics(selectedHost),
       queryRange(`system_cpu_usage_percent{host_name="${selectedHost}"}`),
       queryRange(`system_memory_usage_percent{host_name="${selectedHost}"}`),
@@ -87,6 +89,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       fetchAllHostMetrics(),
       fetchUptime(),
       getMaintenanceHosts(),
+      getAnomalyData(),
     ])
     setMetrics(current)
     setChartData({ cpu: cpuRange, memory: memRange, disk: diskRange, rx: rxRange, tx: txRange })
@@ -96,6 +99,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setHostMetrics(allMetrics)
     setUptimes(uptimeData)
     setMaintenanceHosts(maintenanceData)
+    setAnomalyData(anomaly)
     setLastUpdated(new Date().toLocaleTimeString('ko-KR'))
   }, [selectedHost, hosts])
 
@@ -221,6 +225,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
+
         {/* 오프라인 배너 */}
         {viewMode === 'detail' && isOffline && (
           <div style={{
@@ -243,9 +248,20 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         {/* 상세 보기 */}
         {viewMode === 'detail' && <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 32 }}>
-            <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={alertCfg ? alertCfg.cpu_threshold * 0.8 : 70} critical={alertCfg?.cpu_threshold ?? 90} />
-            <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80} critical={alertCfg?.mem_threshold ?? 95} />
-            <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={alertCfg?.disk_warn ?? 85} critical={alertCfg?.disk_crit ?? 90} />
+            <MetricCard title="CPU 사용률" value={metrics.cpu} data={chartData.cpu} color="#7dd3fc" warning={alertCfg ? alertCfg.cpu_threshold * 0.8 : 70} critical={alertCfg?.cpu_threshold ?? 90}
+              anomaly={anomalyData?.anomalies.find(a => a.host === selectedHost && a.metric === 'cpu') ?? null}
+            />
+            <MetricCard title="메모리 사용률" value={metrics.memory} data={chartData.memory} color="#a78bfa" warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80} critical={alertCfg?.mem_threshold ?? 95}
+              anomaly={anomalyData?.anomalies.find(a => a.host === selectedHost && a.metric === 'memory') ?? null}
+            />
+            <MetricCard title="디스크 사용률" value={metrics.disk} data={chartData.disk} color="#34d399" warning={alertCfg?.disk_warn ?? 85} critical={alertCfg?.disk_crit ?? 90}
+              anomaly={anomalyData?.anomalies.find(a => a.host === selectedHost && a.metric === 'disk') ?? null}
+              diskPrediction={(() => {
+                const preds = anomalyData?.disk_predictions.filter(p => p.host === selectedHost) ?? []
+                if (preds.length === 0) return null
+                return preds.reduce((worst, p) => (p.days_left >= 0 && (worst === null || p.days_left < worst.days_left)) ? p : worst, null as typeof preds[0] | null)
+              })()}
+            />
             <NetworkCard title="네트워크 수신 (RX)" valueBps={metrics.rx} data={chartData.rx} color="#f472b6" />
             <NetworkCard title="네트워크 송신 (TX)" valueBps={metrics.tx} data={chartData.tx} color="#fb923c" />
           </div>
