@@ -1,12 +1,20 @@
-.PHONY: install dev lint format test up down clean
+.PHONY: dev stop lint format test up down clean
 
-# 의존성 설치
-install:
-	pip install -e ".[all]"
+# 개발 환경 전체 시작 (OS 자동 감지)
+dev:
+ifeq ($(OS),Windows_NT)
+	powershell -File dev.ps1
+else
+	bash dev.sh
+endif
 
-# 개발 환경 전체 세팅
-dev: install up
-	@echo "개발 환경 준비 완료! http://localhost:3000 (Grafana)"
+# 개발 환경 종료
+stop:
+ifeq ($(OS),Windows_NT)
+	powershell -File stop.ps1
+else
+	bash stop.sh
+endif
 
 # 린트
 lint:
