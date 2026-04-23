@@ -32,7 +32,8 @@ Push 모델 에이전트 → Prometheus → OWLmon 서버 (알림 + 이상탐지
 1. ~~**3개월**: 서버 에이전트 + 웹 대시보드 + 알림~~ ✅ 완료
 2. ~~**6개월**: 월간 보고서 + SNMP 네트워크 모니터링~~ ✅ 완료
 3. **현재**: 이상탐지 Phase 1 (Z-score, 디스크 예측) ✅ 완료 → Phase 2 (Isolation Forest) 대기
-4. **다음**: SSL 인증서 만료 알림 + 로그 수집
+4. **다음**: 로그 수집 파이프라인 (Phase 0) — 자체 LLM 로그 분석 AI의 기반
+5. **이후**: SSL 인증서 만료 알림 + 서버 온보딩 UI + 이상탐지 Phase 2 (Isolation Forest)
 
 ## Business Model
 - 초기: 납품형 (구축비 500만~수천만원)
