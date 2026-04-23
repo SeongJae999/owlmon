@@ -79,8 +79,24 @@ owlmon/
 - 문서는 한국어 기본, 기술 용어는 영문 병기
 - 코드 주석: 한국어
 - Commit message: Conventional Commits (한국어)
-  - 형식: `<type>(<scope>): <subject>`
+  - 형식: `<type>: <subject>` (scope 괄호는 사용하지 않음)
   - type: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
-  - scope: agent, api, web, infra, ci 등 (선택)
   - subject: 한국어, 마침표 없음
   - body: 선택, "왜" 변경했는지
+
+## Branch Strategy
+GitHub Flow 채택 — `main` + 짧은 수명의 작업 브랜치 → PR → squash merge.
+`develop` 브랜치는 팀/납품 버전 분기 필요해질 때 도입 검토.
+
+### 브랜치 네이밍
+- `feat/<주제>` — 새 기능 (예: `feat/log-collector`, `feat/ssl-cert-alert`)
+- `fix/<주제>` — 버그 수정 (예: `fix/agent-memory-leak`)
+- `docs/<주제>` — 문서 변경 (예: `docs/phase0-spec`)
+- `refactor/<주제>` — 리팩토링
+- `chore/<주제>` — 설정/의존성/인프라
+- `claude/<자동>` — Claude Code worktree 자동 생성 브랜치 (그대로 사용)
+
+### 릴리즈
+- 태그 기반: `v<major>.<minor>.<patch>` (예: `v0.9.0`, `v1.0.0`)
+- `v0.9.0`: MVP + 이상탐지 Phase 1 완료 시점
+- `v1.0.0`: 로그 수집 파이프라인 (Phase 0) 완료 시점 예정
