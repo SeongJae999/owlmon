@@ -71,6 +71,10 @@ CREATE TABLE IF NOT EXISTS logs (
     PRIMARY KEY (timestamp, id)                  -- 파티션 키(timestamp)를 PK에 포함 필수
 ) PARTITION BY RANGE (timestamp);
 
+-- 비정상 timestamp(시계 오차, 지각 도착, 미래 시각) 로그용 fallback 파티션.
+-- log_partition.go가 "logs_YYYY_MM_DD" 형식만 자동 관리하므로 logs_default는 안전하게 보존됨.
+CREATE TABLE IF NOT EXISTS logs_default PARTITION OF logs DEFAULT;
+
 -- 호스트별 최신순 조회 (대시보드)
 CREATE INDEX IF NOT EXISTS idx_logs_host_ts  ON logs (host_name, timestamp DESC);
 -- 경고/에러 레벨 부분 인덱스 (대부분 로그는 info 이하 → 전체 인덱스는 낭비)
