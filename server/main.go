@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/seongJae/owlmon/server/auth"
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/handler"
+	"github.com/seongJae/owlmon/server/ingest"
 	"github.com/seongJae/owlmon/server/report"
 	"github.com/seongJae/owlmon/server/service"
 	snmppkg "github.com/seongJae/owlmon/server/snmp"
@@ -68,11 +70,21 @@ func startServer() func() {
 	prometheusURL := getEnv("OWLMON_PROMETHEUS_URL", "http://localhost:9090")
 	listenAddr := getEnv("OWLMON_LISTEN", ":8080")
 
+	// 로그 수집 파이프라인 설정
+	logsEnabled := getEnv("OWLMON_LOGS_ENABLED", "true") == "true"
+	logsRetentionDays := 90
+	if v, err := strconv.Atoi(getEnv("OWLMON_LOGS_RETENTION_DAYS", "90")); err == nil && v > 0 {
+		logsRetentionDays = v
+	}
+
 	if passwordHash == "" {
 		log.Fatal("OWLMON_PASSWORD_HASH 환경변수가 설정되지 않았습니다.\n" +
 			"다음 명령어로 해시를 생성하세요:\n" +
 			"  go run ./cmd/hashpw <비밀번호>")
 	}
+
+	// 백그라운드 루프(파티션 매니저, ingest 워커 등)용 공유 컨텍스트
+	ctx, cancelCtx := context.WithCancel(context.Background())
 
 	// PostgreSQL 연결 (설정된 경우)
 	var configStore alert.ConfigStorer
@@ -80,6 +92,8 @@ func startServer() func() {
 	var historyStore *db.AlertHistoryStore
 	var snmpDeviceStore *db.SNMPDeviceStore
 	var assetStore *db.AssetStore
+	var logsHandler *handler.LogsHandler
+	var logIngestWorker *ingest.Worker
 	pgDSN := getEnv("POSTGRES_DSN", "")
 	if pgDSN != "" {
 		pool, err := db.Connect(context.Background(), pgDSN)
@@ -92,6 +106,19 @@ func startServer() func() {
 			historyStore = db.NewAlertHistoryStore(pool)
 			snmpDeviceStore = db.NewSNMPDeviceStore(pool)
 			assetStore = db.NewAssetStore(pool)
+
+			// 로그 수집 파이프라인
+			if logsEnabled {
+				logStore := db.NewLogStore(pool)
+				partMgr := db.NewLogPartitionManager(pool, logsRetentionDays)
+				partMgr.Start(ctx)
+
+				logIngestWorker = ingest.NewWorker(logStore, ingest.DefaultConfig())
+				logIngestWorker.Start(ctx)
+
+				logsHandler = handler.NewLogsHandler(logIngestWorker)
+				log.Printf("로그 수집 활성화 (보존 %d일)", logsRetentionDays)
+			}
 		}
 	}
 	// PostgreSQL 미연결 시 파일 기반 폴백
@@ -211,6 +238,9 @@ func startServer() func() {
 			r.Put("/api/assets", assetHandler.Upsert)
 			r.Delete("/api/assets/{id}", assetHandler.Delete)
 		}
+		if logsHandler != nil {
+			r.Post("/v1/logs", logsHandler.Receive)
+		}
 	})
 
 	tlsCert := getEnv("OWLMON_TLS_CERT", "")
@@ -239,11 +269,18 @@ func startServer() func() {
 	}()
 
 	return func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// 1. HTTP 수신 중단 (in-flight 요청 drain)
+		sCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := srv.Shutdown(ctx); err != nil {
+		if err := srv.Shutdown(sCtx); err != nil {
 			log.Printf("서버 종료 실패: %v", err)
 		}
+		// 2. ingest 큐 drain
+		if logIngestWorker != nil {
+			logIngestWorker.Stop(5 * time.Second)
+		}
+		// 3. 백그라운드 루프 정지 (파티션 매니저 등)
+		cancelCtx()
 	}
 }
 
