@@ -1,0 +1,37 @@
+{
+  "resourceLogs": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "host.name", "value": {"stringValue": "test-host"}}
+        ]
+      },
+      "scopeLogs": [
+        {
+          "scope": {"name": "owlmon-agent", "version": "0.1.0"},
+          "logRecords": [
+            {
+              "timeUnixNano": "1700000000000000000",
+              "severityNumber": 9,
+              "severityText": "INFO",
+              "body": {"stringValue": "테스트 로그 메시지"},
+              "attributes": [
+                {"key": "source", "value": {"stringValue": "journald"}},
+                {"key": "unit", "value": {"stringValue": "nginx.service"}}
+              ]
+            },
+            {
+              "timeUnixNano": "1700000001000000000",
+              "severityNumber": 17,
+              "severityText": "ERROR",
+              "body": {"stringValue": "DB connection refused"},
+              "attributes": [
+                {"key": "source", "value": {"stringValue": "file:/var/log/app.log"}}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
