@@ -1,63 +1,87 @@
 import { useEffect, useState } from 'react'
 import { getReportPreview, sendReport, type MonthlyReport, type HostReport } from '../api/report'
+import { FileBarChart, Mail, Calendar, Server, Activity, CheckCircle2, AlertTriangle, RefreshCcw } from 'lucide-react'
+import { cn } from '../utils/cn'
 
-interface Props {
-  onClose: () => void
-}
-
-function ProgressBar({ value, color }: { value: number; color: string }) {
+function ProgressBar({ value, colorClass }: { value: number; colorClass: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, height: 6, background: '#334155', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(value, 100)}%`, height: '100%', background: color, borderRadius: 3 }} />
+    <div className="space-y-1">
+      <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+        <div 
+          className={cn("h-full transition-all duration-500", colorClass)} 
+          style={{ width: `${Math.min(value, 100)}%` }} 
+        />
       </div>
-      <span style={{ color: '#e2e8f0', fontSize: 12, minWidth: 42, textAlign: 'right' }}>
-        {value.toFixed(1)}%
-      </span>
     </div>
   )
 }
 
-function metricColor(value: number, warn: number, crit: number): string {
-  if (value >= crit) return '#ef4444'
-  if (value >= warn) return '#f59e0b'
-  return '#22c55e'
+function metricColorClass(value: number, warn: number, crit: number): string {
+  if (value >= crit) return 'bg-rose-500/100'
+  if (value >= warn) return 'bg-amber-500/100'
+  return 'bg-emerald-500/100'
 }
 
 function HostCard({ h }: { h: HostReport }) {
   return (
-    <div style={{ background: '#0f1117', borderRadius: 10, padding: '16px 20px', border: '1px solid #1e293b' }}>
-      <div style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 15, marginBottom: 14 }}>{h.host}</div>
+    <div className="bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-premium hover:shadow-lg transition-all">
+      <div className="flex items-center gap-2 mb-6">
+        <div className="p-1.5 bg-slate-800 rounded-lg">
+          <Server size={14} className="text-slate-400" />
+        </div>
+        <h4 className="font-bold text-slate-200">{h.host}</h4>
+      </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="space-y-5">
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ color: '#64748b', fontSize: 11 }}>가동률</span>
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5">
+            <span className="text-slate-400">가동률</span>
+            <span className={cn(
+              h.uptime_pct >= 99 ? "text-emerald-400" : h.uptime_pct >= 95 ? "text-amber-400" : "text-rose-400"
+            )}>{h.uptime_pct.toFixed(1)}%</span>
           </div>
-          <ProgressBar value={h.uptime_pct} color={h.uptime_pct >= 99 ? '#22c55e' : h.uptime_pct >= 95 ? '#f59e0b' : '#ef4444'} />
+          <ProgressBar 
+            value={h.uptime_pct} 
+            colorClass={h.uptime_pct >= 99 ? 'bg-emerald-500/100' : h.uptime_pct >= 95 ? 'bg-amber-500/100' : 'bg-rose-500/100'} 
+          />
         </div>
 
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ color: '#64748b', fontSize: 11 }}>CPU 평균</span>
-            <span style={{ color: '#64748b', fontSize: 11 }}>최대 {h.cpu_max.toFixed(1)}%</span>
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5">
+            <span className="text-slate-400">CPU 평균</span>
+            <span className="text-slate-400">Max {h.cpu_max.toFixed(1)}%</span>
           </div>
-          <ProgressBar value={h.cpu_avg} color={metricColor(h.cpu_avg, 70, 90)} />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <ProgressBar value={h.cpu_avg} colorClass={metricColorClass(h.cpu_avg, 70, 90)} />
+            </div>
+            <span className="text-[11px] font-bold text-slate-400 w-10 text-right">{h.cpu_avg.toFixed(1)}%</span>
+          </div>
         </div>
 
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ color: '#64748b', fontSize: 11 }}>메모리 평균</span>
-            <span style={{ color: '#64748b', fontSize: 11 }}>최대 {h.mem_max.toFixed(1)}%</span>
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5">
+            <span className="text-slate-400">메모리 평균</span>
+            <span className="text-slate-400">Max {h.mem_max.toFixed(1)}%</span>
           </div>
-          <ProgressBar value={h.mem_avg} color={metricColor(h.mem_avg, 80, 95)} />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <ProgressBar value={h.mem_avg} colorClass={metricColorClass(h.mem_avg, 80, 95)} />
+            </div>
+            <span className="text-[11px] font-bold text-slate-400 w-10 text-right">{h.mem_avg.toFixed(1)}%</span>
+          </div>
         </div>
 
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ color: '#64748b', fontSize: 11 }}>디스크 최대</span>
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider mb-1.5">
+            <span className="text-slate-400">디스크 최대 사용률</span>
           </div>
-          <ProgressBar value={h.disk_max} color={metricColor(h.disk_max, 85, 90)} />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <ProgressBar value={h.disk_max} colorClass={metricColorClass(h.disk_max, 85, 90)} />
+            </div>
+            <span className="text-[11px] font-bold text-slate-400 w-10 text-right">{h.disk_max.toFixed(1)}%</span>
+          </div>
         </div>
       </div>
     </div>
@@ -66,7 +90,7 @@ function HostCard({ h }: { h: HostReport }) {
 
 const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
 
-export default function MonthlyReportModal({ onClose }: Props) {
+export default function MonthlyReportModal() {
   const now = new Date()
   const defaultYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
   const defaultMonth = now.getMonth() === 0 ? 12 : now.getMonth()
@@ -115,82 +139,88 @@ export default function MonthlyReportModal({ onClose }: Props) {
   const yearOptions = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-    }} onClick={onClose}>
-      <div style={{
-        background: '#1e293b', borderRadius: 14, padding: '28px 32px',
-        width: '100%', maxWidth: 680, maxHeight: '85vh', overflowY: 'auto',
-        border: '1px solid #334155',
-      }} onClick={e => e.stopPropagation()}>
-
-        {/* 헤더 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div>
-            <h2 style={{ color: '#f1f5f9', fontSize: 18, fontWeight: 700, margin: 0 }}>월간 보고서</h2>
-            <p style={{ color: '#475569', fontSize: 12, margin: '4px 0 0' }}>호스트별 한 달 통계 요약</p>
+    <div className="space-y-6">
+      {/* Selection & Actions */}
+      <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="p-2 bg-indigo-500/100/10 text-indigo-400 rounded-lg">
+            <Calendar size={20} />
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#475569', fontSize: 20, cursor: 'pointer' }}>✕</button>
+          <div className="flex gap-2">
+            <select 
+              className="bg-slate-800 border border-slate-800 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              value={year} 
+              onChange={e => setYear(Number(e.target.value))}
+            >
+              {yearOptions.map(y => <option key={y} value={y}>{y}년</option>)}
+            </select>
+            <select 
+              className="bg-slate-800 border border-slate-800 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              value={month} 
+              onChange={e => setMonth(Number(e.target.value))}
+            >
+              {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+            </select>
+          </div>
         </div>
 
-        {/* 기간 선택 */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
-          <select
-            value={year}
-            onChange={e => setYear(Number(e.target.value))}
-            style={{ background: '#0f1117', border: '1px solid #334155', color: '#e2e8f0', padding: '6px 12px', borderRadius: 6, fontSize: 13 }}
-          >
-            {yearOptions.map(y => <option key={y} value={y}>{y}년</option>)}
-          </select>
-          <select
-            value={month}
-            onChange={e => setMonth(Number(e.target.value))}
-            style={{ background: '#0f1117', border: '1px solid #334155', color: '#e2e8f0', padding: '6px 12px', borderRadius: 6, fontSize: 13 }}
-          >
-            {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-          </select>
-
-          <div style={{ flex: 1 }} />
-
+        <div className="flex items-center gap-4 w-full sm:w-auto">
           {sent && (
-            <span style={{ color: '#22c55e', fontSize: 13 }}>✓ 이메일 발송 완료</span>
+            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 size={14} /> 이메일 발송 완료
+            </span>
           )}
           {error && (
-            <span style={{ color: '#ef4444', fontSize: 13 }}>{error}</span>
+            <span className="text-xs font-bold text-rose-500 flex items-center gap-1.5">
+              <AlertTriangle size={14} /> {error}
+            </span>
           )}
 
           <button
+            className={cn(
+              "w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg",
+              sending || loading || !report 
+                ? "bg-slate-800 text-slate-400 cursor-not-allowed shadow-none" 
+                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
+            )}
             onClick={handleSend}
             disabled={sending || loading || !report}
-            style={{
-              background: '#0ea5e9', border: 'none', color: '#fff',
-              padding: '7px 18px', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-              opacity: (sending || loading || !report) ? 0.5 : 1,
-            }}
           >
+            {sending ? (
+              <RefreshCcw size={18} className="animate-spin" />
+            ) : (
+              <Mail size={18} />
+            )}
             {sending ? '발송 중...' : '이메일 발송'}
           </button>
         </div>
+      </div>
 
-        {/* 내용 */}
-        {loading && (
-          <div style={{ textAlign: 'center', color: '#475569', padding: 40 }}>데이터 로딩 중...</div>
-        )}
-
-        {!loading && report && (
+      {/* Report Content */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="bg-slate-900 rounded-3xl border border-slate-800 border-dashed py-32 flex flex-col items-center justify-center text-slate-400 animate-pulse">
+            <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
+            <p className="font-medium">보고서 데이터를 집계하는 중...</p>
+          </div>
+        ) : report ? (
           <>
-            <div style={{ color: '#64748b', fontSize: 12, marginBottom: 16 }}>
-              {report.year}년 {report.month}월 · 호스트 {report.hosts.length}대
+            <div className="flex items-center gap-2 px-1">
+              <FileBarChart size={18} className="text-slate-400" />
+              <h2 className="text-lg font-bold text-slate-200">
+                {report.year}년 {report.month}월 월간 보고서 요약
+                <span className="ml-2 text-xs font-medium text-slate-400">호스트 {report.hosts.length}대</span>
+              </h2>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {report.hosts.map(h => <HostCard key={h.host} h={h} />)}
             </div>
           </>
-        )}
-
-        {!loading && !report && !error && (
-          <div style={{ textAlign: 'center', color: '#475569', padding: 40 }}>데이터 없음</div>
+        ) : !error && (
+          <div className="bg-slate-900 rounded-3xl border border-slate-800 border-dashed py-32 flex flex-col items-center justify-center text-slate-400">
+            <Activity size={48} className="mb-4 opacity-10" />
+            <p className="font-medium">해당 기간의 데이터가 없습니다.</p>
+          </div>
         )}
       </div>
     </div>

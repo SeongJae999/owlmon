@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import {
   getSNMPDevices, getSNMPStatus, addSNMPDevice, deleteSNMPDevice,
-  type SNMPDevice, type DeviceStatus,
+  type DeviceStatus,
 } from '../api/snmp'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Network, ArrowDown, ArrowUp, Clock, Trash2, Plus, X, Save, AlertTriangle, RefreshCcw } from 'lucide-react'
+import { cn } from '../utils/cn'
+import PageToolbar from './PageToolbar'
 
 function formatBps(bps: number): string {
   if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
@@ -24,217 +28,256 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
   const downIfs = status.Interfaces?.filter(i => !i.OperUp) ?? []
 
   return (
-    <div style={{
-      background: '#1e293b', borderRadius: 12, padding: '20px 24px',
-      border: `1px solid ${status.Up ? '#334155' : '#ef4444'}`,
-    }}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-              background: status.Up ? '#22c55e' : '#ef4444',
-            }} />
-            <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 15 }}>{status.Device.Name}</span>
-          </div>
-          <div style={{ color: '#475569', fontSize: 12, marginTop: 3, marginLeft: 16 }}>
-            {status.Device.IP}
-            {status.Up && status.UptimeSec > 0 && (
-              <span style={{ marginLeft: 8 }}>· 가동 {formatUptime(status.UptimeSec)}</span>
-            )}
+    <div className={cn(
+      "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
+      status.Up ? "border-slate-800" : "border-rose-500/30 ring-1 ring-rose-50"
+    )}>
+      {/* Background Icon */}
+      <Network size={80} className="absolute -right-4 -bottom-4 text-slate-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "w-2.5 h-2.5 rounded-full ring-4 ring-offset-2",
+            status.Up ? "bg-green-500 ring-green-500/10 animate-pulse" : "bg-rose-500/100 ring-rose-500/10"
+          )} />
+          <div>
+            <h4 className="font-bold text-slate-100 leading-tight">{status.Device.Name}</h4>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[11px] font-bold text-slate-400 font-mono">{status.Device.IP}</span>
+              {status.Up && status.UptimeSec > 0 && (
+                <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+                  <Clock size={10} />
+                  {formatUptime(status.UptimeSec)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        <button
+        <button 
+          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/100/10 transition-all"
           onClick={onDelete}
-          style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16, padding: 4 }}
-          title="장치 삭제"
-        >✕</button>
+        >
+          <Trash2 size={16} />
+        </button>
       </div>
 
-      {!status.Up && (
-        <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>
-          응답 없음 — 장비 오프라인 또는 SNMP 미설정
+      {!status.Up ? (
+        <div className="bg-rose-500/100/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-800 text-xs font-bold">
+          <AlertTriangle size={16} className="shrink-0" />
+          <p>응답 없음: 장비 오프라인 또는 SNMP 설정 확인 필요</p>
         </div>
-      )}
-
-      {status.Up && status.Interfaces && status.Interfaces.length > 0 && (
-        <div>
-          {/* 요약 */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-            <span style={{ color: '#22c55e', fontSize: 12 }}>● UP {activeIfs.length}개</span>
+      ) : (
+        <div className="space-y-4">
+          {/* Status Summary */}
+          <div className="flex gap-4">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">UP: {activeIfs.length}</span>
+            </div>
             {downIfs.length > 0 && (
-              <span style={{ color: '#ef4444', fontSize: 12 }}>● DOWN {downIfs.length}개</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500/100" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">DOWN: {downIfs.length}</span>
+              </div>
             )}
           </div>
 
-          {/* 활성 인터페이스 트래픽 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {activeIfs.filter(i => i.InBps > 0 || i.OutBps > 0).slice(0, 6).map(iface => (
-              <div key={iface.Index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontSize: 12, width: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {iface.Name}
-                </span>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <span style={{ color: '#7dd3fc', fontSize: 12 }}>↓ {formatBps(iface.InBps)}</span>
-                  <span style={{ color: '#f472b6', fontSize: 12 }}>↑ {formatBps(iface.OutBps)}</span>
+          {/* Interface Traffic */}
+          <div className="space-y-2">
+            {activeIfs.filter(i => i.InBps > 0 || i.OutBps > 0).slice(0, 5).map(iface => (
+              <div key={iface.Index} className="p-2 bg-slate-800/50 rounded-lg border border-slate-800/50 flex items-center justify-between gap-4">
+                <span className="text-[11px] font-bold text-slate-400 truncate flex-1 min-w-0" title={iface.Name}>{iface.Name}</span>
+                <div className="flex gap-3 shrink-0">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-sky-400">
+                    <ArrowDown size={10} />
+                    {formatBps(iface.InBps)}
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-rose-500">
+                    <ArrowUp size={10} />
+                    {formatBps(iface.OutBps)}
+                  </div>
                 </div>
               </div>
             ))}
-            {activeIfs.filter(i => i.InBps === 0 && i.OutBps === 0).length > 0 && (
-              <div style={{ color: '#334155', fontSize: 11 }}>
-                트래픽 측정 중... (첫 폴링 후 표시)
+            {activeIfs.filter(i => i.InBps === 0 && i.OutBps === 0).length > 0 && activeIfs.filter(i => i.InBps > 0 || i.OutBps > 0).length === 0 && (
+              <div className="py-4 text-center text-[11px] font-bold text-slate-400 italic">
+                트래픽 측정 중...
               </div>
             )}
           </div>
         </div>
       )}
 
-      <div style={{ color: '#1e3a5f', fontSize: 10, marginTop: 12 }}>
-        {status.CollectedAt ? new Date(status.CollectedAt).toLocaleTimeString('ko-KR') : ''}
-      </div>
+      {status.CollectedAt && (
+        <div className="mt-4 pt-3 border-t border-slate-50 flex justify-end">
+          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+            Last Check: {new Date(status.CollectedAt).toLocaleTimeString('ko-KR')}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function AddDeviceForm({ onAdd }: { onAdd: () => void }) {
-  const [form, setForm] = useState({ Name: '', IP: '', Community: 'public', Port: 161 })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.Name || !form.IP) { setError('이름과 IP를 입력하세요'); return }
-    setLoading(true); setError('')
-    try {
-      await addSNMPDevice(form)
-      setForm({ Name: '', IP: '', Community: 'public', Port: 161 })
-      onAdd()
-    } catch {
-      setError('장치 추가 실패. IP와 Community String을 확인하세요.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} style={{
-      background: '#1e293b', borderRadius: 12, padding: '20px 24px',
-      border: '1px dashed #334155', display: 'flex', flexDirection: 'column', gap: 12,
-    }}>
-      <div style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>장치 추가</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <input
-          placeholder="장치 이름 (예: 교무실 스위치)"
-          value={form.Name}
-          onChange={e => setForm(f => ({ ...f, Name: e.target.value }))}
-          style={inputStyle}
-        />
-        <input
-          placeholder="IP 주소 (예: 192.168.1.1)"
-          value={form.IP}
-          onChange={e => setForm(f => ({ ...f, IP: e.target.value }))}
-          style={inputStyle}
-        />
-        <input
-          placeholder="Community String"
-          value={form.Community}
-          onChange={e => setForm(f => ({ ...f, Community: e.target.value }))}
-          style={inputStyle}
-        />
-        <input
-          type="number"
-          placeholder="포트 (기본 161)"
-          value={form.Port}
-          onChange={e => setForm(f => ({ ...f, Port: Number(e.target.value) }))}
-          style={inputStyle}
-        />
-      </div>
-      {error && <div style={{ color: '#ef4444', fontSize: 12 }}>{error}</div>}
-      <button type="submit" disabled={loading} style={{
-        background: '#0ea5e9', border: 'none', color: '#fff',
-        padding: '8px 20px', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-        alignSelf: 'flex-start', opacity: loading ? 0.6 : 1,
-      }}>
-        {loading ? '추가 중...' : '추가'}
-      </button>
-    </form>
-  )
-}
-
-const inputStyle: React.CSSProperties = {
-  background: '#0f1117', border: '1px solid #334155', color: '#e2e8f0',
-  padding: '7px 12px', borderRadius: 6, fontSize: 13, width: '100%', boxSizing: 'border-box',
-}
-
 export default function SNMPDashboard() {
-  const [statuses, setStatuses] = useState<DeviceStatus[]>([])
-  const [devices, setDevices] = useState<SNMPDevice[]>([])
+  const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ Name: '', IP: '', Community: 'public', Port: 161 })
 
-  async function refresh() {
-    const [devs, stats] = await Promise.all([
-      getSNMPDevices().catch(() => [] as SNMPDevice[]),
-      getSNMPStatus().catch(() => [] as DeviceStatus[]),
-    ])
-    setDevices(devs)
-    setStatuses(stats)
+  const { data: devices = [], isLoading: devicesLoading } = useQuery({
+    queryKey: ['snmpDevices'],
+    queryFn: getSNMPDevices,
+  })
+
+  const { data: statuses = [] } = useQuery({
+    queryKey: ['snmpStatus'],
+    queryFn: getSNMPStatus,
+    refetchInterval: 60000,
+  })
+
+  const addMutation = useMutation({
+    mutationFn: addSNMPDevice,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['snmpDevices'] })
+      queryClient.invalidateQueries({ queryKey: ['snmpStatus'] })
+      setShowAdd(false)
+      setForm({ Name: '', IP: '', Community: 'public', Port: 161 })
+    }
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteSNMPDevice,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['snmpDevices'] })
+      queryClient.invalidateQueries({ queryKey: ['snmpStatus'] })
+    }
+  })
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.Name || !form.IP) return
+    addMutation.mutate(form)
   }
 
-  useEffect(() => {
-    refresh()
-    const t = setInterval(refresh, 60_000)
-    return () => clearInterval(t)
-  }, [])
-
-  async function handleDelete(id: number) {
-    await deleteSNMPDevice(id)
-    refresh()
+  const handleDelete = (id: number) => {
+    if (!confirm('이 장치를 삭제하시겠습니까?')) return
+    deleteMutation.mutate(id)
   }
 
-  // 장치는 있지만 아직 상태가 없는 경우도 표시
   const statusMap = new Map(statuses.map(s => [s.Device.ID, s]))
 
   return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
-          네트워크 장비 (SNMP)
-        </h2>
+    <div className="space-y-6">
+      <PageToolbar icon={Network} title="네트워크 장비 (SNMP)" description="스위치 및 라우터 인터페이스 모니터링">
         <button
-          onClick={() => setShowAdd(v => !v)}
-          style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '5px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
+          className={cn(
+            "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg",
+            showAdd ? "bg-slate-800 text-slate-400 shadow-none" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
+          )}
+          onClick={() => setShowAdd(!showAdd)}
         >
-          {showAdd ? '닫기' : '+ 장치 추가'}
+          {showAdd ? <X size={18} /> : <Plus size={18} />}
+          {showAdd ? '닫기' : '장치 추가'}
         </button>
-      </div>
+      </PageToolbar>
 
-      {showAdd && <div style={{ marginBottom: 16 }}><AddDeviceForm onAdd={() => { setShowAdd(false); refresh() }} /></div>}
-
-      {devices.length === 0 && !showAdd && (
-        <div style={{ color: '#334155', fontSize: 13, padding: '20px 0' }}>
-          등록된 네트워크 장비가 없습니다. 장치 추가 버튼으로 스위치/라우터를 등록하세요.
-        </div>
+      {/* Add Device Form */}
+      {showAdd && (
+        <form onSubmit={handleAdd} className="bg-slate-900 rounded-3xl border border-indigo-500/30 p-6 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Device Name</label>
+              <input
+                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                placeholder="예: 2층 메인 스위치"
+                value={form.Name}
+                onChange={e => setForm({...form, Name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">IP Address</label>
+              <input
+                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                placeholder="192.168.1.1"
+                value={form.IP}
+                onChange={e => setForm({...form, IP: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">SNMP Community</label>
+              <input
+                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                placeholder="public"
+                value={form.Community}
+                onChange={e => setForm({...form, Community: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">UDP Port</label>
+              <input
+                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                type="number"
+                placeholder="161"
+                value={form.Port}
+                onChange={e => setForm({...form, Port: Number(e.target.value)})}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            {addMutation.isError && (
+              <p className="text-xs text-rose-500 font-bold flex items-center gap-2 mr-auto">
+                <AlertTriangle size={14} /> 장치 추가 실패: 설정값을 확인하세요.
+              </p>
+            )}
+            <button 
+              type="submit" 
+              disabled={addMutation.isPending}
+              className="flex items-center gap-2 px-10 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+            >
+              {addMutation.isPending ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
+              장치 등록하기
+            </button>
+          </div>
+        </form>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-        {devices.map(dev => {
-          const status = statusMap.get(dev.ID)
-          if (!status) return (
-            <div key={dev.ID} style={{ background: '#1e293b', borderRadius: 12, padding: '20px 24px', border: '1px solid #334155' }}>
-              <div style={{ color: '#e2e8f0', fontWeight: 700 }}>{dev.Name}</div>
-              <div style={{ color: '#475569', fontSize: 12 }}>{dev.IP} — 폴링 중...</div>
-            </div>
-          )
-          return (
-            <DeviceCard
-              key={dev.ID}
-              status={status}
-              onDelete={() => handleDelete(dev.ID)}
-            />
-          )
-        })}
-      </div>
+      {/* Device Grid */}
+      {devicesLoading ? (
+        <div className="flex flex-col items-center justify-center py-32 text-slate-400 animate-pulse">
+          <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
+          <p className="font-medium">네트워크 장비 정보를 불러오는 중...</p>
+        </div>
+      ) : devices.length === 0 && !showAdd ? (
+        <div className="bg-slate-900 rounded-3xl border border-slate-800 border-dashed py-32 flex flex-col items-center justify-center text-slate-400 text-center px-6">
+          <Network size={48} className="mb-4 opacity-20" />
+          <p className="font-medium">등록된 네트워크 장비가 없습니다.</p>
+          <p className="text-xs opacity-70 mt-1">상단의 '장치 추가' 버튼으로 스위치/라우터를 등록하세요.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+          {devices.map(dev => {
+            const status = statusMap.get(dev.ID)
+            if (!status) return (
+              <div key={dev.ID} className="bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-sm animate-pulse">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+                  <div className="h-4 w-32 bg-slate-800 rounded" />
+                </div>
+                <div className="h-3 w-48 bg-slate-800 rounded" />
+              </div>
+            )
+            return (
+              <DeviceCard
+                key={dev.ID}
+                status={status}
+                onDelete={() => handleDelete(dev.ID)}
+              />
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

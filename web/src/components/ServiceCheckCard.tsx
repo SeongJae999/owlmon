@@ -1,3 +1,6 @@
+import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { cn } from '../utils/cn'
+
 interface Props {
   name: string
   type: string
@@ -8,53 +11,46 @@ interface Props {
 
 export default function ServiceCheckCard({ name, type, target, status, latencyMs }: Props) {
   const isUp = status === 1
-  const statusColor = isUp ? '#22c55e' : '#ef4444'
-  const statusText = isUp ? '정상' : '장애'
 
   return (
-    <div style={{
-      background: '#1e293b',
-      border: `1px solid ${statusColor}33`,
-      borderRadius: 12,
-      padding: '16px 20px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 8,
-    }}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 14 }}>{name}</span>
-        <span style={{
-          background: `${statusColor}22`,
-          color: statusColor,
-          padding: '2px 8px',
-          borderRadius: 4,
-          fontSize: 12,
-          fontWeight: 700,
-        }}>
-          {statusText}
+    <div
+      className={cn(
+        "bg-slate-900 rounded-2xl border p-5 transition-colors duration-200 group",
+        isUp ? "border-slate-800 hover:border-emerald-500/40" : "border-rose-500/40"
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h4 className="text-sm font-semibold text-slate-200 truncate min-w-0 flex-1" title={name}>{name}</h4>
+        <span className={cn(
+          "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold border shrink-0",
+          isUp ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-rose-500/10 text-rose-400 border-rose-500/30"
+        )}>
+          {isUp ? (
+            <><CheckCircle2 size={11} /> 정상</>
+          ) : (
+            <><AlertCircle size={11} /> 장애</>
+          )}
         </span>
       </div>
 
-      {/* 응답시간 */}
-      <div style={{ color: '#fff', fontSize: 24, fontWeight: 700, fontFamily: 'Consolas, monospace' }}>
-        {latencyMs !== null ? `${latencyMs.toFixed(0)}ms` : '-'}
+      {/* Latency */}
+      <div className="flex items-baseline gap-1 mb-4">
+        <span className={cn(
+          "text-2xl font-bold tabular-nums",
+          isUp ? "text-slate-100" : "text-rose-400"
+        )}>
+          {latencyMs !== null ? `${latencyMs.toFixed(0)}` : '--'}
+        </span>
+        <span className="text-xs font-medium text-slate-500">ms</span>
       </div>
 
-      {/* 타입 + 대상 */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{
-          background: '#334155',
-          color: '#94a3b8',
-          padding: '1px 6px',
-          borderRadius: 3,
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: 'uppercase',
-        }}>
+      {/* Type + Target */}
+      <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
+        <span className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-xs font-semibold uppercase shrink-0">
           {type}
         </span>
-        <span style={{ color: '#475569', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span className="text-xs text-slate-500 truncate font-mono" title={target}>
           {target}
         </span>
       </div>

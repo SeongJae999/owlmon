@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { fetchAssets, upsertAsset, deleteAsset, type Asset } from '../api/asset'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Server, MapPin, Calendar, Edit2, Trash2, Plus, X, Save, RefreshCcw, Info } from 'lucide-react'
+import { cn } from '../utils/cn'
 
 const emptyForm = (): Omit<Asset, 'id' | 'updated_at'> => ({
   host_name: '',
@@ -11,22 +14,30 @@ const emptyForm = (): Omit<Asset, 'id' | 'updated_at'> => ({
   notes: '',
 })
 
-export default function AssetManagement({ onClose }: { onClose: () => void }) {
-  const [assets, setAssets] = useState<Asset[]>([])
+export default function AssetManagement() {
+  const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Omit<Asset, 'id' | 'updated_at'> | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
 
-  const load = async () => {
-    try {
-      setAssets(await fetchAssets())
-    } catch {
-      setError('자산 목록 로드 실패')
+  const { data: assets = [], isLoading } = useQuery({
+    queryKey: ['assets'],
+    queryFn: fetchAssets,
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: upsertAsset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
+      cancel()
     }
-  }
+  })
 
-  useEffect(() => { load() }, [])
+  const deleteMutation = useMutation({
+    mutationFn: deleteAsset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
+    }
+  })
 
   const startEdit = (asset: Asset) => {
     setEditingId(asset.id)
@@ -39,194 +50,210 @@ export default function AssetManagement({ onClose }: { onClose: () => void }) {
       warranty_expires: asset.warranty_expires,
       notes: asset.notes,
     })
-    setError('')
   }
 
   const startNew = () => {
     setEditingId(null)
     setEditing(emptyForm())
-    setError('')
   }
 
   const cancel = () => {
     setEditing(null)
     setEditingId(null)
-    setError('')
   }
 
-  const save = async () => {
-    if (!editing) return
-    if (!editing.host_name.trim()) { setError('호스트명은 필수입니다'); return }
-    setSaving(true)
-    try {
-      await upsertAsset(editing)
-      setEditing(null)
-      setEditingId(null)
-      await load()
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setSaving(false)
-    }
+  const handleSave = () => {
+    if (!editing || !editing.host_name.trim()) return
+    saveMutation.mutate(editing)
   }
 
-  const remove = async (id: number) => {
+  const handleRemove = (id: number) => {
     if (!confirm('이 자산 정보를 삭제하시겠습니까?')) return
-    try {
-      await deleteAsset(id)
-      await load()
-    } catch {
-      setError('삭제 실패')
-    }
+    deleteMutation.mutate(id)
   }
 
-  // 보증 만료 임박 여부 (30일 이내)
   const warrantyStatus = (expires: string) => {
     if (!expires) return null
     const days = Math.ceil((new Date(expires).getTime() - Date.now()) / 86400000)
-    if (days < 0) return { label: '만료됨', color: '#ef4444' }
-    if (days <= 30) return { label: `D-${days}`, color: '#f59e0b' }
-    return null
+    if (days < 0) return { label: '만료됨', bg: 'bg-rose-500/100/15', text: 'text-rose-300' }
+    if (days <= 30) return { label: `D-${days}`, bg: 'bg-amber-500/100/15', text: 'text-amber-300' }
+    return { label: '보증 중', bg: 'bg-emerald-500/100/15', text: 'text-emerald-300' }
   }
 
-  const field = (label: string, key: keyof typeof emptyForm, type = 'text', placeholder = '') => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <label style={{ color: '#94a3b8', fontSize: 12 }}>{label}</label>
-      <input
-        type={type}
-        value={(editing as any)?.[key] ?? ''}
-        placeholder={placeholder}
-        onChange={e => setEditing(prev => prev ? { ...prev, [key]: e.target.value } : prev)}
-        style={{
-          background: '#0f1117', border: '1px solid #334155', color: '#e2e8f0',
-          borderRadius: 6, padding: '6px 10px', fontSize: 13, width: '100%', boxSizing: 'border-box',
-        }}
-      />
-    </div>
-  )
-
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-    }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: '#1e293b', borderRadius: 12, padding: 28, width: '100%', maxWidth: 760,
-        maxHeight: '85vh', overflowY: 'auto', border: '1px solid #334155',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ color: '#e2e8f0', fontSize: 18, fontWeight: 700, margin: 0 }}>자산 관리</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={startNew} style={{
-              background: '#0ea5e9', color: '#fff', border: 'none',
-              borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13,
-            }}>
-              + 새 자산
+    <div className="space-y-6">
+      {/* Page Actions */}
+      <div className="flex justify-between items-center bg-slate-900 p-4 rounded-3xl border border-slate-800 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-500/100/10 text-indigo-400 rounded-lg">
+            <Server size={20} />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-100 leading-tight">IT 자산 관리</h3>
+            <p className="text-xs text-slate-500 font-medium">등록된 호스트 및 네트워크 장비 목록</p>
+          </div>
+        </div>
+        {!editing && (
+          <button 
+            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+            onClick={startNew}
+          >
+            <Plus size={18} />
+            새 자산 등록
+          </button>
+        )}
+      </div>
+
+      {/* Editor Form */}
+      {editing && (
+        <div className="bg-slate-900 rounded-3xl border border-indigo-500/30 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="p-6 border-b border-slate-800 bg-slate-800/50 flex items-center justify-between">
+            <h3 className="font-bold text-slate-200 flex items-center gap-2 text-lg">
+              {editingId ? <Edit2 size={20} className="text-indigo-500" /> : <Plus size={20} className="text-indigo-500" />}
+              {editingId ? '자산 정보 편집' : '신규 자산 등록'}
+            </h3>
+            <button onClick={cancel} className="p-2 text-slate-400 hover:bg-slate-900 rounded-lg hover:text-rose-500 transition-all">
+              <X size={20} />
             </button>
-            <button onClick={onClose} style={{
-              background: 'none', border: '1px solid #334155', color: '#64748b',
-              borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13,
-            }}>
-              닫기
+          </div>
+          
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <FormField label="호스트명 *" value={editing.host_name} onChange={v => setEditing({...editing, host_name: v})} placeholder="서버 식별자" />
+              <FormField label="IP 주소" value={editing.ip} onChange={v => setEditing({...editing, ip: v})} placeholder="0.0.0.0" />
+              <FormField label="설치 위치" value={editing.location} onChange={v => setEditing({...editing, location: v})} placeholder="예: 2층 전산실" />
+              <FormField label="장비 상세 설명" value={editing.description} onChange={v => setEditing({...editing, description: v})} placeholder="모델명 등" />
+              <FormField label="도입 일자" type="date" value={editing.purchase_date} onChange={v => setEditing({...editing, purchase_date: v})} />
+              <FormField label="보증 만료일" type="date" value={editing.warranty_expires} onChange={v => setEditing({...editing, warranty_expires: v})} />
+            </div>
+            <FormField label="추가 메모" value={editing.notes} onChange={v => setEditing({...editing, notes: v})} placeholder="기타 특이사항" />
+          </div>
+
+          <div className="p-6 bg-slate-800/50 border-t border-slate-800 flex justify-end gap-3">
+            <button 
+              className="px-6 py-2.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all"
+              onClick={cancel}
+            >
+              취소
+            </button>
+            <button 
+              className={cn(
+                "px-10 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2",
+                saveMutation.isPending ? "bg-slate-700 text-slate-400 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
+              )}
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
+              정보 저장하기
             </button>
           </div>
         </div>
+      )}
 
-        {error && (
-          <div style={{ background: '#450a0a', border: '1px solid #ef4444', borderRadius: 6, padding: '8px 12px', color: '#fca5a5', fontSize: 13, marginBottom: 16 }}>
-            {error}
+      {/* Asset Table */}
+      <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-32 text-slate-400 animate-pulse">
+            <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
+            <p className="font-medium">자산 목록을 불러오는 중...</p>
           </div>
-        )}
-
-        {/* 편집 폼 */}
-        {editing && (
-          <div style={{ background: '#0f1117', border: '1px solid #334155', borderRadius: 8, padding: 20, marginBottom: 20 }}>
-            <h3 style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, margin: '0 0 16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {editingId ? '자산 편집' : '새 자산 등록'}
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {field('호스트명 *', 'host_name', 'text', '모니터링 호스트명과 동일하게')}
-              {field('IP 주소', 'ip', 'text', '192.168.1.10')}
-              {field('위치', 'location', 'text', '2층 서버실')}
-              {field('장비 설명', 'description', 'text', '메인 파일 서버')}
-              {field('도입일', 'purchase_date', 'date')}
-              {field('보증 만료일', 'warranty_expires', 'date')}
-            </div>
-            <div style={{ marginTop: 12 }}>
-              {field('메모', 'notes', 'text', '추가 정보')}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
-              <button onClick={cancel} style={{
-                background: 'none', border: '1px solid #334155', color: '#64748b',
-                borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13,
-              }}>
-                취소
-              </button>
-              <button onClick={save} disabled={saving} style={{
-                background: '#0ea5e9', color: '#fff', border: 'none',
-                borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13,
-                opacity: saving ? 0.7 : 1,
-              }}>
-                {saving ? '저장 중...' : '저장'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 자산 목록 */}
-        {assets.length === 0 ? (
-          <div style={{ color: '#475569', textAlign: 'center', padding: '40px 0', fontSize: 14 }}>
-            등록된 자산이 없습니다. 새 자산을 추가하세요.
+        ) : assets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 text-slate-400 text-center px-6">
+            <Info size={48} className="mb-4 opacity-20" />
+            <p className="font-medium">등록된 자산이 없습니다.</p>
+            <p className="text-xs opacity-70 mt-1">상단의 '새 자산 등록' 버튼을 눌러 정보를 추가하세요.</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #334155' }}>
-                {['호스트명', 'IP', '위치', '설명', '도입일', '보증만료'].map(h => (
-                  <th key={h} style={{ color: '#475569', fontWeight: 600, padding: '8px 10px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase' }}>
-                    {h}
-                  </th>
-                ))}
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {assets.map(a => {
-                const ws = warrantyStatus(a.warranty_expires)
-                return (
-                  <tr key={a.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                    <td style={{ padding: '10px', color: '#e2e8f0', fontWeight: 600 }}>{a.host_name}</td>
-                    <td style={{ padding: '10px', color: '#94a3b8' }}>{a.ip || '-'}</td>
-                    <td style={{ padding: '10px', color: '#94a3b8' }}>{a.location || '-'}</td>
-                    <td style={{ padding: '10px', color: '#94a3b8' }}>{a.description || '-'}</td>
-                    <td style={{ padding: '10px', color: '#94a3b8' }}>{a.purchase_date || '-'}</td>
-                    <td style={{ padding: '10px' }}>
-                      <span style={{ color: ws ? ws.color : '#94a3b8' }}>
-                        {a.warranty_expires || '-'}
-                        {ws && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700 }}>[{ws.label}]</span>}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button onClick={() => startEdit(a)} style={{
-                        background: '#1e293b', border: '1px solid #334155', color: '#94a3b8',
-                        borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12,
-                      }}>
-                        편집
-                      </button>
-                      <button onClick={() => remove(a.id)} style={{
-                        background: 'none', border: '1px solid #7f1d1d', color: '#ef4444',
-                        borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontSize: 12,
-                      }}>
-                        삭제
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-800/50 border-b border-slate-800">
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">호스트 정보</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">위치 / 설명</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">도입일</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">보증 현황</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {assets.map(a => {
+                  const ws = warrantyStatus(a.warranty_expires)
+                  return (
+                    <tr key={a.id} className="hover:bg-slate-800/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">{a.host_name}</div>
+                        <div className="text-[11px] font-bold text-slate-400 font-mono tracking-tight">{a.ip || '0.0.0.0'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                          <MapPin size={10} className="text-slate-400" />
+                          {a.location || '-'}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{a.description || '상세 설명 없음'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                          <Calendar size={10} className="text-slate-400" />
+                          {a.purchase_date || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {ws ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-500">{a.warranty_expires}</span>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
+                              ws.bg, ws.text
+                            )}>
+                              {ws.label}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">설정 안 됨</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            className="p-2 bg-slate-800 text-slate-400 hover:bg-indigo-500/100/10 hover:text-indigo-400 rounded-lg transition-all"
+                            onClick={() => startEdit(a)}
+                            title="정보 수정"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/100/10 hover:text-rose-400 rounded-lg transition-all"
+                            onClick={() => handleRemove(a.id)}
+                            title="정보 삭제"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function FormField({ label, value, onChange, type = "text", placeholder = "" }: { label: string, value: string, onChange: (v: string) => void, type?: string, placeholder?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-widest">{label}</label>
+      <input
+        type={type}
+        className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-slate-400"
+        value={value || ''}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
     </div>
   )
 }

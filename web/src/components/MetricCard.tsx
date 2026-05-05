@@ -1,4 +1,7 @@
+import React from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { AlertTriangle, TrendingUp, Info } from 'lucide-react'
+import { cn } from '../utils/cn'
 
 interface AnomalyInfo {
   z_score: number
@@ -31,109 +34,154 @@ function getStatus(value: number | null, warning = 70, critical = 90) {
   return 'normal'
 }
 
-const statusColor = {
-  normal: '#22c55e',
-  warning: '#f59e0b',
-  critical: '#ef4444',
-  unknown: '#475569',
+const statusConfig = {
+  normal: {
+    color: '#34d399',
+    label: '정상',
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-400',
+    border: 'border-emerald-500/30'
+  },
+  warning: {
+    color: '#fbbf24',
+    label: '경고',
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-400',
+    border: 'border-amber-500/30'
+  },
+  critical: {
+    color: '#f87171',
+    label: '위험',
+    bg: 'bg-rose-500/10',
+    text: 'text-rose-400',
+    border: 'border-rose-500/30'
+  },
+  unknown: {
+    color: '#64748b',
+    label: '데이터 없음',
+    bg: 'bg-slate-800',
+    text: 'text-slate-500',
+    border: 'border-slate-700'
+  },
 }
 
 export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction }: Props) {
   const status = getStatus(value, warning, critical)
   const hasAnomaly = anomaly != null
-  const borderColor = hasAnomaly ? '#7c3aed' : statusColor[status]
+  const cfg = statusConfig[status]
 
   return (
-    <div style={{
-      background: hasAnomaly ? '#1a0a2e' : '#1e293b',
-      border: `1px solid ${borderColor}${hasAnomaly ? '' : '33'}`,
-      borderRadius: 12,
-      padding: '20px 24px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12,
-    }}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>{title}</span>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+    <div
+      className={cn(
+        "bg-slate-900 rounded-2xl border p-5 transition-colors duration-200 relative overflow-hidden",
+        hasAnomaly ? "border-purple-500/40" : "border-slate-800"
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className={cn("w-2 h-2 rounded-full", hasAnomaly ? "bg-purple-400" : status === 'normal' ? "bg-emerald-400" : status === 'warning' ? "bg-amber-400" : "bg-rose-400")} />
+          <h4 className="text-sm font-semibold text-slate-300">{title}</h4>
+        </div>
+
+        <div className="flex items-center gap-2">
           {hasAnomaly && (
-            <span style={{
-              background: anomaly.severity === 'critical' ? '#7c3aed33' : '#7c3aed22',
-              color: '#c4b5fd',
-              padding: '2px 8px',
-              borderRadius: 4,
-              fontSize: 11,
-              fontWeight: 700,
-            }}>
-              평소 대비 이상
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold">
+              <AlertTriangle size={11} /> 이상
             </span>
           )}
-          <span style={{
-            background: `${statusColor[status]}22`,
-            color: statusColor[status],
-            padding: '2px 8px',
-            borderRadius: 4,
-            fontSize: 12,
-            fontWeight: 700,
-          }}>
-            {status === 'normal' ? '정상' : status === 'warning' ? '경고' : status === 'critical' ? '위험' : '-'}
+          <span className={cn(
+            "px-2 py-0.5 rounded-md text-xs font-semibold border",
+            cfg.bg, cfg.text, cfg.border
+          )}>
+            {cfg.label}
           </span>
         </div>
       </div>
 
-      {/* 현재 값 */}
-      <div style={{ color: '#fff', fontSize: 36, fontWeight: 700, fontFamily: 'Consolas, monospace' }}>
-        {value !== null ? `${value.toFixed(1)}${unit}` : '-'}
+      {/* Current Value */}
+      <div className="flex items-baseline gap-1.5 mb-4">
+        <span className="text-3xl font-bold text-slate-100 tabular-nums leading-none">
+          {value !== null ? value.toFixed(1) : '--'}
+        </span>
+        <span className="text-sm font-medium text-slate-500">{unit}</span>
       </div>
 
-      {/* 디스크 예측 */}
-      {diskPrediction && diskPrediction.days_left >= 0 && diskPrediction.r2 >= 0.5 && (
-        <div style={{
-          background: diskPrediction.days_left <= 7 ? '#7f1d1d33' : '#78350f22',
-          border: `1px solid ${diskPrediction.days_left <= 7 ? '#7f1d1d' : '#78350f'}`,
-          borderRadius: 6,
-          padding: '6px 10px',
-          fontSize: 12,
-          color: diskPrediction.days_left <= 7 ? '#fca5a5' : '#fcd34d',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <span>
-            {diskPrediction.days_left <= 1
-              ? '24시간 내 용량 부족 예상'
-              : `약 ${Math.round(diskPrediction.days_left)}일 후 용량 부족 예상`}
-          </span>
-          <span style={{ color: '#64748b', fontSize: 11 }}>
-            {diskPrediction.slope >= 0 ? '+' : ''}{diskPrediction.slope.toFixed(2)}%/h
-          </span>
+      {/* Disk Prediction / Anomaly Details */}
+      {(diskPrediction || hasAnomaly) && (
+        <div className="mb-4">
+          {diskPrediction && diskPrediction.days_left >= 0 && diskPrediction.r2 >= 0.5 && (
+            <div className={cn(
+              "flex items-center justify-between px-3 py-2 rounded-lg border",
+              diskPrediction.days_left <= 7
+                ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+            )}>
+              <div className="flex items-center gap-1.5 font-semibold text-xs">
+                <TrendingUp size={13} />
+                {diskPrediction.days_left <= 1
+                  ? '24시간 내 부족 예상'
+                  : `약 ${Math.round(diskPrediction.days_left)}일 후 부족 예상`}
+              </div>
+              <div className="text-xs font-medium opacity-70 tabular-nums">
+                {diskPrediction.slope >= 0 ? '+' : ''}{diskPrediction.slope.toFixed(2)}%/h
+              </div>
+            </div>
+          )}
+          {hasAnomaly && !diskPrediction && (
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+              <p className="text-xs font-semibold text-purple-300 mb-1 flex items-center gap-1.5">
+                <Info size={12} /> 이상 감지
+              </p>
+              <p className="text-xs font-medium text-purple-400/90">
+                Z-점수 {anomaly.z_score.toFixed(2)} (평소 평균 {anomaly.mean.toFixed(1)}%)
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 차트 */}
-      <ResponsiveContainer width="100%" height={80}>
-        <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={`grad-${title}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="95%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <XAxis dataKey="time" hide />
-          <YAxis domain={[0, 100]} hide />
-          <Tooltip
-            contentStyle={{ background: '#0f1117', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
-            labelStyle={{ color: '#94a3b8' }}
-            itemStyle={{ color: '#e2e8f0' }}
-            formatter={(v) => [`${v}${unit}`, title]}
-          />
-          {hasAnomaly && (
-            <ReferenceLine y={anomaly.mean} stroke="#7c3aed" strokeDasharray="4 4" strokeWidth={1} />
-          )}
-          <Area type="monotone" dataKey="value" stroke={color} fill={`url(#grad-${title})`} strokeWidth={2} dot={false} />
-        </AreaChart>
-      </ResponsiveContainer>
+      {/* Chart Container */}
+      <div className="h-28 w-full -mx-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={`grad-${title}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+                <stop offset="100%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="time" hide />
+            <YAxis domain={[0, 100]} hide />
+            <Tooltip
+              contentStyle={{ 
+                backgroundColor: 'rgba(15, 23, 42, 0.9)', 
+                border: 'none', 
+                borderRadius: '16px',
+                padding: '12px 16px',
+                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                backdropFilter: 'blur(8px)'
+              }}
+              labelStyle={{ display: 'none' }}
+              itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: '600' }}
+              formatter={(v) => [`${v}${unit}`, title]}
+            />
+            {hasAnomaly && (
+              <ReferenceLine y={anomaly.mean} stroke="#a855f7" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
+            )}
+            <Area 
+              type="monotone" 
+              dataKey="value" 
+              stroke={color} 
+              fill={`url(#grad-${title})`} 
+              strokeWidth={3} 
+              dot={false}
+              animationDuration={1500}
+              animationEasing="ease-in-out"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

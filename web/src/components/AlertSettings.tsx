@@ -1,125 +1,197 @@
-import { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { getAlertConfig, setAlertConfig, type AlertConfig } from '../api/alert'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Mail, Bell, AlertTriangle, Plus, X, Save, CheckCircle2, RefreshCcw } from 'lucide-react'
+import { cn } from '../utils/cn'
 
 interface Props {
-  onClose: () => void
+  onSave?: () => void
 }
 
-export default function AlertSettings({ onClose }: Props) {
-  const [cfg, setCfg] = useState<AlertConfig | null>(null)
+export default function AlertSettings({ onSave }: Props) {
+  const queryClient = useQueryClient()
   const [recipientInput, setRecipientInput] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
+  const [localCfg, setLocalCfg] = useState<AlertConfig | null>(null)
 
-  useEffect(() => {
-    getAlertConfig().then(setCfg).catch(() => setError('설정을 불러오지 못했습니다.'))
-  }, [])
+  const { data: cfg, isLoading, error: loadError } = useQuery({
+    queryKey: ['alertConfig'],
+    queryFn: getAlertConfig,
+  })
 
-  if (!cfg) return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <p style={{ color: '#94a3b8' }}>{error || '불러오는 중...'}</p>
-      </div>
+  // Sync local config when data is loaded
+  React.useEffect(() => {
+    if (cfg) setLocalCfg(cfg)
+  }, [cfg])
+
+  const mutation = useMutation({
+    mutationFn: setAlertConfig,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alertConfig'] })
+      if (onSave) onSave()
+    }
+  })
+
+  if (isLoading && !localCfg) return (
+    <div className="flex flex-col items-center justify-center py-20 text-slate-400 animate-pulse">
+      <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
+      <p className="font-medium">알림 설정을 불러오는 중...</p>
     </div>
   )
+
+  if (loadError) return (
+    <div className="bg-rose-500/100/10 border border-rose-500/20 rounded-xl p-6 text-center text-rose-300">
+      <AlertTriangle size={32} className="mx-auto mb-3 opacity-50" />
+      <p className="font-bold">설정을 불러오지 못했습니다.</p>
+    </div>
+  )
+
+  if (!localCfg) return null
 
   const addRecipient = () => {
     const email = recipientInput.trim()
     if (!email) return
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('올바른 이메일 형식이 아닙니다.')
-      return
-    }
-    if (!cfg.recipients.includes(email)) {
-      setCfg({ ...cfg, recipients: [...cfg.recipients, email] })
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+    if (!localCfg.recipients.includes(email)) {
+      setLocalCfg({ ...localCfg, recipients: [...localCfg.recipients, email] })
     }
     setRecipientInput('')
-    setError('')
   }
 
   const removeRecipient = (email: string) => {
-    setCfg({ ...cfg, recipients: cfg.recipients.filter(r => r !== email) })
+    setLocalCfg({ ...localCfg, recipients: localCfg.recipients.filter(r => r !== email) })
   }
 
-  const handleSave = async () => {
-    setSaving(true)
-    setError('')
-    try {
-      await setAlertConfig(cfg)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch {
-      setError('저장에 실패했습니다.')
-    } finally {
-      setSaving(false)
-    }
+  const handleSave = () => {
+    mutation.mutate(localCfg)
   }
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>알림 설정</h2>
-          <button style={styles.closeBtn} onClick={onClose}>✕</button>
-        </div>
-
-        {/* 알림 활성화 */}
-        <div style={styles.row}>
-          <label style={styles.label}>이메일 알림</label>
-          <label style={styles.toggle}>
-            <input type="checkbox" checked={cfg.enabled}
-              onChange={e => setCfg({ ...cfg, enabled: e.target.checked })} />
-            <span style={{ marginLeft: 8, color: cfg.enabled ? '#86efac' : '#64748b' }}>
-              {cfg.enabled ? '활성화' : '비활성화'}
+    <div className="max-w-xl mx-auto space-y-6">
+      <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-800 bg-slate-800/30 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-sm shadow-indigo-500/20">
+              <Bell size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-100">알림 정책 설정</h3>
+              <p className="text-xs text-slate-500 font-medium">장애 발생 시 알림 방식 및 임계값 관리</p>
+            </div>
+          </div>
+          
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <div className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={localCfg.enabled}
+                onChange={e => setLocalCfg({ ...localCfg, enabled: e.target.checked })}
+              />
+              <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-900 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </div>
+            <span className={cn(
+              "text-xs font-bold uppercase tracking-wider",
+              localCfg.enabled ? "text-indigo-400" : "text-slate-400"
+            )}>
+              {localCfg.enabled ? 'ON' : 'OFF'}
             </span>
           </label>
         </div>
 
-        {/* 수신자 */}
-        <div style={styles.section}>
-          <label style={styles.label}>수신자</label>
-          <div style={styles.tagList}>
-            {cfg.recipients.map(r => (
-              <span key={r} style={styles.tag}>
-                {r}
-                <button style={styles.tagRemove} onClick={() => removeRecipient(r)}>✕</button>
-              </span>
-            ))}
+        <div className="p-6 space-y-8">
+          {/* Email Recipients */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <Mail size={16} className="text-slate-400" />
+              <label className="text-sm font-bold text-slate-400">이메일 수신자</label>
+            </div>
+            
+            <div className="flex flex-wrap gap-2 mb-2">
+              {localCfg.recipients.map(r => (
+                <div key={r} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 text-slate-400 rounded-lg text-xs font-semibold border border-slate-800 transition-all hover:border-slate-700">
+                  {r}
+                  <button 
+                    className="p-0.5 hover:bg-slate-700 rounded-md text-slate-400 hover:text-rose-500 transition-colors"
+                    onClick={() => removeRecipient(r)}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              {localCfg.recipients.length === 0 && (
+                <p className="text-xs text-slate-400 italic py-1">등록된 수신자가 없습니다.</p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                className="flex-1 bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                placeholder="이메일 주소 입력..."
+                value={recipientInput}
+                onChange={e => setRecipientInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addRecipient()}
+              />
+              <button 
+                className="bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800 px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2"
+                onClick={addRecipient}
+              >
+                <Plus size={18} />
+                추가
+              </button>
+            </div>
           </div>
-          <div style={styles.inputRow}>
-            <input
-              style={styles.input}
-              placeholder="이메일 추가..."
-              value={recipientInput}
-              onChange={e => setRecipientInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addRecipient()}
-            />
-            <button style={styles.addBtn} onClick={addRecipient}>추가</button>
+
+          {/* Thresholds */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <AlertTriangle size={16} className="text-slate-400" />
+              <label className="text-sm font-bold text-slate-400">임계값 설정 (%)</label>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-800 rounded-2xl border border-slate-800">
+              <ThresholdField label="CPU 위험" value={localCfg.cpu_threshold}
+                onChange={v => setLocalCfg({ ...localCfg, cpu_threshold: v })} />
+              <ThresholdField label="메모리 위험" value={localCfg.mem_threshold}
+                onChange={v => setLocalCfg({ ...localCfg, mem_threshold: v })} />
+              <ThresholdField label="디스크 경고" value={localCfg.disk_warn}
+                onChange={v => setLocalCfg({ ...localCfg, disk_warn: v })} />
+              <ThresholdField label="디스크 위험" value={localCfg.disk_crit}
+                onChange={v => setLocalCfg({ ...localCfg, disk_crit: v })} />
+            </div>
           </div>
         </div>
 
-        {/* 임계값 */}
-        <div style={styles.section}>
-          <label style={styles.label}>임계값</label>
-          <div style={styles.thresholdGrid}>
-            <ThresholdRow label="CPU 위험" value={cfg.cpu_threshold}
-              onChange={v => setCfg({ ...cfg, cpu_threshold: v })} />
-            <ThresholdRow label="메모리 위험" value={cfg.mem_threshold}
-              onChange={v => setCfg({ ...cfg, mem_threshold: v })} />
-            <ThresholdRow label="디스크 경고" value={cfg.disk_warn}
-              onChange={v => setCfg({ ...cfg, disk_warn: v })} />
-            <ThresholdRow label="디스크 위험" value={cfg.disk_crit}
-              onChange={v => setCfg({ ...cfg, disk_crit: v })} />
+        {/* Footer Actions */}
+        <div className="p-6 bg-slate-800/50 border-t border-slate-800 flex items-center justify-between">
+          <div className="flex-1 mr-4">
+            {mutation.isPending && (
+              <p className="text-xs text-slate-400 flex items-center gap-2">
+                <RefreshCcw size={12} className="animate-spin" /> 저장 중...
+              </p>
+            )}
+            {mutation.isSuccess && (
+              <p className="text-xs text-emerald-400 font-bold flex items-center gap-2">
+                <CheckCircle2 size={14} /> 설정이 저장되었습니다.
+              </p>
+            )}
+            {mutation.isError && (
+              <p className="text-xs text-rose-500 font-bold flex items-center gap-2">
+                <AlertTriangle size={14} /> 저장 실패: 다시 시도해 주세요.
+              </p>
+            )}
           </div>
-        </div>
-
-        {error && <p style={{ color: '#f87171', fontSize: 13 }}>{error}</p>}
-
-        <div style={styles.footer}>
-          <button style={styles.cancelBtn} onClick={onClose}>취소</button>
-          <button style={styles.saveBtn} onClick={handleSave} disabled={saving}>
-            {saved ? '저장됨 ✓' : saving ? '저장 중...' : '저장'}
+          
+          <button 
+            className={cn(
+              "flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-lg",
+              mutation.isPending ? "bg-slate-700 text-slate-400 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
+            )}
+            onClick={handleSave}
+            disabled={mutation.isPending}
+          >
+            <Save size={18} />
+            설정 저장하기
           </button>
         </div>
       </div>
@@ -127,63 +199,19 @@ export default function AlertSettings({ onClose }: Props) {
   )
 }
 
-function ThresholdRow({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function ThresholdField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-      <span style={{ color: '#94a3b8', fontSize: 13 }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800/60 shadow-sm">
+      <span className="text-xs font-bold text-slate-500">{label}</span>
+      <div className="flex items-center gap-2">
         <input
           type="number" min={1} max={100}
           value={value}
           onChange={e => onChange(Number(e.target.value))}
-          style={{ width: 60, background: '#0f1117', border: '1px solid #334155', borderRadius: 4, color: '#e2e8f0', padding: '4px 8px', textAlign: 'right' }}
+          className="w-16 bg-slate-800 border border-slate-800 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-400 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
         />
-        <span style={{ color: '#64748b', fontSize: 13 }}>%</span>
+        <span className="text-xs font-bold text-slate-400">%</span>
       </div>
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-  },
-  modal: {
-    background: '#1e293b', border: '1px solid #334155', borderRadius: 12,
-    padding: 28, width: 480, maxWidth: '90vw',
-  },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title: { color: '#fff', fontSize: '1.1rem', fontWeight: 700 },
-  closeBtn: { background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 },
-  row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  section: { marginBottom: 20 },
-  label: { color: '#e2e8f0', fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 },
-  toggle: { display: 'flex', alignItems: 'center', cursor: 'pointer' },
-  tagList: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  tag: {
-    background: '#0f172a', border: '1px solid #334155', borderRadius: 4,
-    color: '#7dd3fc', fontSize: 12, padding: '3px 8px',
-    display: 'flex', alignItems: 'center', gap: 6,
-  },
-  tagRemove: { background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 0, fontSize: 11 },
-  inputRow: { display: 'flex', gap: 8 },
-  input: {
-    flex: 1, background: '#0f1117', border: '1px solid #334155',
-    borderRadius: 6, color: '#e2e8f0', padding: '7px 12px', fontSize: 13,
-  },
-  addBtn: {
-    background: '#1e3a5f', border: '1px solid #3b82f6', borderRadius: 6,
-    color: '#7dd3fc', padding: '7px 14px', cursor: 'pointer', fontSize: 13,
-  },
-  thresholdGrid: { background: '#0f172a', borderRadius: 8, padding: '12px 16px' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 },
-  cancelBtn: {
-    background: 'none', border: '1px solid #334155', borderRadius: 6,
-    color: '#94a3b8', padding: '8px 18px', cursor: 'pointer',
-  },
-  saveBtn: {
-    background: '#1d4ed8', border: 'none', borderRadius: 6,
-    color: '#fff', padding: '8px 18px', cursor: 'pointer', fontWeight: 600,
-  },
 }

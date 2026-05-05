@@ -1,4 +1,7 @@
+import React from 'react'
 import type { ActiveAlert } from '../api/alert'
+import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Activity, Zap } from 'lucide-react'
+import { cn } from '../utils/cn'
 
 interface HostMetrics {
   cpu: number | null
@@ -17,29 +20,61 @@ interface Props {
   onToggleMaintenance: (host: string, enabled: boolean) => void
 }
 
-function MetricBar({ value, warning, critical }: { value: number | null; warning: number; critical: number }) {
-  if (value === null) return <div style={{ color: '#475569', fontSize: 11 }}>-</div>
-  const color = value >= critical ? '#ef4444' : value >= warning ? '#f59e0b' : '#22c55e'
+function MetricBar({ value, warning, critical, label }: { value: number | null; warning: number; critical: number; label: string }) {
+  const isEmpty = value === null
+
+  const statusColor = isEmpty
+    ? 'bg-slate-700'
+    : value >= critical
+      ? 'bg-rose-500'
+      : value >= warning
+        ? 'bg-amber-500'
+        : 'bg-emerald-500'
+
+  const textColor = isEmpty
+    ? 'text-slate-600'
+    : value >= critical
+      ? 'text-rose-400'
+      : value >= warning
+        ? 'text-amber-400'
+        : 'text-emerald-400'
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ flex: 1, height: 4, background: '#334155', borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(value, 100)}%`, height: '100%', background: color, borderRadius: 2 }} />
+    <div className="space-y-1">
+      <div className="flex justify-between items-baseline">
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+        <span className={cn("text-xs font-semibold tabular-nums", textColor)}>
+          {isEmpty ? '—' : `${value.toFixed(0)}%`}
+        </span>
       </div>
-      <span style={{ color, fontSize: 11, fontWeight: 600, minWidth: 36, textAlign: 'right' }}>
-        {value.toFixed(0)}%
-      </span>
+      <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+        <div
+          className={cn("h-full rounded-full transition-all duration-300", statusColor)}
+          style={{ width: isEmpty ? '0%' : `${Math.min(value, 100)}%` }}
+        />
+      </div>
     </div>
   )
 }
 
-function SummaryBox({ label, count, color }: { label: string; count: number; color: string }) {
+function SummaryCard({ label, count, color, icon: Icon }: { label: string; count: number; color: string; icon: any }) {
+  const themes: Record<string, string> = {
+    blue:   'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+    green:  'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    amber:  'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    rose:   'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    purple: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+  }
+
   return (
-    <div style={{
-      background: '#1e293b', border: `1px solid ${color}44`,
-      borderRadius: 8, padding: '12px 24px', textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color }}>{count}</div>
-      <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{label}</div>
+    <div className={cn("flex items-center gap-3 p-4 rounded-xl border transition-colors", themes[color])}>
+      <div className="p-2 rounded-lg bg-slate-900/40 border border-current/20">
+        <Icon size={16} />
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-xs font-medium opacity-80 leading-none mb-1">{label}</span>
+        <span className="text-xl font-bold tabular-nums leading-none">{count}</span>
+      </div>
     </div>
   )
 }
@@ -62,112 +97,124 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
   )
 
   return (
-    <div style={{ marginBottom: 32 }}>
-      {/* 요약 바 */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-        <SummaryBox label="전체" count={hosts.length} color="#7dd3fc" />
-        <SummaryBox label="정상" count={counts.ok} color="#22c55e" />
-        <SummaryBox label="경고" count={counts.warning} color="#f59e0b" />
-        <SummaryBox label="장애" count={counts.fault} color="#ef4444" />
-        {counts.maintenance > 0 && <SummaryBox label="유지보수" count={counts.maintenance} color="#a78bfa" />}
+    <div className="space-y-6">
+      {/* Overview Statistics */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <SummaryCard label="전체 호스트" count={hosts.length} color="blue" icon={Monitor} />
+        <SummaryCard label="정상" count={counts.ok} color="green" icon={CheckCircle2} />
+        <SummaryCard label="경고" count={counts.warning} color="amber" icon={AlertTriangle} />
+        <SummaryCard label="장애" count={counts.fault} color="rose" icon={AlertCircle} />
+        <SummaryCard label="점검 중" count={counts.maintenance} color="purple" icon={Wrench} />
       </div>
 
-      <h2 style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600, marginBottom: 12, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-        전체 호스트 현황
-      </h2>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-base font-bold text-slate-100">호스트 목록</h2>
+            <span className="text-xs font-medium text-slate-500 tabular-nums">{hosts.length}개</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <Zap size={12} className="text-amber-400" /> 자동 갱신
+          </div>
+        </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
-        {hosts.map((host) => {
-          const status = hostStatuses[host]
-          const metrics = hostMetrics[host]
-          const alertCount = activeAlerts.filter(a => a.host === host && !a.acked).length
-          const isOffline = status === 'offline'
-          const uptime = uptimes[host]
-          const inMaintenance = maintenanceSet.has(host)
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+          {hosts.map((host) => {
+            const status = hostStatuses[host]
+            const metrics = hostMetrics[host]
+            const alertCount = activeAlerts.filter(a => a.host === host && !a.acked).length
+            const isOffline = status === 'offline'
+            const uptime = uptimes[host]
+            const inMaintenance = maintenanceSet.has(host)
 
-          const borderColor = inMaintenance ? '#7c3aed' : alertCount > 0 ? '#ef4444' : isOffline ? '#475569' : '#334155'
-
-          return (
-            <div
-              key={host}
-              style={{
-                background: inMaintenance ? '#1a1030' : '#1e293b',
-                border: `1px solid ${borderColor}`,
-                borderRadius: 10, padding: '14px 16px',
-                opacity: inMaintenance ? 0.75 : 1,
-              }}
-            >
-              {/* 헤더 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div
-                  onClick={() => onSelect(host)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1 }}
-                >
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: inMaintenance ? '#7c3aed' : isOffline ? '#ef4444' : '#22c55e' }} />
-                  <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{host}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {inMaintenance && (
-                    <span style={{ background: '#2e1065', color: '#a78bfa', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 10 }}>
-                      유지보수
-                    </span>
-                  )}
-                  {!inMaintenance && alertCount > 0 && (
-                    <span style={{ background: '#7f1d1d', color: '#fca5a5', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 10 }}>
-                      🚨 {alertCount}
-                    </span>
-                  )}
-                  {!inMaintenance && isOffline && alertCount === 0 && (
-                    <span style={{ background: '#1e293b', color: '#64748b', fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 10, border: '1px solid #334155' }}>
-                      오프라인
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* 메트릭 바 */}
+            return (
               <div
-                onClick={() => onSelect(host)}
-                style={{ display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer' }}
-              >
-                {(['CPU', 'MEM', 'DSK'] as const).map((label, i) => {
-                  const val = [metrics?.cpu, metrics?.memory, metrics?.disk][i] ?? null
-                  const [w, c] = [[70, 90], [80, 95], [85, 90]][i]
-                  return (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: '#475569', fontSize: 11, width: 28 }}>{label}</span>
-                      <div style={{ flex: 1 }}>
-                        <MetricBar value={val} warning={w} critical={c} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* 하단: 가동률 + 유지보수 토글 */}
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {uptime !== undefined ? (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: uptime >= 99 ? '#22c55e' : uptime >= 95 ? '#f59e0b' : '#ef4444' }}>
-                    {uptime.toFixed(1)}% 가동
-                  </span>
-                ) : (
-                  <span />
+                key={host}
+                className={cn(
+                  "group bg-slate-900 rounded-xl border p-4 transition-all duration-200 flex flex-col h-full cursor-pointer",
+                  inMaintenance
+                    ? "border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60"
+                    : alertCount > 0
+                      ? "border-rose-500/40 hover:border-rose-500/70 hover:bg-rose-500/[0.03]"
+                      : isOffline
+                        ? "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                        : "border-slate-800 hover:border-indigo-500/60 hover:bg-slate-900/80"
                 )}
-                <button
-                  onClick={() => onToggleMaintenance(host, !inMaintenance)}
-                  style={{
-                    background: inMaintenance ? '#2e1065' : 'none',
-                    border: `1px solid ${inMaintenance ? '#7c3aed' : '#334155'}`,
-                    color: inMaintenance ? '#a78bfa' : '#475569',
-                    padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11,
-                  }}
+              >
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-2 mb-4">
+                  <div
+                    className="flex items-start gap-2 cursor-pointer flex-1 min-w-0"
+                    onClick={() => onSelect(host)}
+                    title={host}
+                  >
+                    <div className={cn(
+                      "w-2 h-2 rounded-full shrink-0 mt-1.5",
+                      inMaintenance ? "bg-purple-400" : isOffline ? "bg-rose-500" : "bg-emerald-400"
+                    )} />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-sm text-slate-100 group-hover:text-indigo-400 transition-colors block break-words leading-snug">{host}</span>
+                      <span className="text-xs font-medium text-slate-500 mt-0.5 block">{isOffline ? '연결 끊김' : inMaintenance ? '점검 중' : '정상 동작'}</span>
+                    </div>
+                  </div>
+
+                  {!inMaintenance && alertCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 shrink-0">
+                      <AlertCircle size={11} /> {alertCount}
+                    </span>
+                  )}
+                </div>
+
+                {/* Metrics Section — 항상 표시 (오프라인이면 placeholder) */}
+                <div
+                  className="space-y-2.5 mb-4 cursor-pointer flex-1"
+                  onClick={() => onSelect(host)}
                 >
-                  {inMaintenance ? '유지보수 해제' : '유지보수'}
-                </button>
+                  <MetricBar label="CPU" value={metrics?.cpu ?? null} warning={70} critical={90} />
+                  <MetricBar label="메모리" value={metrics?.memory ?? null} warning={80} critical={95} />
+                  <MetricBar label="디스크" value={metrics?.disk ?? null} warning={85} critical={90} />
+                </div>
+
+                {/* Footer */}
+                <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-baseline gap-1.5 min-w-0">
+                    <span className="text-xs font-medium text-slate-500 shrink-0">가동률</span>
+                    {uptime !== undefined ? (
+                      <span className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        uptime >= 99 ? "text-emerald-400" : uptime >= 95 ? "text-amber-400" : "text-rose-400"
+                      )}>
+                        {uptime.toFixed(1)}%
+                      </span>
+                    ) : <span className="text-sm font-semibold text-slate-600">—</span>}
+                  </div>
+
+                  <div className="flex gap-1 shrink-0">
+                    <button
+                      onClick={() => onToggleMaintenance(host, !inMaintenance)}
+                      className={cn(
+                        "p-1.5 rounded-md transition-colors border",
+                        inMaintenance
+                          ? "bg-purple-500 text-white border-transparent"
+                          : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200 hover:bg-slate-700"
+                      )}
+                      title={inMaintenance ? "점검 모드 해제" : "점검 모드 설정"}
+                    >
+                      <Wrench size={14} />
+                    </button>
+                    <button
+                      onClick={() => onSelect(host)}
+                      className="p-1.5 rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+                      title="상세 보기"
+                    >
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
