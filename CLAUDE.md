@@ -98,13 +98,6 @@ owlmon/
 ```
 
 ## Conventions
-- 문서는 한국어 기본, 기술 용어는 영문 병기
-- 코드 주석: 한국어
-- Commit message: Conventional Commits (한국어)
-  - **형식: `<type>: <subject>` — 괄호 scope `(scope)`는 절대 사용 금지**
-  - 잘못된 예: `feat(web):`, `fix(server):`, `chore(infra):`
-  - 올바른 예: `feat:`, `fix:`, `chore:`
-  - type: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
-  - subject: 한국어, 마침표 없음
-  - body: 선택, "왜" 변경했는지
-  - 강제 사항: PreToolUse 훅이 `<type>(<scope>):` 패턴을 차단함
+
+문서/코드/커밋/브랜치 규칙은 상위 디렉토리 `~/mango/CLAUDE.md`에 통합되어 있습니다.
+이 프로젝트는 그 규칙을 그대로 따릅니다.
