@@ -1,13 +1,16 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seongJae/owlmon/server/alert"
 )
 
@@ -25,12 +28,71 @@ type ActiveAlert struct {
 type StatusHandler struct {
 	prometheusURL string
 	configStore   alert.ConfigStorer
-	checker       *alert.Checker // nil이면 ack/유지보수 정보 없음
+	checker       *alert.Checker
+	dbPool        *pgxpool.Pool // 자가 진단용
 }
 
-func NewStatusHandler(prometheusURL string, configStore alert.ConfigStorer, checker *alert.Checker) *StatusHandler {
-	return &StatusHandler{prometheusURL: prometheusURL, configStore: configStore, checker: checker}
+func NewStatusHandler(prometheusURL string, configStore alert.ConfigStorer, checker *alert.Checker, dbPool *pgxpool.Pool) *StatusHandler {
+	return &StatusHandler{
+		prometheusURL: prometheusURL,
+		configStore:   configStore,
+		checker:       checker,
+		dbPool:        dbPool,
+	}
 }
+
+// HealthCheck는 시스템 자가 진단 결과를 반환합니다.
+// GET /api/health
+func (h *StatusHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	status := "ok"
+	checks := make(map[string]string)
+
+	// 1. PostgreSQL 체크
+	if h.dbPool != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := h.dbPool.Ping(ctx); err != nil {
+			checks["postgres"] = "error: " + err.Error()
+			status = "error"
+		} else {
+			checks["postgres"] = "ok"
+		}
+	} else {
+		checks["postgres"] = "not_configured"
+	}
+
+	// 2. Prometheus 체크
+	if _, err := h.labelValues("host_name"); err != nil {
+		checks["prometheus"] = "error: " + err.Error()
+		status = "error"
+	} else {
+		checks["prometheus"] = "ok"
+	}
+
+	// 3. 시스템 리소스
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	w.Header().Set("Content-Type", "application/json")
+	if status != "ok" {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": status,
+		"checks": checks,
+		"server": map[string]interface{}{
+			"os":         runtime.GOOS,
+			"arch":       runtime.GOARCH,
+			"num_cpu":    runtime.NumCPU(),
+			"mem_alloc":  m.Alloc / 1024 / 1024,
+			"uptime_sec": time.Since(serverStartTime).Seconds(),
+		},
+		"timestamp": time.Now(),
+	})
+}
+
+var serverStartTime = time.Now()
 
 // GetStatus는 현재 임계값 초과 중인 항목 목록을 반환합니다.
 func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {

@@ -17,22 +17,22 @@ const (
 )
 
 const (
-	windowSize   = 120 // 이동평균 윈도우 크기 (30초 간격 × 120 = 1시간)
-	minSamples   = 30  // Z-score 계산에 필요한 최소 샘플 수
-	zThreshold   = 3.0 // Z-score 이상치 판정 기준
-	zWarning     = 2.5 // Z-score 경고 기준
+	defaultWindowSize = 120 // 기본 이동평균 윈도우 크기 (1시간)
+	minSamples        = 30  // Z-score 계산에 필요한 최소 샘플 수
+	zThreshold        = 3.0 // Z-score 이상치 판정 기준
+	zWarning          = 2.5 // Z-score 경고 기준
 )
 
 // Anomaly는 이상탐지 결과입니다.
 type Anomaly struct {
-	Host     string    `json:"host"`
-	Metric   string    `json:"metric"`   // cpu, memory, disk 등
-	Value    float64   `json:"value"`    // 현재 값
-	ZScore   float64   `json:"z_score"`  // Z-score
-	Mean     float64   `json:"mean"`     // 이동평균
-	StdDev   float64   `json:"std_dev"`  // 표준편차
-	Severity string    `json:"severity"` // warning, critical
-	Message  string    `json:"message"`
+	Host       string    `json:"host"`
+	Metric     string    `json:"metric"`   // cpu, memory, disk 등
+	Value      float64   `json:"value"`    // 현재 값
+	ZScore     float64   `json:"z_score"`  // Z-score
+	Mean       float64   `json:"mean"`     // 이동평균
+	StdDev     float64   `json:"std_dev"`  // 표준편차
+	Severity   string    `json:"severity"` // warning, critical
+	Message    string    `json:"message"`
 	DetectedAt time.Time `json:"detected_at"`
 }
 
@@ -43,43 +43,55 @@ type metricKey struct {
 	slot   TimeSlot
 }
 
-// metricWindow는 이동평균/표준편차 계산용 윈도우
+// metricWindow는 이동평균/표준편차 계산용 윈도우 (Welford's Algorithm 기반 슬라이딩 윈도우)
 type metricWindow struct {
 	values []float64
-	pos    int    // 순환 버퍼 현재 위치
-	count  int    // 실제 저장된 샘플 수
-	sum    float64
-	sumSq  float64
+	pos    int
+	count  int
+	size   int
+	mean   float64
+	m2     float64 // Sum of squares of differences from the mean
 }
 
-func newMetricWindow() *metricWindow {
+func newMetricWindow(size int) *metricWindow {
+	if size <= 0 {
+		size = defaultWindowSize
+	}
 	return &metricWindow{
-		values: make([]float64, windowSize),
+		values: make([]float64, size),
+		size:   size,
 	}
 }
 
-// Add는 새 값을 추가하고 이동평균/표준편차를 갱신합니다.
+// Add는 새 값을 추가하고 Welford's 알고리즘을 사용하여 평균/분산을 안정적으로 갱신합니다.
 func (w *metricWindow) Add(val float64) {
-	if w.count >= windowSize {
-		// 가장 오래된 값 제거
-		old := w.values[w.pos]
-		w.sum -= old
-		w.sumSq -= old * old
-	} else {
+	if w.count < w.size {
 		w.count++
+		delta := val - w.mean
+		w.mean += delta / float64(w.count)
+		delta2 := val - w.mean
+		w.m2 += delta * delta2
+	} else {
+		oldVal := w.values[w.pos]
+		deltaOld := oldVal - w.mean
+		w.mean -= deltaOld / float64(w.size)
+		w.m2 -= deltaOld * (oldVal - w.mean)
+
+		deltaNew := val - w.mean
+		w.mean += deltaNew / float64(w.size)
+		w.m2 += deltaNew * (val - w.mean)
+
+		if w.m2 < 0 {
+			w.m2 = 0
+		}
 	}
 	w.values[w.pos] = val
-	w.sum += val
-	w.sumSq += val * val
-	w.pos = (w.pos + 1) % windowSize
+	w.pos = (w.pos + 1) % w.size
 }
 
 // Mean은 현재 이동평균을 반환합니다.
 func (w *metricWindow) Mean() float64 {
-	if w.count == 0 {
-		return 0
-	}
-	return w.sum / float64(w.count)
+	return w.mean
 }
 
 // StdDev는 현재 표준편차를 반환합니다.
@@ -87,12 +99,7 @@ func (w *metricWindow) StdDev() float64 {
 	if w.count < 2 {
 		return 0
 	}
-	n := float64(w.count)
-	variance := (w.sumSq / n) - (w.sum/n)*(w.sum/n)
-	if variance < 0 {
-		variance = 0 // 부동소수점 오차 보정
-	}
-	return math.Sqrt(variance)
+	return math.Sqrt(w.m2 / float64(w.count-1))
 }
 
 // Ready는 Z-score 계산이 가능한지 반환합니다.
@@ -104,7 +111,6 @@ func (w *metricWindow) Ready() bool {
 type Detector struct {
 	mu      sync.RWMutex
 	windows map[metricKey]*metricWindow
-	// 최근 이상탐지 결과 (호스트별 최신만 유지)
 	anomalies map[string][]Anomaly // key: host
 }
 
@@ -128,8 +134,13 @@ func GetTimeSlot(t time.Time) TimeSlot {
 	return SlotNight
 }
 
+var metricWindowSizes = map[string]int{
+	"cpu":    60,
+	"memory": 120,
+	"disk":   240,
+}
+
 // Feed는 새로운 메트릭 값을 주입하고 이상 여부를 판정합니다.
-// 반환: 이상이 감지되면 Anomaly, 아니면 nil
 func (d *Detector) Feed(host, metric string, value float64, ts time.Time) *Anomaly {
 	slot := GetTimeSlot(ts)
 	key := metricKey{host: host, metric: metric, slot: slot}
@@ -139,7 +150,8 @@ func (d *Detector) Feed(host, metric string, value float64, ts time.Time) *Anoma
 
 	w, ok := d.windows[key]
 	if !ok {
-		w = newMetricWindow()
+		size := metricWindowSizes[metric]
+		w = newMetricWindow(size)
 		d.windows[key] = w
 	}
 
@@ -152,7 +164,6 @@ func (d *Detector) Feed(host, metric string, value float64, ts time.Time) *Anoma
 	mean := w.Mean()
 	stddev := w.StdDev()
 	if stddev < 0.01 {
-		// 표준편차가 거의 0이면 Z-score 무의미 (값이 일정함)
 		return nil
 	}
 
@@ -164,7 +175,6 @@ func (d *Detector) Feed(host, metric string, value float64, ts time.Time) *Anoma
 	} else if math.Abs(zscore) >= zWarning {
 		severity = "warning"
 	} else {
-		// 이상 아님 — 기존 이상 상태 해제
 		d.clearAnomaly(host, metric)
 		return nil
 	}
@@ -185,11 +195,9 @@ func (d *Detector) Feed(host, metric string, value float64, ts time.Time) *Anoma
 	return anomaly
 }
 
-// GetAnomalies는 현재 감지된 이상 목록을 반환합니다.
 func (d *Detector) GetAnomalies() []Anomaly {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-
 	var result []Anomaly
 	for _, anomalies := range d.anomalies {
 		result = append(result, anomalies...)
@@ -197,15 +205,12 @@ func (d *Detector) GetAnomalies() []Anomaly {
 	return result
 }
 
-// GetHostAnomalies는 특정 호스트의 이상 목록을 반환합니다.
 func (d *Detector) GetHostAnomalies(host string) []Anomaly {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-
 	return d.anomalies[host]
 }
 
-// Stats는 현재 추적 중인 메트릭 수를 반환합니다.
 func (d *Detector) Stats() (windowCount, anomalyCount int) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -216,14 +221,12 @@ func (d *Detector) Stats() (windowCount, anomalyCount int) {
 	return len(d.windows), total
 }
 
-// InjectTestAnomaly는 테스트용 이상 데이터를 직접 주입합니다.
 func (d *Detector) InjectTestAnomaly(a Anomaly) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.setAnomaly(a.Host, a)
 }
 
-// ClearAll은 모든 이상 데이터를 초기화합니다.
 func (d *Detector) ClearAll() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -231,7 +234,6 @@ func (d *Detector) ClearAll() {
 }
 
 func (d *Detector) setAnomaly(host string, a Anomaly) {
-	// 같은 호스트+메트릭 이상은 덮어쓰기
 	existing := d.anomalies[host]
 	for i, e := range existing {
 		if e.Metric == a.Metric {
@@ -264,12 +266,10 @@ func formatAnomalyMessage(host, metric string, value, zscore, mean float64) stri
 	if metricName == "" {
 		metricName = metric
 	}
-
 	direction := "높음"
 	if zscore < 0 {
 		direction = "낮음"
 	}
-
 	return metricName + " 사용률이 평소 대비 비정상적으로 " + direction +
 		" (현재 " + formatFloat(value) + "%, 평균 " + formatFloat(mean) + "%, Z=" + formatFloat(zscore) + ")"
 }

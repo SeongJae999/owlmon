@@ -9,21 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 	"github.com/seongJae/owlmon/server/alert"
-	"github.com/seongJae/owlmon/server/auth"
-	"github.com/seongJae/owlmon/server/db"
-	"github.com/seongJae/owlmon/server/handler"
-	"github.com/seongJae/owlmon/server/report"
 	"github.com/seongJae/owlmon/server/service"
-	snmppkg "github.com/seongJae/owlmon/server/snmp"
 )
 
 func main() {
@@ -52,64 +43,39 @@ func main() {
 
 // startServer는 서버를 시작하고 정지 함수를 반환합니다.
 func startServer() func() {
-	// .env 파일 로드 (.env가 환경변수보다 우선, 없으면 무시)
 	_ = godotenv.Overload()
 
 	username := getEnv("OWLMON_USERNAME", "admin")
 	passwordHash := getEnv("OWLMON_PASSWORD_HASH", "")
-	jwtSecret := getEnv("OWLMON_JWT_SECRET", "")
-	if jwtSecret == "" || jwtSecret == "change-this-secret-in-production" {
-		b := make([]byte, 32)
-		rand.Read(b)
-		jwtSecret = hex.EncodeToString(b)
-		log.Printf("⚠️  OWLMON_JWT_SECRET 미설정 — 임시 시크릿 생성됨 (재시작 시 로그인 세션 초기화됨)")
-		log.Printf("   .env에 다음을 추가하세요: OWLMON_JWT_SECRET=%s", jwtSecret)
-	}
 	prometheusURL := getEnv("OWLMON_PROMETHEUS_URL", "http://localhost:9090")
 	listenAddr := getEnv("OWLMON_LISTEN", ":8080")
 
 	if passwordHash == "" {
-		log.Fatal("OWLMON_PASSWORD_HASH 환경변수가 설정되지 않았습니다.\n" +
-			"다음 명령어로 해시를 생성하세요:\n" +
-			"  go run ./cmd/hashpw <비밀번호>")
+		log.Fatal("OWLMON_PASSWORD_HASH 환경변수가 설정되지 않았습니다.")
 	}
 
-	// PostgreSQL 연결 (설정된 경우)
-	var configStore alert.ConfigStorer
-	var historySaver alert.HistorySaver
-	var historyStore *db.AlertHistoryStore
-	var snmpDeviceStore *db.SNMPDeviceStore
-	var assetStore *db.AssetStore
-	pgDSN := getEnv("POSTGRES_DSN", "")
-	if pgDSN != "" {
-		pool, err := db.Connect(context.Background(), pgDSN)
-		if err != nil {
-			log.Printf("PostgreSQL 연결 실패: %v", err)
+	// 1. JWT Secret Persistent Logic
+	jwtSecret := getEnv("OWLMON_JWT_SECRET", "")
+	secretFile := ".owlmon_secret"
+	if jwtSecret == "" || jwtSecret == "change-this-secret-in-production" {
+		// Try reading from file
+		if b, err := os.ReadFile(secretFile); err == nil {
+			jwtSecret = string(b)
+			log.Println("🔑 Persistent JWT secret loaded from file")
 		} else {
-			log.Println("PostgreSQL 연결 성공")
-			configStore = db.NewAlertConfigStore(pool)
-			historySaver = db.NewHistorySaver(pool)
-			historyStore = db.NewAlertHistoryStore(pool)
-			snmpDeviceStore = db.NewSNMPDeviceStore(pool)
-			assetStore = db.NewAssetStore(pool)
+			// Generate and save new secret
+			b := make([]byte, 32)
+			rand.Read(b)
+			jwtSecret = hex.EncodeToString(b)
+			os.WriteFile(secretFile, []byte(jwtSecret), 0600)
+			log.Println("✨ New persistent JWT secret generated and saved")
 		}
-	}
-	// PostgreSQL 미연결 시 파일 기반 폴백
-	if configStore == nil {
-		log.Println("POSTGRES_DSN 미설정 — 알림 설정/히스토리를 파일로 저장")
-		dataDir := getEnv("OWLMON_DATA_DIR", "")
-		if dataDir == "" {
-			exePath, _ := os.Executable()
-			if strings.Contains(filepath.ToSlash(exePath), "/tmp/") || strings.Contains(exePath, `\AppData\Local\Temp\`) {
-				dataDir = "."
-			} else {
-				dataDir = filepath.Dir(exePath)
-			}
-		}
-		configStore = alert.NewConfigStore(filepath.Join(dataDir, "alert-config.json"))
 	}
 
-	// 알림 체커 초기화 (이메일 없어도 ack/유지보수 기능을 위해 항상 생성)
+	// 2. DB 및 저장소 초기화
+	appCtx := InitDB()
+
+	// 3. 알림 체커 및 이메일 설정
 	smtpHost := getEnv("SMTP_HOST", "")
 	var emailCfg *alert.EmailConfig
 	if smtpHost != "" {
@@ -119,99 +85,16 @@ func startServer() func() {
 			Username: getEnv("SMTP_USERNAME", ""),
 			Password: getEnv("SMTP_PASSWORD", ""),
 			From:     getEnv("SMTP_FROM", ""),
-			To:       strings.Split(getEnv("SMTP_TO", ""), ","),
+			To:       []string{getEnv("SMTP_TO", "")},
 		}
-	} else {
-		log.Println("SMTP_HOST 미설정 — 이메일 알림 비활성화")
 	}
-	checker := alert.NewChecker(prometheusURL, emailCfg, configStore, historySaver)
-	// 이상탐지는 이메일 없이도 항상 실행 (알림 체크 + Z-score + 디스크 예측)
-	checker.Start(30 * time.Second)
+	checker := alert.NewChecker(prometheusURL, emailCfg, appCtx.ConfigStore, appCtx.HistorySaver)
 
-	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret)
-	proxyHandler, err := handler.NewProxyHandler(prometheusURL)
-	if err != nil {
-		log.Fatalf("Prometheus 프록시 초기화 실패: %v", err)
-	}
-	alertHandler := handler.NewAlertHandler(configStore, checker)
-	statusHandler := handler.NewStatusHandler(prometheusURL, configStore, checker)
-	anomalyHandler := handler.NewAnomalyHandler(checker.Detector, checker.Predictor)
+	// 4. 백그라운드 워커 시작
+	InitWorkers(appCtx, checker, emailCfg, prometheusURL)
 
-	// 월간 보고서 (이메일 없어도 미리보기는 가능)
-	reporter := report.NewReporter(prometheusURL, emailCfg, configStore)
-	if emailCfg != nil {
-		reporter.Start()
-	}
-	reportHandler := handler.NewReportHandler(reporter)
-
-	// SNMP 폴러 (PostgreSQL 연결된 경우에만)
-	snmpPoller := snmppkg.NewPoller()
-	var snmpHandler *handler.SNMPHandler
-	if snmpDeviceStore != nil {
-		snmpHandler = handler.NewSNMPHandler(snmpDeviceStore, snmpPoller)
-		// 기존 장비 로드 후 폴링 시작
-		go func() {
-			devices, err := snmpDeviceStore.List(context.Background())
-			if err != nil {
-				log.Printf("SNMP 장비 목록 로드 실패: %v", err)
-				return
-			}
-			log.Printf("SNMP 장비 %d개 로드", len(devices))
-			ticker := time.NewTicker(60 * time.Second)
-			defer ticker.Stop()
-			// 즉시 1회 폴링
-			for _, dev := range devices {
-				go snmpPoller.Poll(dev)
-			}
-			for range ticker.C {
-				devs, err := snmpDeviceStore.List(context.Background())
-				if err != nil {
-					continue
-				}
-				for _, dev := range devs {
-					go snmpPoller.Poll(dev)
-				}
-			}
-		}()
-	}
-
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Post("/api/auth/login", authHandler.Login)
-	r.Group(func(r chi.Router) {
-		r.Use(auth.JWTMiddleware(jwtSecret))
-		r.Handle("/api/v1/*", proxyHandler)
-		r.Get("/api/alert/config", alertHandler.GetConfig)
-		r.Post("/api/alert/config", alertHandler.SetConfig)
-		r.Post("/api/alert/ack", alertHandler.AckAlert)
-		r.Get("/api/maintenance", alertHandler.GetMaintenance)
-		r.Post("/api/maintenance", alertHandler.SetMaintenance)
-		r.Get("/api/alert/status", statusHandler.GetStatus)
-		r.Get("/api/uptime", statusHandler.GetUptime)
-		if historyStore != nil {
-			historyHandler := handler.NewHistoryHandler(historyStore)
-			r.Get("/api/alert/history", historyHandler.List)
-		}
-		r.Get("/api/report/preview", reportHandler.Preview)
-		r.Post("/api/report/send", reportHandler.Send)
-		if snmpHandler != nil {
-			r.Get("/api/snmp/devices", snmpHandler.ListDevices)
-			r.Post("/api/snmp/devices", snmpHandler.AddDevice)
-			r.Delete("/api/snmp/devices/{id}", snmpHandler.DeleteDevice)
-			r.Get("/api/snmp/status", snmpHandler.GetStatus)
-		}
-		r.Get("/api/anomaly", anomalyHandler.GetAnomalies)
-		r.Get("/api/anomaly/disk", anomalyHandler.GetDiskPredictions)
-		r.Post("/api/anomaly/test", anomalyHandler.InjectTestData)
-		r.Delete("/api/anomaly/test", anomalyHandler.ClearTestData)
-		if assetStore != nil {
-			assetHandler := handler.NewAssetHandler(assetStore)
-			r.Get("/api/assets", assetHandler.List)
-			r.Put("/api/assets", assetHandler.Upsert)
-			r.Delete("/api/assets/{id}", assetHandler.Delete)
-		}
-	})
+	// 5. 라우터 설정
+	r := InitRouter(appCtx, checker, jwtSecret, username, passwordHash, prometheusURL)
 
 	tlsCert := getEnv("OWLMON_TLS_CERT", "")
 	tlsKey := getEnv("OWLMON_TLS_KEY", "")
@@ -220,16 +103,15 @@ func startServer() func() {
 
 	go func() {
 		log.Printf("OWLmon 서버 시작: %s", listenAddr)
-		log.Printf("Prometheus: %s", prometheusURL)
 		var err error
 		if tlsCert != "" && tlsKey != "" {
 			cert, loadErr := tls.LoadX509KeyPair(tlsCert, tlsKey)
-			if loadErr != nil {
-				log.Fatalf("TLS 인증서 로드 실패: %v", loadErr)
+			if loadErr == nil {
+				srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+				err = srv.ListenAndServeTLS("", "")
+			} else {
+				log.Fatalf("TLS 로드 실패: %v", loadErr)
 			}
-			srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
-			log.Printf("HTTPS 활성화 (인증서: %s)", tlsCert)
-			err = srv.ListenAndServeTLS("", "")
 		} else {
 			err = srv.ListenAndServe()
 		}

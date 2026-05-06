@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/seongJae/owlmon/server/anomaly"
+	"github.com/seongJae/owlmon/server/ssl"
 )
 
 const (
@@ -23,15 +24,22 @@ type HistorySaver interface {
 	Save(ctx context.Context, host, category, severity, subject, body string) error
 }
 
+// SSLDomainLister는 SSL 도메인 목록을 조회하는 인터페이스입니다.
+type SSLDomainLister interface {
+	ListEntries(ctx context.Context) ([]ssl.DomainEntry, error)
+}
+
 // Checker는 Prometheus를 주기적으로 조회하여 알림 조건을 평가합니다.
 type Checker struct {
-	prometheusURL string
-	email         *EmailConfig
-	state         *State
-	configStore   ConfigStorer
-	history       HistorySaver // nil이면 저장 안 함
-	Detector      *anomaly.Detector
-	Predictor     *anomaly.Predictor
+	prometheusURL  string
+	email          *EmailConfig
+	state          *State
+	configStore    ConfigStorer
+	history        HistorySaver // nil이면 저장 안 함
+	Detector       *anomaly.Detector
+	Predictor      *anomaly.Predictor
+	sslDomainLister SSLDomainLister // nil이면 SSL 체크 비활성
+	SSLChecker      *ssl.CertChecker
 }
 
 func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStorer, history HistorySaver) *Checker {
@@ -43,6 +51,85 @@ func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStor
 		history:       history,
 		Detector:      anomaly.NewDetector(),
 		Predictor:     anomaly.NewPredictor(),
+		SSLChecker:    ssl.NewCertChecker(),
+	}
+}
+
+// SetSSLDomainLister는 SSL 도메인 목록 조회기를 설정합니다.
+func (c *Checker) SetSSLDomainLister(lister SSLDomainLister) {
+	c.sslDomainLister = lister
+}
+
+// StartSSLCheck는 SSL 인증서를 주기적으로 체크합니다.
+func (c *Checker) StartSSLCheck(interval time.Duration) {
+	if c.sslDomainLister == nil {
+		return
+	}
+	go func() {
+		// 시작 후 30초 뒤 첫 체크 (서버 초기화 대기)
+		time.Sleep(30 * time.Second)
+		c.checkSSLCerts()
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			c.checkSSLCerts()
+		}
+	}()
+	log.Printf("SSL 인증서 체커 시작 (주기: %v)", interval)
+}
+
+// checkSSLCerts는 등록된 도메인의 SSL 인증서를 체크합니다.
+func (c *Checker) checkSSLCerts() {
+	if c.sslDomainLister == nil {
+		return
+	}
+	entries, err := c.sslDomainLister.ListEntries(context.Background())
+	if err != nil {
+		log.Printf("SSL 도메인 목록 조회 실패: %v", err)
+		return
+	}
+	if len(entries) == 0 {
+		return
+	}
+
+	results := c.SSLChecker.CheckAll(entries)
+
+	cfg := c.configStore.Get()
+	if !cfg.Enabled {
+		return
+	}
+	if c.email != nil && len(cfg.Recipients) > 0 {
+		c.email.To = cfg.Recipients
+	}
+
+	for _, info := range results {
+		key := fmt.Sprintf("ssl:%s", info.Domain)
+		switch info.Status {
+		case "expired":
+			if c.state.ShouldAlert(key) {
+				subject := fmt.Sprintf("SSL 인증서 만료: %s", info.Domain)
+				body := fmt.Sprintf("도메인: %s\n만료일: %s\n발급자: %s\n\nSSL 인증서가 만료되었습니다. 즉시 갱신하세요.",
+					info.Domain, info.NotAfter.Format("2006-01-02"), info.Issuer)
+				c.sendAlert(info.Domain, "ssl", "critical", subject, body)
+			}
+		case "critical":
+			if c.state.ShouldAlert(key) {
+				subject := fmt.Sprintf("SSL 인증서 %d일 후 만료: %s", info.DaysLeft, info.Domain)
+				body := fmt.Sprintf("도메인: %s\n만료일: %s\n남은 일수: %d일\n발급자: %s\n\n인증서 갱신을 준비하세요.",
+					info.Domain, info.NotAfter.Format("2006-01-02"), info.DaysLeft, info.Issuer)
+				c.sendAlert(info.Domain, "ssl", "critical", subject, body)
+			}
+		case "warning":
+			if c.state.ShouldAlert(key) {
+				subject := fmt.Sprintf("SSL 인증서 %d일 후 만료: %s", info.DaysLeft, info.Domain)
+				body := fmt.Sprintf("도메인: %s\n만료일: %s\n남은 일수: %d일\n발급자: %s\n\n인증서 갱신을 계획하세요.",
+					info.Domain, info.NotAfter.Format("2006-01-02"), info.DaysLeft, info.Issuer)
+				c.sendAlert(info.Domain, "ssl", "warning", subject, body)
+			}
+		case "ok":
+			c.state.ClearIfFiring(key)
+		}
 	}
 }
 
@@ -230,6 +317,12 @@ func (c *Checker) sendAlert(host, category, severity, subject, body string) {
 			log.Printf("알림 히스토리 저장 실패: %v", err)
 		}
 	}
+}
+
+// SendAlert는 외부에서 알림을 발송할 수 있도록 sendAlert를 공개합니다.
+// (synthetic, dpm 등 외부 모듈이 알림을 보낼 때 사용)
+func (c *Checker) SendAlert(host, category, severity, subject, body string) {
+	c.sendAlert(host, category, severity, subject, body)
 }
 
 // Ack는 알림을 확인 처리합니다.
