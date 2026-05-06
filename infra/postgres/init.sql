@@ -145,6 +145,24 @@ CREATE INDEX IF NOT EXISTS idx_logs_host      ON logs (host);
 CREATE INDEX IF NOT EXISTS idx_logs_level     ON logs (level);
 CREATE INDEX IF NOT EXISTS idx_logs_line_trgm ON logs USING gin (line gin_trgm_ops);
 
+-- 로그 라벨링 (운영자가 입력한 원인/조치 — 미래 LLM 학습 데이터, 영구 보관)
+-- logs 테이블이 retention 정책으로 정리돼도 라벨은 살아남도록 별도 테이블.
+CREATE TABLE IF NOT EXISTS log_annotations (
+    id            BIGSERIAL PRIMARY KEY,
+    log_id        BIGINT      NOT NULL,            -- 대상 로그 id (FK 없음 — logs 정리 후에도 라벨 보존)
+    log_timestamp TIMESTAMPTZ NOT NULL,            -- 원본 로그 시각 (라벨 시점 추적용)
+    annotator     TEXT        NOT NULL,            -- 라벨링한 운영자 계정
+    category      TEXT,                            -- 'root_cause' | 'action_taken' | 'false_positive'
+    problem       TEXT,                            -- 원인 설명 (자유 텍스트)
+    solution      TEXT,                            -- 조치 내용 (자유 텍스트)
+    alert_id      BIGINT REFERENCES alert_history(id) ON DELETE SET NULL, -- 연관 알림 (옵션)
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_log_annotations_log_id ON log_annotations (log_id);
+CREATE INDEX IF NOT EXISTS idx_log_annotations_alert  ON log_annotations (alert_id);
+CREATE INDEX IF NOT EXISTS idx_log_annotations_created ON log_annotations (created_at DESC);
+
 -- 에이전트 관리
 CREATE TABLE IF NOT EXISTS agents (
     id          BIGSERIAL PRIMARY KEY,
