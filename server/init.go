@@ -20,17 +20,18 @@ import (
 
 // AppContext는 서버 운영에 필요한 모든 의존성을 담고 있습니다.
 type AppContext struct {
-	DBPool          *pgxpool.Pool
-	ConfigStore     alert.ConfigStorer
-	HistorySaver    alert.HistorySaver
-	HistoryStore    *db.AlertHistoryStore
-	SNMPDeviceStore *db.SNMPDeviceStore
-	AssetStore      *db.AssetStore
-	SSLDomainStore  *db.SSLDomainStore
-	LogStore        *db.LogStore
-	SyntheticStore  *db.SyntheticStore
-	DPMStore        *db.DPMStore
-	AgentStore      *db.AgentStore
+	DBPool             *pgxpool.Pool
+	ConfigStore        alert.ConfigStorer
+	HistorySaver       alert.HistorySaver
+	HistoryStore       *db.AlertHistoryStore
+	SNMPDeviceStore    *db.SNMPDeviceStore
+	AssetStore         *db.AssetStore
+	SSLDomainStore     *db.SSLDomainStore
+	LogStore           *db.LogStore
+	LogAnnotationStore *db.LogAnnotationStore
+	SyntheticStore     *db.SyntheticStore
+	DPMStore           *db.DPMStore
+	AgentStore         *db.AgentStore
 }
 
 // InitDB는 데이터베이스와 저장소를 초기화합니다.
@@ -52,6 +53,7 @@ func InitDB() *AppContext {
 			appCtx.AssetStore = db.NewAssetStore(pool)
 			appCtx.SSLDomainStore = db.NewSSLDomainStore(pool)
 			appCtx.LogStore = db.NewLogStore(pool)
+			appCtx.LogAnnotationStore = db.NewLogAnnotationStore(pool)
 			appCtx.SyntheticStore = db.NewSyntheticStore(pool)
 			appCtx.DPMStore = db.NewDPMStore(pool)
 			appCtx.AgentStore = db.NewAgentStore(pool)

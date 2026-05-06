@@ -181,6 +181,22 @@ func (s *LogStore) Sources(ctx context.Context) ([]LogSource, error) {
 	return sources, nil
 }
 
+// GetByID는 단일 로그 레코드를 반환합니다.
+// 라벨링 UI에서 로그 상세를 보여줄 때 사용.
+// 존재하지 않으면 pgx.ErrNoRows 반환.
+func (s *LogStore) GetByID(ctx context.Context, id int64) (*LogRecord, error) {
+	var r LogRecord
+	err := s.pool.QueryRow(ctx,
+		`SELECT id, timestamp, host, source, file_path, line, level, created_at
+		 FROM logs WHERE id = $1`,
+		id,
+	).Scan(&r.ID, &r.Timestamp, &r.Host, &r.Source, &r.FilePath, &r.Line, &r.Level, &r.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
 // Cleanup은 retentionDays보다 오래된 로그를 삭제합니다.
 func (s *LogStore) Cleanup(ctx context.Context, retentionDays int) (int64, error) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)

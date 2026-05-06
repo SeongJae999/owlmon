@@ -10,6 +10,13 @@ type contextKey string
 
 const usernameKey contextKey = "username"
 
+// UsernameFromContext는 JWTMiddleware가 주입한 username을 반환합니다.
+// 토큰이 없거나 미인증 요청이면 빈 문자열.
+func UsernameFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(usernameKey).(string)
+	return v
+}
+
 // JWTMiddleware는 Authorization 헤더의 Bearer 토큰을 검증합니다.
 func JWTMiddleware(secret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
