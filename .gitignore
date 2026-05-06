@@ -71,3 +71,5 @@ data/
 
 # Claude 로컬 설정 (개인별 다름, skills는 공유)
 .claude/settings.local.json
+.claude/settings.json
+.claude/.DS_Store
