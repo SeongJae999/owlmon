@@ -16,6 +16,19 @@ bin/
 !scripts/*.exe
 *-dev
 
+# Go 빌드 산출물 (에이전트/서버 단일 바이너리)
+/agent/agent
+/server/server
+/agent/owlmon-agent-mac-*
+/agent/owlmon-agent-windows*
+/agent/owlmon-agent-linux-*
+/agent/owlmon-agent-amd64
+/agent/owlmon-agent-arm64
+
+# 에이전트 런타임 생성 파일 (오프라인 버퍼/WAL)
+/agent/owlmon-buffer.json
+/agent/owlmon-logs-wal.json
+
 # Node.js
 node_modules/
 .next/
