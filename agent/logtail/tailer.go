@@ -56,6 +56,16 @@ func (t *Tailer) SetWALPath(path string) {
 	t.wal = NewWAL(path)
 }
 
+// Push는 외부 수집기(journald 등)가 엔트리를 버퍼에 추가합니다.
+// 버퍼가 가득 차면 드롭됩니다.
+func (t *Tailer) Push(entry LogEntry) {
+	t.mu.Lock()
+	if len(t.buffer) < maxBufferSize {
+		t.buffer = append(t.buffer, entry)
+	}
+	t.mu.Unlock()
+}
+
 // Start는 WAL에서 미전송 로그 복원 후, 각 파일별 watcher와 flush 루프를 시작합니다.
 func (t *Tailer) Start(ctx context.Context) {
 	// WAL 복원 (있으면)

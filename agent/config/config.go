@@ -12,6 +12,30 @@ import (
 type Config struct {
 	OTLPEndpoint string        `yaml:"otlp_endpoint"` // OTel Collector 주소
 	Checks       []CheckConfig `yaml:"checks"`        // 서비스 체크 목록
+	Logs         LogConfig     `yaml:"logs"`           // 로그 수집 설정
+}
+
+// LogConfig는 로그 수집 설정입니다.
+type LogConfig struct {
+	Enabled   bool           `yaml:"enabled"`
+	ServerURL string         `yaml:"server_url"` // OWLmon 서버 주소
+	AgentKey  string         `yaml:"agent_key"`  // 인증 키
+	Tails     []TailConfig   `yaml:"tails"`
+	WALPath   string         `yaml:"wal_path"` // 디스크 영속화 경로 (빈 문자열 = 비활성)
+	Journald  JournaldConfig `yaml:"journald"` // systemd journal 수집 (Linux 전용)
+}
+
+// JournaldConfig는 systemd journal 수집 설정입니다.
+type JournaldConfig struct {
+	Enabled bool   `yaml:"enabled"` // 기본 false (opt-in)
+	Source  string `yaml:"source"`  // 라벨 (기본 "journald")
+}
+
+// TailConfig는 개별 로그 파일 수집 설정입니다.
+type TailConfig struct {
+	Name            string   `yaml:"name"`             // 로그 식별 이름
+	Path            string   `yaml:"path"`             // 로그 파일 경로
+	IncludePatterns []string `yaml:"include_patterns"` // 빈 배열이면 전부 수집
 }
 
 // CheckConfig는 개별 서비스 체크 설정입니다.

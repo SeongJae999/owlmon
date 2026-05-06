@@ -11,6 +11,7 @@ import (
 	"github.com/seongJae/owlmon/agent/collector"
 	"github.com/seongJae/owlmon/agent/config"
 	"github.com/seongJae/owlmon/agent/exporter"
+	"github.com/seongJae/owlmon/agent/logtail"
 	"github.com/seongJae/owlmon/agent/service"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -88,6 +89,34 @@ func startAgent() func() {
 	}
 	if _, err := collector.NewNetworkCollector(meter); err != nil {
 		log.Fatalf("네트워크 수집기 초기화 실패: %v", err)
+	}
+
+	// 로그 수집 시작 (파일 tail + journald 수집기는 같은 Tailer 버퍼 공유)
+	if cfg.Logs.Enabled {
+		serverURL := cfg.Logs.ServerURL
+		if serverURL == "" {
+			serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
+		}
+		agentKey := cfg.Logs.AgentKey
+		if agentKey == "" {
+			agentKey = getEnv("OWLMON_AGENT_KEY", "")
+		}
+
+		tailer := logtail.NewTailer(cfg.Logs.Tails, hostname, serverURL, agentKey)
+		if cfg.Logs.WALPath != "" {
+			tailer.SetWALPath(cfg.Logs.WALPath)
+		}
+		tailer.Start(ctx)
+
+		if len(cfg.Logs.Tails) > 0 {
+			log.Printf("로그 파일 수집: %d개", len(cfg.Logs.Tails))
+		}
+
+		// journald 수집 (Linux 전용 — 다른 OS에서는 stub이 자동 비활성)
+		if cfg.Logs.Journald.Enabled {
+			jc := logtail.NewJournaldCollector(hostname, cfg.Logs.Journald.Source, tailer.Push)
+			jc.Start(ctx)
+		}
 	}
 
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)

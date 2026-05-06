@@ -15,3 +15,23 @@ checks:
     type: tcp
     target: "localhost:4317"
     interval: 60s
+
+# 로그 수집 설정
+logs:
+  enabled: true
+  server_url: "http://localhost:8080"
+  agent_key: "owlmon-dev-key"
+
+  # 디스크 영속화 (네트워크 끊김 + 재시작 후 복원). 빈 문자열이면 비활성.
+  wal_path: "owlmon-logs-wal.json"
+
+  # systemd journal 수집 (Linux 전용). 다른 OS에서는 자동 비활성.
+  journald:
+    enabled: false
+    source: "journald"
+
+  # 일반 파일 tail 목록
+  tails:
+    - name: system
+      path: /var/log/system.log
+      include_patterns: ["error", "fatal", "panic", "warning"]
