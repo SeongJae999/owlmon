@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OWLmon | Technical Specification</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        code { font-family: 'JetBrains Mono', monospace; }
+        .sidebar-link:hover { background-color: #f1f5f9; }
+        .tech-card { transition: transform 0.2s; }
+        .tech-card:hover { transform: translateY(-5px); }
+    </style>
+</head>
+<body class="text-slate-800">
+
+<div class="flex flex-col lg:flex-row min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-full lg:w-72 bg-white border-r border-slate-200 p-6 flex-shrink-0">
+        <div class="flex items-center gap-3 mb-10">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg">
+                <i class="fas fa-owl fa-lg"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 uppercase">OWLmon</h1>
+        </div>
+        
+        <nav class="space-y-1">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-3">Overview</p>
+            <a href="#intro" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600">
+                <i class="fas fa-info-circle w-5"></i> 프로젝트 개요
+            </a>
+            <a href="#architecture" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600">
+                <i class="fas fa-sitemap w-5"></i> 시스템 아키텍처
+            </a>
+            
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6 mb-2 px-3">Core Logic</p>
+            <a href="#anomaly" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600">
+                <i class="fas fa-chart-line w-5"></i> 지능형 이상탐지
+            </a>
+            <a href="#alert" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600">
+                <i class="fas fa-bell w-5"></i> 알림 및 로그 처리
+            </a>
+
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-6 mb-2 px-3">Future</p>
+            <a href="#roadmap" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-600">
+                <i class="fas fa-map-signs w-5"></i> 로드맵 및 개선 제안
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-6 lg:p-12 max-w-5xl overflow-y-auto">
+        <!-- Header Section -->
+        <header id="intro" class="mb-16">
+            <div class="inline-block px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold mb-4">Project Documentation v1.0</div>
+            <h2 class="text-4xl font-extrabold text-slate-900 mb-6">IT 전담 인력 없는 기관을 위한<br><span class="text-indigo-600 font-black italic">차세대 모니터링 솔루션</span></h2>
+            <p class="text-lg text-slate-600 leading-relaxed max-w-3xl">
+                OWLmon은 학교 및 중소규모 공공기관의 IT 환경을 위해 설계된 경량 모니터링 솔루션입니다. 
+                복잡한 설정 없이도 서버, 네트워크, 웹 서비스를 실시간으로 감시하고 지능형 알고리즘을 통해 장애를 사전에 예방합니다.
+            </p>
+        </header>
+
+        <!-- Tech Stack Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
+            <div class="tech-card bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-blue-500 mb-3"><i class="fab fa-golang fa-2x"></i></div>
+                <h4 class="font-bold mb-1">Backend / Agent</h4>
+                <p class="text-sm text-slate-500">Go (Golang)</p>
+            </div>
+            <div class="tech-card bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-cyan-500 mb-3"><i class="fab fa-react fa-2x"></i></div>
+                <h4 class="font-bold mb-1">Frontend</h4>
+                <p class="text-sm text-slate-500">React + TS + Vite</p>
+            </div>
+            <div class="tech-card bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-orange-600 mb-3"><i class="fas fa-database fa-2x"></i></div>
+                <h4 class="font-bold mb-1">Storage</h4>
+                <p class="text-sm text-slate-500">PostgreSQL + Prometheus</p>
+            </div>
+            <div class="tech-card bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-slate-700 mb-3"><i class="fab fa-docker fa-2x"></i></div>
+                <h4 class="font-bold mb-1">Infrastructure</h4>
+                <p class="text-sm text-slate-500">Docker Compose</p>
+            </div>
+        </section>
+
+        <!-- Architecture Section -->
+        <section id="architecture" class="mb-20">
+            <div class="flex items-center gap-4 mb-8">
+                <h3 class="text-2xl font-bold text-slate-900">시스템 아키텍처</h3>
+                <div class="flex-grow h-px bg-slate-200"></div>
+            </div>
+            <div class="bg-indigo-900 rounded-2xl p-8 text-white shadow-xl mb-8 overflow-x-auto">
+                <pre class="text-indigo-200 leading-relaxed">
+[ Agent (Go) ]  ----(OTLP / gRPC)----> [ OTel Collector ] ----> [ Prometheus ]
+      |                                                                 |
+      |----(Log Ingest / HTTP)----> [ OWLmon Server ] <----------------|
+                                          |
+                                          |----(SQL)----> [ PostgreSQL ]
+                                          |
+                                          |----(API)----> [ React Dashboard ]
+                </pre>
+            </div>
+            <ul class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <li class="flex gap-4">
+                    <div class="text-indigo-500 mt-1"><i class="fas fa-check-circle"></i></div>
+                    <div>
+                        <h5 class="font-bold">Lightweight Agent</h5>
+                        <p class="text-sm text-slate-500 leading-relaxed">gopsutil 기반 CPU/MEM/Net/Disk 실시간 수집. 오프라인 시 로컬 큐에 메트릭 버퍼링 기능 포함.</p>
+                    </div>
+                </li>
+                <li class="flex gap-4">
+                    <div class="text-indigo-500 mt-1"><i class="fas fa-check-circle"></i></div>
+                    <div>
+                        <h5 class="font-bold">Centralized Server</h5>
+                        <p class="text-sm text-slate-500 leading-relaxed">알림 로직 통합 관리. Prometheus 쿼리를 통한 실시간 판단 및 이상탐지 엔진 구동.</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <!-- Core Feature: Anomaly Detection -->
+        <section id="anomaly" class="mb-20 bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+            <div class="flex items-center gap-4 mb-8">
+                <h3 class="text-2xl font-bold text-slate-900">지능형 이상탐지 알고리즘</h3>
+                <div class="flex-grow h-px bg-slate-200"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div>
+                    <h4 class="flex items-center gap-2 font-bold text-lg mb-4 text-indigo-700">
+                        <i class="fas fa-square-root-alt"></i> Z-Score 기반 통계적 탐지
+                    </h4>
+                    <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                        최근 120개(1시간) 윈도우의 이동평균과 표준편차를 기반으로 현재 메트릭의 편차를 계산합니다.
+                        특히 <b>계절성(Seasonality)</b> 보정을 위해 업무시간, 야간, 주말 데이터를 별도의 슬롯으로 관리합니다.
+                    </p>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <code class="text-xs text-indigo-800 italic">Z = (x - μ) / σ</code>
+                        <ul class="text-[11px] text-slate-500 mt-2 list-disc ml-4">
+                            <li>Z ≥ 3.0 : Critical Alert</li>
+                            <li>Z ≥ 2.5 : Warning Alert</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="flex items-center gap-2 font-bold text-lg mb-4 text-emerald-700">
+                        <i class="fas fa-chart-area"></i> 선형회귀 디스크 고갈 예측
+                    </h4>
+                    <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                        최소제곱법(Least Squares Method) 선형회귀를 사용하여 디스크 사용 추세를 분석합니다. 
+                        단순 현재 사용량이 아닌, <b>미래의 고갈 시점</b>을 예측하여 알림을 발송합니다.
+                    </p>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <h6 class="text-[11px] font-bold text-slate-400 uppercase mb-1">Condition</h6>
+                        <p class="text-xs text-slate-600 italic">Predicts exhaustion within 7 days & R² (Confidence) ≥ 0.5</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Roadmap & Improvements -->
+        <section id="roadmap" class="mb-10">
+            <div class="flex items-center gap-4 mb-8">
+                <h3 class="text-2xl font-bold text-slate-900">프로젝트 개선 제안 (Expert View)</h3>
+                <div class="flex-grow h-px bg-slate-200"></div>
+            </div>
+            <div class="space-y-4">
+                <div class="p-6 bg-indigo-50 border-l-4 border-indigo-500 rounded-r-xl">
+                    <h5 class="font-bold text-indigo-900 mb-2">1. 데이터 삽입 성능 개선 (PostgreSQL Copy)</h5>
+                    <p class="text-sm text-indigo-700">현재 <code>log_store.go</code>의 Batch Insert 방식을 <code>pgx.CopyFrom</code>으로 전환하여 로그 데이터가 많아질 때의 CPU 부하를 50% 이상 절감 가능합니다.</p>
+                </div>
+                <div class="p-6 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl">
+                    <h5 class="font-bold text-emerald-900 mb-2">2. 현대적 상태 관리 도입 (React Query)</h5>
+                    <p class="text-sm text-emerald-700">프론트엔드의 <code>useEffect</code> 기반 폴링 로직을 <code>TanStack Query</code>로 전환하여 데이터 캐싱 및 네트워크 중복 요청을 최적화할 것을 권장합니다.</p>
+                </div>
+                <div class="p-6 bg-amber-50 border-l-4 border-amber-500 rounded-r-xl">
+                    <h5 class="font-bold text-amber-900 mb-2">3. 로그 검색 고속화 (GIN Indexing)</h5>
+                    <p class="text-sm text-amber-700">대량의 로그 데이터 검색을 위해 PostgreSQL의 <code>pg_trgm</code> 확장 및 <code>GIN</code> 인덱스를 적용하여 텍스트 검색 속도를 10배 이상 향상시킬 수 있습니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-20 pt-10 border-t border-slate-200 text-center">
+            <p class="text-slate-400 text-sm italic">Documentation generated by Gemini CLI for OWLmon Project</p>
+        </footer>
+    </main>
+</div>
+
+</body>
+</html>
