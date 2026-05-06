@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { searchLogs, getLogSources, type LogSearchParams } from '../api/logs'
+import { searchLogs, getLogSources, type LogSearchParams, type LogRecord } from '../api/logs'
 import { useQuery } from '@tanstack/react-query'
-import { Search, RefreshCcw, Server, FileText, ChevronLeft, ChevronRight, Info, AlertCircle } from 'lucide-react'
+import { Search, RefreshCcw, Server, FileText, ChevronLeft, ChevronRight, Info, AlertCircle, Tag } from 'lucide-react'
 import { cn } from '../utils/cn'
+import AnnotateModal from './AnnotateModal'
 
 const LEVEL_CONFIG: Record<string, { bg: string, text: string }> = {
   ERROR: { bg: 'bg-rose-500/100/15', text: 'text-rose-300' },
@@ -20,6 +21,7 @@ export default function LogViewer() {
   const [level, setLevel] = useState('')
   const [queryText, setQueryText] = useState('')
   const [page, setPage] = useState(0)
+  const [selectedLog, setSelectedLog] = useState<LogRecord | null>(null)
   const limit = 50
 
   const { data: sources = [] } = useQuery({
@@ -174,6 +176,7 @@ export default function LogViewer() {
                   <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-32 shrink-0">호스트</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-32 shrink-0">소스</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">내용</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 shrink-0 text-right">라벨</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -213,12 +216,30 @@ export default function LogViewer() {
                           {r.line}
                         </code>
                       </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          onClick={() => setSelectedLog(r)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
+                          title="이 로그에 원인/조치 라벨 부여"
+                        >
+                          <Tag size={11} />
+                          라벨
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* Annotate Modal */}
+        {selectedLog && (
+          <AnnotateModal
+            log={selectedLog}
+            onClose={() => setSelectedLog(null)}
+          />
         )}
 
         {/* Pagination */}
