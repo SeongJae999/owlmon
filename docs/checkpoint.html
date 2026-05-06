@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OWLmon 중간점검 — 프로젝트 현황 + 시스템 구조 + 로드맵</title>
+<style>
+  :root {
+    --bg-0: #020617;       /* slate-950 */
+    --bg-1: #0f172a;       /* slate-900 */
+    --bg-2: #1e293b;       /* slate-800 */
+    --border: #334155;     /* slate-700 */
+    --text-1: #f1f5f9;     /* slate-100 */
+    --text-2: #cbd5e1;     /* slate-300 */
+    --text-3: #94a3b8;     /* slate-400 */
+    --text-4: #64748b;     /* slate-500 */
+    --indigo: #6366f1;     /* indigo-500 */
+    --indigo-hi: #818cf8;  /* indigo-400 */
+    --emerald: #34d399;    /* emerald-400 */
+    --amber: #fbbf24;      /* amber-400 */
+    --rose: #f87171;       /* rose-400 */
+    --purple: #a78bfa;     /* purple-400 */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg-0);
+    color: var(--text-2);
+    font-family: 'Pretendard', 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  body {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  /* Typography */
+  h1 { font-size: 32px; font-weight: 700; color: var(--text-1); letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px; font-weight: 700; color: var(--text-1);
+    margin: 56px 0 16px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .section-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--indigo); color: white; font-size: 13px;
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: 16px; font-weight: 600; color: var(--text-1);
+    margin: 24px 0 10px;
+  }
+  p { margin: 8px 0; color: var(--text-2); }
+  code {
+    background: var(--bg-2); padding: 2px 6px; border-radius: 4px;
+    font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 13px;
+    color: var(--indigo-hi);
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; margin-bottom: 32px;
+  }
+  .hero-tag {
+    display: inline-block; padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 6px; font-size: 12px; font-weight: 600;
+    color: var(--indigo-hi); margin-bottom: 12px;
+  }
+  .hero p.subtitle { color: var(--text-3); font-size: 16px; margin-top: 8px; }
+  .hero-meta {
+    display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap;
+    font-size: 13px; color: var(--text-3);
+  }
+  .hero-meta strong { color: var(--text-1); font-weight: 600; }
+
+  /* Cards */
+  .card {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 800px) {
+    .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  /* Tables */
+  table {
+    width: 100%; border-collapse: collapse;
+    background: var(--bg-1); border-radius: 8px; overflow: hidden;
+    margin: 12px 0;
+  }
+  th, td {
+    padding: 10px 14px; text-align: left;
+    border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  th { background: var(--bg-2); color: var(--text-1); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: 12px; }
+
+  /* Status badges */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600; line-height: 1.6;
+  }
+  .badge-done { background: rgba(52, 211, 153, 0.15); color: var(--emerald); border: 1px solid rgba(52, 211, 153, 0.3); }
+  .badge-progress { background: rgba(251, 191, 36, 0.15); color: var(--amber); border: 1px solid rgba(251, 191, 36, 0.3); }
+  .badge-pending { background: rgba(148, 163, 184, 0.1); color: var(--text-3); border: 1px solid var(--border); }
+  .badge-risk { background: rgba(248, 113, 113, 0.15); color: var(--rose); border: 1px solid rgba(248, 113, 113, 0.3); }
+  .badge-info { background: rgba(99, 102, 241, 0.15); color: var(--indigo-hi); border: 1px solid rgba(99, 102, 241, 0.3); }
+
+  /* Domain card */
+  .domain {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+    transition: border-color 0.2s;
+  }
+  .domain:hover { border-color: var(--indigo); }
+  .domain h4 {
+    color: var(--text-1); font-size: 15px; font-weight: 600;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+  }
+  .domain .icon {
+    width: 22px; height: 22px; display: inline-flex;
+    align-items: center; justify-content: center;
+    border-radius: 6px; background: rgba(99, 102, 241, 0.15);
+    color: var(--indigo-hi); font-size: 13px;
+  }
+  .domain p { font-size: 13px; color: var(--text-3); margin: 4px 0; }
+  .domain ul { font-size: 12px; color: var(--text-3); margin: 6px 0 0 16px; }
+  .domain ul li { margin: 2px 0; }
+
+  /* Mermaid */
+  .mermaid {
+    background: var(--bg-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin: 16px 0;
+    overflow-x: auto;
+  }
+
+  /* Roadmap timeline */
+  .timeline {
+    border-left: 2px solid var(--border);
+    margin: 16px 0 16px 12px; padding-left: 24px;
+  }
+  .timeline-item {
+    position: relative; margin: 0 0 24px;
+  }
+  .timeline-item::before {
+    content: ''; position: absolute; left: -32px; top: 4px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--bg-0); border: 2px solid var(--border);
+  }
+  .timeline-item.done::before { background: var(--emerald); border-color: var(--emerald); }
+  .timeline-item.progress::before { background: var(--amber); border-color: var(--amber); }
+  .timeline-item .phase {
+    font-size: 13px; font-weight: 600; color: var(--text-1);
+    margin-bottom: 4px;
+  }
+  .timeline-item .desc { font-size: 13px; color: var(--text-3); }
+
+  /* Layout helpers */
+  ul { padding-left: 24px; color: var(--text-2); }
+  ul li { margin: 4px 0; font-size: 14px; }
+  .toc {
+    background: var(--bg-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 32px;
+  }
+  .toc h3 { margin-top: 0; font-size: 14px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; }
+  .toc ol { padding-left: 20px; column-count: 2; column-gap: 24px; margin-top: 12px; }
+  .toc ol li { margin: 4px 0; font-size: 13px; }
+  .toc a { color: var(--text-2); text-decoration: none; }
+  .toc a:hover { color: var(--indigo-hi); }
+  @media (max-width: 700px) {
+    .toc ol { column-count: 1; }
+  }
+
+  .progress-bar {
+    height: 8px; background: var(--bg-2); border-radius: 4px;
+    overflow: hidden; margin: 8px 0;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--indigo), var(--indigo-hi));
+    border-radius: 4px;
+  }
+
+  .quote {
+    border-left: 3px solid var(--indigo);
+    padding: 8px 16px; margin: 12px 0;
+    background: rgba(99, 102, 241, 0.05);
+    color: var(--text-2); font-size: 14px; font-style: italic;
+  }
+
+  .meta-line {
+    display: flex; gap: 12px; align-items: center;
+    font-size: 12px; color: var(--text-4);
+    margin-top: 32px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<section class="hero">
+  <span class="hero-tag">PROJECT CHECKPOINT · 2026-05-06</span>
+  <h1>OWLmon</h1>
+  <p class="subtitle">학교 · 공공기관을 위한 단정한 인프라 모니터링 플랫폼</p>
+  <div class="hero-meta">
+    <span><strong>총 커밋</strong> 60개</span>
+    <span><strong>오늘 추가</strong> 12개</span>
+    <span><strong>현재 단계</strong> Phase 0 (Week 2 완료)</span>
+    <span><strong>스택</strong> Go · React · PostgreSQL · Prometheus</span>
+  </div>
+</section>
+
+<!-- Table of Contents -->
+<nav class="toc">
+  <h3>목차</h3>
+  <ol>
+    <li><a href="#vision">프로젝트 비전</a></li>
+    <li><a href="#status">현재 단계</a></li>
+    <li><a href="#architecture">시스템 아키텍처</a></li>
+    <li><a href="#dataflow">데이터 흐름</a></li>
+    <li><a href="#domains">도메인별 기능</a></li>
+    <li><a href="#stack">기술 스택</a></li>
+    <li><a href="#design">디자인 철학</a></li>
+    <li><a href="#decisions">주요 의사결정 기록</a></li>
+    <li><a href="#roadmap">로드맵</a></li>
+    <li><a href="#expansion">확장 방향 (도청급)</a></li>
+    <li><a href="#risks">리스크 + 미해결 사항</a></li>
+    <li><a href="#next">다음 단계</a></li>
+  </ol>
+</nav>
+
+<!-- 1. Vision -->
+<h2 id="vision"><span class="section-num">1</span>프로젝트 비전</h2>
+
+<div class="card">
+  <div class="quote">
+    "IT 전담 인력이 없는 학교/공공기관도 5분 안에 설치해서 즉시 가치를 얻는, 단정하고 신뢰감 있는 모니터링 도구"
+  </div>
+  <h3>핵심 정체성</h3>
+  <ul>
+    <li><strong>타겟</strong>: 한국 학교 · 공공기관 (IT 비전담 환경)</li>
+    <li><strong>경쟁상대</strong>: Zabbix (복잡함) / Datadog (영문/비싸다)</li>
+    <li><strong>차별화</strong>: 한국어 위주 UI · 단순 설치 · 단정한 다크 톤 · 알림 디바운싱 · 이상탐지 + 자체 LLM 로드맵</li>
+  </ul>
+  <h3>사업 모델</h3>
+  <ul>
+    <li>1단계 — 납품형 (구축비 500만~수천만 원)</li>
+    <li>2단계 — SaaS 구독형 (서버 10대 기준 월 5만 원)</li>
+    <li>전략 — Sentry 모델 (설치 간편 → 즉시 가치 → 무료 티어 → 유료 전환)</li>
+  </ul>
+</div>
+
+<!-- 2. Status -->
+<h2 id="status"><span class="section-num">2</span>현재 단계</h2>
+
+<div class="grid grid-3">
+  <div class="card">
+    <h3>📊 진행률</h3>
+    <p>Phase 0 (로그 수집 파이프라인) — 진행 중</p>
+    <div class="progress-bar"><div class="progress-bar-fill" style="width: 35%;"></div></div>
+    <p style="font-size: 12px; color: var(--text-4);">Week 2/6 완료 · 약 35%</p>
+  </div>
+  <div class="card">
+    <h3>✅ 완료된 마일스톤</h3>
+    <ul>
+      <li>3개월 — 에이전트 + 대시보드 + 알림 ✓</li>
+      <li>6개월 — 월간 보고서 + SNMP ✓</li>
+      <li>이상탐지 Phase 1 (Z-score + 디스크 예측) ✓</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🔜 진행 중</h3>
+    <ul>
+      <li>Phase 0 Week 3 — 검색 API + 라벨링</li>
+      <li>Phase 0 Week 4 — 로그 검색 UI</li>
+      <li>Phase 0 Week 5 — Windows Event Log + 마스킹</li>
+    </ul>
+  </div>
+</div>
+
+<h3>오늘(2026-05-06) 작업 요약</h3>
+<table>
+  <thead><tr><th>영역</th><th>커밋 수</th><th>내용</th></tr></thead>
+  <tbody>
+    <tr><td>디자인 통일 (다크 + 한국어화)</td><td>4</td><td>Tailwind v4 마이그레이션 · Conventions/CLAUDE.md 정리 · 다크 테마 + 한국어 + 정보 밀도 개선</td></tr>
+    <tr><td>ROADMAP/PR 템플릿 갱신</td><td>1</td><td>Phase 0 6주 마일스톤 · 자체 LLM 로드맵 · PR 템플릿 추가</td></tr>
+    <tr><td>logtail 보강 (Phase 0 Week 2)</td><td>6</td><td>WAL · fsnotify · journald (Linux) + stub (기타 OS) · 와이어링</td></tr>
+    <tr><td>인프라 정리</td><td>1</td><td>.gitignore에 빌드 산출물 + 런타임 파일 패턴 추가</td></tr>
+  </tbody>
+</table>
+
+<!-- 3. Architecture -->
+<h2 id="architecture"><span class="section-num">3</span>시스템 아키텍처</h2>
+
+<p>OWLmon은 <strong>4개의 큰 컴포넌트</strong>로 구성됩니다 — 각 학교 서버에 설치되는 <em>경량 Go 에이전트</em>, 중앙의 <em>Go 백엔드 서버</em>, <em>React 대시보드</em>, 그리고 <em>저장 계층 (PostgreSQL + Prometheus)</em>.</p>
+
+<div class="mermaid">
+flowchart TB
+    subgraph 학교서버["학교/기관 서버 (대상)"]
+        OS[운영체제]
+        APP[애플리케이션]
+        AG[OWLmon Agent<br/>Go 단일 바이너리]
+        OS --> AG
+        APP --> AG
+    end
+
+    subgraph 중앙["OWLmon 중앙"]
+        OC[OTel Collector]
+        SRV[OWLmon Server<br/>Go + chi]
+        PROM[(Prometheus)]
+        PG[(PostgreSQL)]
+    end
+
+    subgraph 사용자["사용자"]
+        UI[React 대시보드]
+        EMAIL[이메일 알림]
+    end
+
+    AG -->|메트릭 OTLP| OC
+    OC --> PROM
+    AG -->|로그 HTTP/JSON| SRV
+    AG -->|서비스체크 OTLP| OC
+
+    SRV --> PG
+    SRV --> PROM
+    SRV -->|이상탐지/디바운싱| EMAIL
+    PROM --> SRV
+
+    UI --> SRV
+    UI --> PROM
+</div>
+
+<h3>컴포넌트 책임</h3>
+<table>
+  <thead>
+    <tr><th>컴포넌트</th><th>역할</th><th>위치</th><th>주요 기술</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Agent</strong></td><td>메트릭/로그/체크 수집 · 오프라인 버퍼</td><td>각 모니터링 대상 서버</td><td>Go · gopsutil · OpenTelemetry SDK · fsnotify</td></tr>
+    <tr><td><strong>Server</strong></td><td>API · 알림 · 이상탐지 · 보고서 · 자산 관리</td><td>중앙 1대</td><td>Go · chi · JWT · pgx</td></tr>
+    <tr><td><strong>Frontend</strong></td><td>대시보드 · 설정 · 검색 · 시각화</td><td>중앙 (정적 자산)</td><td>React 19 · TypeScript · Vite · Tailwind v4</td></tr>
+    <tr><td><strong>Storage</strong></td><td>메트릭 시계열 · 알림 히스토리 · 자산 · 로그</td><td>중앙 1대 (도커)</td><td>Prometheus · PostgreSQL 16</td></tr>
+    <tr><td><strong>OTel Collector</strong></td><td>OTLP 수신 → Prometheus 변환</td><td>중앙 (사이드카)</td><td>opentelemetry-collector-contrib</td></tr>
+  </tbody>
+</table>
+
+<!-- 4. Data Flow -->
+<h2 id="dataflow"><span class="section-num">4</span>데이터 흐름</h2>
+
+<h3>메트릭 수집 (30초 주기)</h3>
+<div class="mermaid">
+sequenceDiagram
+    participant H as 호스트
+    participant A as Agent
+    participant E as Buffered Exporter
+    participant OC as OTel Collector
+    participant P as Prometheus
+    participant S as Server
+
+    loop 30초마다
+        A->>H: gopsutil로 CPU/메모리/디스크/네트워크 조회
+        A->>E: ResourceMetrics 묶어 전달
+        alt 네트워크 정상
+            E->>OC: OTLP gRPC :4317
+            OC->>P: Remote Write
+        else 네트워크 끊김
+            E->>E: 메모리 큐 + 디스크 owlmon-buffer.json
+            Note over E: 재연결 시 자동 재전송
+        end
+    end
+
+    Note over S: 별도 30초 주기
+    S->>P: PromQL 쿼리 (임계값/이상탐지/회복)
+</div>
+
+<h3>로그 수집 (Phase 0 Week 2 — 방금 완료)</h3>
+<div class="mermaid">
+flowchart LR
+    subgraph Agent["agent/logtail"]
+        F[파일 tail<br/>fsnotify 이벤트]
+        J[journald<br/>journalctl --json]
+        T[Tailer 메모리 버퍼]
+        W[(WAL 디스크<br/>owlmon-logs-wal.json)]
+        SH[Sender HTTP POST]
+
+        F --> T
+        J --> T
+        T -- 10초 flush --> SH
+        SH -. 실패 시 .-> W
+        W -. 재시작 후 복원 .-> T
+    end
+
+    SH --> SRV[Server /api/logs/ingest]
+    SRV --> DB[(PostgreSQL logs)]
+</div>
+
+<h3>알림 발화 흐름</h3>
+<div class="mermaid">
+flowchart LR
+    M[메트릭 임계값 초과] --> CHK[Checker 평가]
+    CHK --> S{State 검사}
+    S -->|이미 발화 중| HOLD[쿨다운 대기]
+    S -->|첫 발화| FIRE[발화 처리]
+    FIRE --> DB[(alert_history 저장)]
+    FIRE --> EM[이메일 발송]
+    M2[조건 해소] --> R{firing 여부}
+    R -->|발화 중이었음| RECOV[회복 알림]
+    R -->|아니면| NOOP[무시]
+</div>
+
+<!-- 5. Domains -->
+<h2 id="domains"><span class="section-num">5</span>도메인별 기능</h2>
+
+<p>OWLmon은 학교/공공기관 운영에 필요한 핵심 모니터링 영역을 도메인 단위로 나누어 제공합니다.</p>
+
+<div class="grid grid-3">
+  <div class="domain">
+    <h4><span class="icon">📈</span>메트릭</h4>
+    <p>호스트 자원 실시간 추적</p>
+    <ul>
+      <li>CPU · 메모리 · 디스크 · 네트워크</li>
+      <li>30초 주기 · OTLP 표준</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🔔</span>알림</h4>
+    <p>이메일 기반 알림 + 디바운싱</p>
+    <ul>
+      <li>4중 방어선 (플래핑/쿨다운/Ack/유지보수)</li>
+      <li>회복 알림 자동</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🔍</span>이상탐지</h4>
+    <p>고정 임계값을 넘어선 똑똑한 탐지</p>
+    <ul>
+      <li>Z-score + 이동평균 (계절성 보정)</li>
+      <li>선형회귀 디스크 예측</li>
+      <li><span class="badge badge-done">Phase 1 완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🔐</span>SSL 인증서</h4>
+    <p>HTTPS 사이트 만료 추적</p>
+    <ul>
+      <li>도메인 등록 + 6시간 주기 체크</li>
+      <li>30일/7일 전 알림</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🌐</span>SNMP 장비</h4>
+    <p>스위치/라우터 트래픽 폴링</p>
+    <ul>
+      <li>v2c · 60초 주기</li>
+      <li>인터페이스 UP/DOWN · RX/TX</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🌍</span>사이트 점검</h4>
+    <p>외부 웹사이트 가용성 모니터링</p>
+    <ul>
+      <li>HTTP 상태 코드 + 응답 키워드</li>
+      <li>주기 + 응답 시간 추이</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🗄️</span>DB 성능 (DPM)</h4>
+    <p>PostgreSQL 실시간 + 슬로우 쿼리</p>
+    <ul>
+      <li>커넥션 / 캐시 적중률 / DB 사이즈</li>
+      <li>슬로우 쿼리 분석</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">📜</span>로그 수집</h4>
+    <p>파일 tail + journald + WAL</p>
+    <ul>
+      <li>fsnotify 이벤트 기반 (Week 2)</li>
+      <li>오프라인 디스크 버퍼링</li>
+      <li><span class="badge badge-progress">Phase 0 진행 중</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">📋</span>자산 관리</h4>
+    <p>호스트 메타정보 (위치 · 보증 등)</p>
+    <ul>
+      <li>도입일 · 보증 만료일 추적</li>
+      <li>가동률 통합 표시</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">📊</span>월간 보고서</h4>
+    <p>호스트별 통계 + 자동 이메일</p>
+    <ul>
+      <li>매월 1일 자동 발송</li>
+      <li>가동률 / CPU / 메모리 / 디스크</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🤖</span>에이전트 등록</h4>
+    <p>개별 에이전트 키 발급 · 관리</p>
+    <ul>
+      <li>키 생성 / 비활성화</li>
+      <li>마지막 접속 추적</li>
+      <li><span class="badge badge-done">완료</span></li>
+    </ul>
+  </div>
+  <div class="domain">
+    <h4><span class="icon">🧠</span>자체 LLM 로그 분석</h4>
+    <p>로그 → 자연어 원인/조치 제시</p>
+    <ul>
+      <li>Phase 1~4: 데이터 축적</li>
+      <li>Phase 5: GPU 확보 후 파인튜닝</li>
+      <li><span class="badge badge-pending">로드맵</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- 6. Stack -->
+<h2 id="stack"><span class="section-num">6</span>기술 스택</h2>
+
+<table>
+  <thead>
+    <tr><th>레이어</th><th>기술 / 버전</th><th>역할</th><th>선택 이유</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>에이전트 언어</td><td>Go 1.22+</td><td>단일 바이너리 + 크로스 플랫폼</td><td>의존성 zero · 메모리 10MB 가능 · 모니터링 표준</td></tr>
+    <tr><td>시스템 메트릭</td><td>gopsutil v3</td><td>CPU/메모리/디스크/네트워크</td><td>Linux/Windows/macOS 통일 API</td></tr>
+    <tr><td>메트릭 전송</td><td>OpenTelemetry SDK</td><td>OTLP gRPC :4317</td><td>업계 표준 · 다른 도구 호환</td></tr>
+    <tr><td>로그 전송</td><td>HTTP/JSON 자체 양식</td><td>POST /api/logs/ingest</td><td>학교 환경에 단순함 우선 · 의존성 zero</td></tr>
+    <tr><td>파일 감시</td><td>fsnotify</td><td>파일 변경 즉시 감지</td><td>폴링 대비 효율 · log rotate 안전</td></tr>
+    <tr><td>저널 수집</td><td>journalctl 서브프로세스</td><td>systemd journal (Linux)</td><td>CGO/sdjournal 의존성 회피</td></tr>
+    <tr><td>서버 언어</td><td>Go 1.22+</td><td>API · 비즈니스 로직</td><td>에이전트와 동일 → 운영 일관</td></tr>
+    <tr><td>HTTP 라우터</td><td>chi v5</td><td>RESTful 라우팅 · 미들웨어</td><td>net/http 호환 · 가벼움</td></tr>
+    <tr><td>인증</td><td>JWT (golang-jwt)</td><td>사용자 인증</td><td>에이전트는 X-Agent-Key 별도</td></tr>
+    <tr><td>DB 드라이버</td><td>pgx/v5</td><td>PostgreSQL 접근</td><td>고성능 · COPY 프로토콜 지원</td></tr>
+    <tr><td>SNMP</td><td>gosnmp</td><td>v2c 폴링</td><td>의존성 가벼움</td></tr>
+    <tr><td>메트릭 저장</td><td>Prometheus 2.51</td><td>시계열</td><td>표준 · PromQL · OTel 호환</td></tr>
+    <tr><td>관계형 저장</td><td>PostgreSQL 16</td><td>알림/자산/로그/SNMP/SSL</td><td>학교 규모(~1억 행) 충분 · pg_trgm</td></tr>
+    <tr><td>프론트엔드</td><td>React 19 · TypeScript · Vite 8</td><td>대시보드 SPA</td><td>현대적 · 타입 안전 · 빠른 빌드</td></tr>
+    <tr><td>스타일</td><td>Tailwind CSS v4</td><td>유틸리티 우선 다크 테마</td><td>일관성 · 빠른 반복</td></tr>
+    <tr><td>차트</td><td>Recharts</td><td>메트릭 시각화</td><td>React 친화 · 가벼움</td></tr>
+    <tr><td>데이터 페칭</td><td>@tanstack/react-query</td><td>서버 상태 관리</td><td>캐싱/리페치 표준</td></tr>
+    <tr><td>아이콘</td><td>lucide-react</td><td>UI 아이콘</td><td>가벼움 · 트리쉐이킹</td></tr>
+  </tbody>
+</table>
+
+<h3>의존성 철학</h3>
+<ul>
+  <li><strong>에이전트는 zero CGO</strong> — 학교 서버 GCC 없어도 동작</li>
+  <li><strong>외부 API 의존 zero</strong> — 망분리 환경 대응 가능</li>
+  <li><strong>이상탐지/알림 디바운싱은 자체 구현</strong> — 외부 라이브러리 없이 100% Go</li>
+</ul>
+
+<!-- 7. Design Philosophy -->
+<h2 id="design"><span class="section-num">7</span>디자인 철학</h2>
+
+<div class="card">
+  <h3>핵심 원칙</h3>
+  <ul>
+    <li><strong>실용성 우선</strong> — 모니터링은 매일 보는 도구, 장식보다 정보가 우선</li>
+    <li><strong>한국어 위주</strong> — 학교 IT 담당자에게 영문 대문자 라벨은 인지 부담</li>
+    <li><strong>다크 테마</strong> — 모니터링 도구 표준(Datadog/Grafana/Linear)이며 장시간 사용 피로 ↓</li>
+    <li><strong>정보 밀도</strong> — 학교 IT는 한 화면에 가능한 많은 호스트를 봐야 함</li>
+    <li><strong>장식 절제</strong> — glow/animate-bounce 같은 마케팅 효과는 트레이드오프 없이 제거</li>
+  </ul>
+
+  <h3>적용된 디자인 토큰</h3>
+  <table>
+    <thead>
+      <tr><th>역할</th><th>색상 토큰</th><th>용도</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>배경</td><td><code>slate-950 #020617</code></td><td>본문 영역</td></tr>
+      <tr><td>카드 배경</td><td><code>slate-900 #0f172a</code></td><td>위젯/카드</td></tr>
+      <tr><td>보더</td><td><code>slate-800 #1e293b</code></td><td>구분선</td></tr>
+      <tr><td>제목 텍스트</td><td><code>slate-100 #f1f5f9</code></td><td>h1~h3</td></tr>
+      <tr><td>본문 텍스트</td><td><code>slate-300 #cbd5e1</code></td><td>p</td></tr>
+      <tr><td>라벨 텍스트</td><td><code>slate-500 #64748b</code></td><td>라벨/캡션</td></tr>
+      <tr><td>강조 (포인트)</td><td><code>indigo-500 #6366f1</code></td><td>버튼 · 링크</td></tr>
+      <tr><td>정상</td><td><code>emerald-400 #34d399</code></td><td>OK 상태</td></tr>
+      <tr><td>경고</td><td><code>amber-400 #fbbf24</code></td><td>주의 상태</td></tr>
+      <tr><td>위험</td><td><code>rose-400 #f87171</code></td><td>위험/장애</td></tr>
+    </tbody>
+  </table>
+
+  <h3>타이포그래피</h3>
+  <ul>
+    <li>폰트: Pretendard / Inter (한글 친화)</li>
+    <li>위계: <code>font-bold</code> (700) · <code>font-semibold</code> (600) · <code>font-medium</code> (500)</li>
+    <li>금지: <code>font-black</code> (900) — 위계 무너짐 · 모든 페이지에서 제거됨</li>
+    <li>마이크로 라벨: 12px(text-xs) 하한 — 9px/10px 마이크로 폰트 폐기</li>
+  </ul>
+</div>
+
+<!-- 8. Decisions -->
+<h2 id="decisions"><span class="section-num">8</span>주요 의사결정 기록</h2>
+
+<table>
+  <thead>
+    <tr><th>결정</th><th>선택</th><th>대안</th><th>이유</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>로그 전송 프로토콜</td>
+      <td>자체 단순 JSON</td>
+      <td>OTLP/HTTP Logs</td>
+      <td>학교 타겟엔 OTLP 라이브러리(~5MB) 과함 · 의존성 zero · 디버깅 쉬움</td>
+    </tr>
+    <tr>
+      <td>journald 통합 방식</td>
+      <td><code>journalctl</code> 서브프로세스</td>
+      <td>sdjournal CGO 라이브러리</td>
+      <td>CGO/systemd-dev 의존성 회피 · 빌드 단순</td>
+    </tr>
+    <tr>
+      <td>로그 저장소</td>
+      <td>PostgreSQL + 일별 파티셔닝</td>
+      <td>Loki / ClickHouse</td>
+      <td>학교 규모(초당 ~5000건)엔 충분 · 신규 의존성 zero</td>
+    </tr>
+    <tr>
+      <td>UI 테마</td>
+      <td>다크 (전면 통일)</td>
+      <td>라이트 / 양쪽</td>
+      <td>모니터링 도구 표준 · 장시간 사용 피로 ↓ · 상태색 임팩트 ↑</td>
+    </tr>
+    <tr>
+      <td>UI 라벨 언어</td>
+      <td>한국어 위주</td>
+      <td>영문 대문자 마이크로</td>
+      <td>학교 IT 담당자 친숙 · 인지 부담 ↓</td>
+    </tr>
+    <tr>
+      <td>모바일 지원</td>
+      <td>제외</td>
+      <td>PWA / 반응형</td>
+      <td>타겟 사용자 우선순위 낮음 · LLM 로드맵에 리소스 집중</td>
+    </tr>
+    <tr>
+      <td>커밋 형식</td>
+      <td><code>&lt;type&gt;: &lt;subject&gt;</code></td>
+      <td><code>&lt;type&gt;(&lt;scope&gt;): ...</code></td>
+      <td>괄호 scope 가독성 ↓ · PreToolUse 훅으로 패턴 차단</td>
+    </tr>
+    <tr>
+      <td>브랜치 전략</td>
+      <td>GitHub Flow + squash merge</td>
+      <td>Git Flow (develop)</td>
+      <td>1인 작업엔 develop 오버스펙 · 점진 도입 가능</td>
+    </tr>
+    <tr>
+      <td>Phase 0 목적</td>
+      <td>로그 수집 파이프라인</td>
+      <td>모바일 최적화 / Isolation Forest</td>
+      <td>자체 LLM 로그 분석의 데이터 기반 확보 우선</td>
+    </tr>
+    <tr>
+      <td>자체 LLM 단계</td>
+      <td>RAG → 파인튜닝 (점진)</td>
+      <td>처음부터 파인튜닝</td>
+      <td>데이터 없음 · GPU 없음 → Phase 1~4에 데이터 축적 후 GPU 확보 시 Phase 5</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 9. Roadmap -->
+<h2 id="roadmap"><span class="section-num">9</span>로드맵</h2>
+
+<div class="timeline">
+  <div class="timeline-item done">
+    <div class="phase">~3개월차 — MVP <span class="badge badge-done">완료</span></div>
+    <div class="desc">에이전트 + 대시보드 + 이메일 알림 + JWT</div>
+  </div>
+  <div class="timeline-item done">
+    <div class="phase">~6개월차 — 1차 확장 <span class="badge badge-done">완료</span></div>
+    <div class="desc">월간 보고서 + SNMP 네트워크 모니터링 + 자산 관리</div>
+  </div>
+  <div class="timeline-item done">
+    <div class="phase">이상탐지 Phase 1 <span class="badge badge-done">완료</span></div>
+    <div class="desc">Z-score + 이동평균(계절성) + 선형회귀 디스크 예측</div>
+  </div>
+  <div class="timeline-item done">
+    <div class="phase">SSL · DPM · Synthetic 도메인 <span class="badge badge-done">완료</span></div>
+    <div class="desc">3개 신규 모니터링 도메인 추가 (사용자 작업)</div>
+  </div>
+  <div class="timeline-item progress">
+    <div class="phase">Phase 0 — 로그 수집 파이프라인 <span class="badge badge-progress">진행 중</span></div>
+    <div class="desc">
+      · Week 1 — 서버 수신 엔드포인트 + DB 스키마 (자체 프로토콜) ✓<br>
+      · Week 2 — 에이전트 logtail 보강 (WAL · fsnotify · journald) ✓<br>
+      · Week 3 — 검색 API + 라벨링 + pg_trgm<br>
+      · Week 4 — 로그 검색 React UI + AnnotateModal<br>
+      · Week 5 — Windows Event Log + 민감정보 마스킹 + Rate limit<br>
+      · Week 6 — 부하 테스트 + 문서 + 납품 패키징
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">자체 LLM 로그 분석 — Phase 1~5</div>
+    <div class="desc">
+      Phase 1 — Drain3 템플릿화 + 빈도 Z-score 이상탐지<br>
+      Phase 2 — 운영자 피드백 UI (log_annotations 축적)<br>
+      Phase 3 — 규칙 기반 해설 라이브러리<br>
+      Phase 4 — Cloud LLM API + RAG (UX 검증)<br>
+      Phase 5 — Qwen 2.5 7B QLoRA 파인튜닝 → 증류 → 온프렘 (GPU 필요)
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">이상탐지 Phase 2/3</div>
+    <div class="desc">Isolation Forest · 시계열 예측 고도화 · 자연어 질의</div>
+  </div>
+</div>
+
+<!-- 10. Expansion -->
+<h2 id="expansion"><span class="section-num">10</span>확장 방향 (도청급)</h2>
+
+<p>현재는 학교 단위에 최적화되어 있지만, 미래 도청/광역 자치단체 진입 시 어떤 부분이 어떻게 진화해야 하는지 미리 점검합니다.</p>
+
+<h3>학교 vs 도청급 차이</h3>
+<table>
+  <thead><tr><th>측정</th><th>학교 (현재)</th><th>도청 (목표)</th></tr></thead>
+  <tbody>
+    <tr><td>호스트 수</td><td>10~100대</td><td>수백~수천 대</td></tr>
+    <tr><td>초당 메트릭</td><td>~5,000</td><td>50,000~500,000</td></tr>
+    <tr><td>일일 로그량</td><td>~1GB</td><td>100GB~수TB</td></tr>
+    <tr><td>가용성</td><td>평일 업무</td><td>24/7 무중단</td></tr>
+    <tr><td>인증</td><td>JWT + Agent Key</td><td>mTLS + RBAC + LDAP/SSO</td></tr>
+    <tr><td>멀티테넌시</td><td>단일</td><td>산하 기관별 분리 필수</td></tr>
+    <tr><td>법적 요구</td><td>(선택)</td><td>ISMS-P · 개인정보보호법</td></tr>
+  </tbody>
+</table>
+
+<h3>코드 재사용률 추정</h3>
+<table>
+  <thead><tr><th>영역</th><th>재사용</th><th>비고</th></tr></thead>
+  <tbody>
+    <tr><td>Go 에이전트 (수집기/exporter/buffered)</td><td>90%</td><td>양만 늘어남</td></tr>
+    <tr><td>이상탐지 엔진 (Z-score · 디스크 예측)</td><td>95%</td><td>알고리즘 그대로</td></tr>
+    <tr><td>알림 디바운싱 · Ack · 유지보수</td><td>90%</td><td>채널만 추가</td></tr>
+    <tr><td>도메인 모델 (자산/SNMP/SSL/DPM)</td><td>80%</td><td>tenant_id 컬럼 추가</td></tr>
+    <tr><td>UI 컴포넌트</td><td>70%</td><td>테넌트 화면 추가</td></tr>
+    <tr><td>저장소 레이어 인터페이스</td><td>50%</td><td>인터페이스 同 · 구현 교체 (PG → ClickHouse)</td></tr>
+    <tr><td>인증/인가</td><td>30%</td><td>구조 재설계 (mTLS · RBAC)</td></tr>
+  </tbody>
+</table>
+
+<p style="margin-top:12px;">→ <strong>합산 60~70% 재사용 가능</strong>. "처음부터 다시"가 아니라 "점진 강화" 가능.</p>
+
+<h3>점진 진입 전략</h3>
+<div class="mermaid">
+flowchart LR
+    A[학교 OWLmon] -->|6~12개월 운영| B[시·군청 진입<br/>+ 멀티테넌시 약식<br/>+ 알림 채널 다양화]
+    B -->|6~12개월| C[도청 진입<br/>+ HA 클러스터<br/>+ 분산 저장 ClickHouse<br/>+ mTLS RBAC<br/>+ ISMS-P 인증]
+</div>
+
+<!-- 11. Risks -->
+<h2 id="risks"><span class="section-num">11</span>리스크 + 미해결 사항</h2>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>🔴 기술 리스크</h3>
+    <ul>
+      <li><span class="badge badge-risk">위험</span> 도청급 진입 시 멀티테넌시 마이그레이션 — 모든 테이블에 tenant_id 추가 필요</li>
+      <li><span class="badge badge-risk">위험</span> PostgreSQL 단일 인스턴스 — 데이터 폭주 시 분산 DB로 이전 부담</li>
+      <li><span class="badge badge-info">중간</span> 자체 프로토콜 lock-in — 다른 도구(Datadog 등) 연동 시 어댑터 필요</li>
+      <li><span class="badge badge-info">중간</span> macOS 서비스 등록 미지원 — 운영 환경 아니라 우선순위 낮음</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟡 비즈니스 리스크</h3>
+    <ul>
+      <li><span class="badge badge-risk">위험</span> 학교 시장 규모 작음 — 매출 한계, 도청 진입 검토 필요</li>
+      <li><span class="badge badge-info">중간</span> 무료 오픈소스 경쟁자 (Zabbix, Grafana) — UX/한국어 차별화로 대응</li>
+      <li><span class="badge badge-info">중간</span> SaaS 전환 시 보안 인식 (학교는 외부 클라우드 거부감)</li>
+    </ul>
+  </div>
+</div>
+
+<h3>미해결 사항 (Open Questions)</h3>
+<table>
+  <thead><tr><th>질문</th><th>현재 상태</th><th>결정 시점</th></tr></thead>
+  <tbody>
+    <tr><td>도청급 진입 여부</td><td>학교 우선 진행</td><td>Phase 0 종료 후</td></tr>
+    <tr><td>가격 모델 검증</td><td>가설 단계 (월 5만원)</td><td>첫 납품 후</td></tr>
+    <tr><td>온프렘 LLM 스택 선택</td><td>Qwen 2.5 7B 가설</td><td>Phase 5 직전</td></tr>
+    <tr><td>모바일 알림 채널</td><td>이메일만</td><td>학교 사용자 피드백 후</td></tr>
+    <tr><td>ISMS-P 인증 추진</td><td>미정</td><td>도청 영업 시작 시</td></tr>
+  </tbody>
+</table>
+
+<!-- 12. Next -->
+<h2 id="next"><span class="section-num">12</span>다음 단계</h2>
+
+<div class="grid grid-3">
+  <div class="card">
+    <h3>🔴 즉시 (1주 내)</h3>
+    <ul>
+      <li>Phase 0 Week 3 — 검색 API + 라벨링 엔드포인트</li>
+      <li>WIP로 남은 사용자 코드 (DPM/SSL/Synthetic 등) git 정리</li>
+      <li>logtail 실 환경 검증 (Linux 서버에서 journald 동작)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟡 단기 (1개월)</h3>
+    <ul>
+      <li>Phase 0 Week 4~6 완료 (UI · 마스킹 · 부하테스트)</li>
+      <li>학교 1곳 알파 납품 검토</li>
+      <li>로그 라벨링 운영 가이드 작성</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🟢 중장기 (3~6개월)</h3>
+    <ul>
+      <li>이상탐지 Phase 2 (Isolation Forest)</li>
+      <li>자체 LLM Phase 1~3 (템플릿화 + 라벨링 + 규칙 해설)</li>
+      <li>SaaS 모드 검토 시작</li>
+    </ul>
+  </div>
+</div>
+
+<div class="meta-line">
+  <span>OWLmon Project Checkpoint · 2026-05-06</span>
+  <span>·</span>
+  <span>Generated for mid-project review</span>
+  <span>·</span>
+  <span>학교 · 공공기관 인프라 모니터링 플랫폼</span>
+</div>
+
+<!-- Mermaid -->
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#0f172a',
+      primaryTextColor: '#f1f5f9',
+      primaryBorderColor: '#334155',
+      lineColor: '#64748b',
+      secondaryColor: '#1e293b',
+      tertiaryColor: '#1e293b',
+      background: '#020617',
+      mainBkg: '#0f172a',
+      secondBkg: '#1e293b',
+      textColor: '#cbd5e1',
+      fontSize: '14px',
+    }
+  });
+</script>
+
+</body>
+</html>
