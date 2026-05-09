@@ -50,6 +50,17 @@ func startAgent() func() {
 		endpoint = "localhost:4317"
 	}
 
+	// 수집 주기 (환경변수 OWLMON_COLLECT_INTERVAL 우선, 기본 15초 — Prometheus/Datadog 표준선)
+	// 형식: "15s", "1m" 같은 Go duration 문자열
+	collectInterval := 15 * time.Second
+	if v := os.Getenv("OWLMON_COLLECT_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			collectInterval = d
+		} else {
+			log.Printf("OWLMON_COLLECT_INTERVAL 파싱 실패 (%q) — 기본 15초 사용", v)
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	otlpExp, err := exporter.NewOTLPExporter(ctx, endpoint)
@@ -68,7 +79,7 @@ func startAgent() func() {
 
 	provider := metric.NewMeterProvider(
 		metric.WithReader(metric.NewPeriodicReader(exp,
-			metric.WithInterval(30*time.Second),
+			metric.WithInterval(collectInterval),
 		)),
 		metric.WithResource(res),
 	)
@@ -120,7 +131,7 @@ func startAgent() func() {
 	}
 
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)
-	log.Printf("수집 주기: 30초 | 서비스 체크: %d개", len(cfg.Checks))
+	log.Printf("수집 주기: %s | 서비스 체크: %d개", collectInterval, len(cfg.Checks))
 
 	return func() {
 		cancel()
