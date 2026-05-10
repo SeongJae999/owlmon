@@ -13,6 +13,7 @@ import (
 	"github.com/seongJae/owlmon/agent/exporter"
 	"github.com/seongJae/owlmon/agent/logtail"
 	"github.com/seongJae/owlmon/agent/service"
+	"github.com/seongJae/owlmon/agent/specs"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -133,6 +134,9 @@ func startAgent() func() {
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)
 	log.Printf("수집 주기: %s | 서비스 체크: %d개", collectInterval, len(cfg.Checks))
 
+	// 스펙 1회 수집/전송 (백그라운드 — 실패해도 메트릭 송신엔 영향 없음)
+	go sendSpecsOnce(ctx, cfg)
+
 	return func() {
 		cancel()
 		if err := provider.Shutdown(context.Background()); err != nil {
@@ -146,4 +150,34 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// sendSpecsOnce는 호스트 스펙을 1회 수집해서 OWLmon 서버로 전송한다.
+// 실패해도 에이전트의 메트릭 송신엔 영향 없도록 별도 goroutine에서 호출한다.
+func sendSpecsOnce(ctx context.Context, cfg *config.Config) {
+	s, err := specs.Collect()
+	if err != nil {
+		log.Printf("스펙 수집 실패: %v", err)
+		return
+	}
+
+	serverURL := cfg.Logs.ServerURL
+	if serverURL == "" {
+		serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
+	}
+	agentKey := cfg.Logs.AgentKey
+	if agentKey == "" {
+		agentKey = getEnv("OWLMON_AGENT_KEY", "")
+	}
+
+	// 송신 타임아웃 분리
+	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	if err := s.Send(sendCtx, serverURL, agentKey); err != nil {
+		log.Printf("스펙 전송 실패 (메트릭 송신엔 영향 없음): %v", err)
+		return
+	}
+	log.Printf("호스트 스펙 전송 완료: CPU=%s(%d코어), RAM=%dGB, 디스크=%d개",
+		s.CPU.Model, s.CPU.Cores, s.MemoryTotalBytes/(1<<30), len(s.Disks))
 }

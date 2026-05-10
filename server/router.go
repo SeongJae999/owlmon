@@ -26,6 +26,19 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 	r.Get("/api/health", statusHandler.HealthCheck)
 	r.Post("/api/agent/register", agentHandler.Register)
 
+	// 스펙 ingest는 에이전트가 호출하는 무인증 엔드포인트 (Agent Key 헤더는 추후 검증 도입 예정)
+	if appCtx.SpecsStore != nil {
+		specsHandler := handler.NewSpecsHandler(appCtx.SpecsStore)
+		r.Post("/api/agent/specs", specsHandler.Ingest)
+
+		// 조회는 인증 그룹에서
+		r.Group(func(r chi.Router) {
+			r.Use(auth.JWTMiddleware(jwtSecret))
+			r.Get("/api/agent/specs", specsHandler.List)
+			r.Get("/api/agent/specs/{host}", specsHandler.Get)
+		})
+	}
+
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTMiddleware(jwtSecret))
 		r.Handle("/api/v1/*", proxyHandler)
