@@ -32,9 +32,14 @@ export async function queryRange(
   }))
 }
 
-// 연결된 호스트 목록 조회
+// 연결된 호스트 목록 조회 (최근 10분 내 메트릭 보낸 호스트만 — stale 제외)
+// Prometheus 2.24+의 label values 시간 범위 매개변수 사용
 export async function fetchHosts(): Promise<string[]> {
-  const res = await axios.get(`${PROMETHEUS_URL}/api/v1/label/host_name/values`)
+  const now = Math.floor(Date.now() / 1000)
+  const start = now - 10 * 60
+  const res = await axios.get(`${PROMETHEUS_URL}/api/v1/label/host_name/values`, {
+    params: { start, end: now },
+  })
   return res.data?.data ?? []
 }
 

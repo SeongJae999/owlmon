@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { queryRange } from '../api/prometheus'
 import MetricCard from '../components/MetricCard'
 import ServiceCheckCard from '../components/ServiceCheckCard'
+import HostSpecCard from '../components/HostSpecCard'
 import { ChevronLeft, Server, Activity, ShieldAlert, Zap, ArrowLeft } from 'lucide-react'
 import { cn } from '../utils/cn'
 
@@ -147,6 +148,15 @@ export default function HostDetailPage() {
             diskPrediction={anomalyData?.disk_predictions.find(p => p.host === hostName)}
           />
         </div>
+      </div>
+
+      {/* Hardware/OS Spec Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-1 h-5 bg-violet-500 rounded-full" />
+          <h2 className="text-base font-bold text-slate-100">호스트 스펙</h2>
+        </div>
+        <HostSpecCard host={hostName} />
       </div>
 
       {/* Service Checks Section */}
