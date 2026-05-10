@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -56,7 +57,11 @@ func startServer() func() {
 
 	// 1. JWT Secret Persistent Logic
 	jwtSecret := getEnv("OWLMON_JWT_SECRET", "")
-	secretFile := ".owlmon_secret"
+	// data 디렉토리는 docker-compose에서 호스트 볼륨으로 영속화됨
+	// (도커 컨테이너 재생성 시 secret 살아남게 — 토큰 무효화 방지)
+	secretDir := getEnv("OWLMON_DATA_DIR", "data")
+	_ = os.MkdirAll(secretDir, 0700)
+	secretFile := filepath.Join(secretDir, ".owlmon_secret")
 	if jwtSecret == "" || jwtSecret == "change-this-secret-in-production" {
 		// Try reading from file
 		if b, err := os.ReadFile(secretFile); err == nil {
