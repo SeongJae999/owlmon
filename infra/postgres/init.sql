@@ -172,3 +172,23 @@ CREATE TABLE IF NOT EXISTS agents (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen   TIMESTAMPTZ
 );
+
+-- 에이전트 호스트 스펙 (CPU/RAM/Disk/OS 등)
+-- 에이전트가 시작 시 1회 수집 후 POST → 자주 변하지 않음
+CREATE TABLE IF NOT EXISTS agent_specs (
+    host_name           TEXT PRIMARY KEY,                -- agents.name과 동일
+    cpu_model           TEXT,                            -- "Intel(R) Core(TM) i5-14500"
+    cpu_cores           INT,                             -- 논리 CPU 수
+    cpu_sockets         INT,
+    memory_total_bytes  BIGINT,                          -- /proc/meminfo MemTotal
+    disks               JSONB,                           -- [{name,size_bytes,rotational,model}, ...]
+    networks            JSONB,                           -- [{name,mac,ipv4}, ...]
+    os_pretty_name      TEXT,                            -- "Debian GNU/Linux 12 (bookworm)"
+    kernel_version      TEXT,                            -- uname -r
+    virtualization      TEXT,                            -- "none"/"kvm"/"docker"
+    arch                TEXT,                            -- "x86_64"
+    collected_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_specs_updated ON agent_specs (updated_at DESC);

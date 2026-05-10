@@ -1,7 +1,9 @@
 import React from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { ActiveAlert } from '../api/alert'
-import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Activity, Zap } from 'lucide-react'
+import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Activity, Zap, Cpu } from 'lucide-react'
 import { cn } from '../utils/cn'
+import { listHostSpecs, shortCPU, formatBytes, type HostSpec } from '../api/specs'
 
 interface HostMetrics {
   cpu: number | null
@@ -81,6 +83,14 @@ function SummaryCard({ label, count, color, icon: Icon }: { label: string; count
 
 export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeAlerts, uptimes, maintenanceHosts, onSelect, onToggleMaintenance }: Props) {
   const maintenanceSet = new Set(maintenanceHosts)
+
+  // 모든 호스트 스펙 1회 fetch (5분 캐시 — 자주 안 변함)
+  const { data: specs = [] } = useQuery({
+    queryKey: ['host-specs'],
+    queryFn: listHostSpecs,
+    staleTime: 5 * 60 * 1000,
+  })
+  const specByHost = new Map<string, HostSpec>(specs.map((s) => [s.host_name, s]))
 
   const counts = hosts.reduce(
     (acc, host) => {
@@ -164,6 +174,22 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                     </span>
                   )}
                 </div>
+
+                {/* Hardware Mini Line (스펙 등록된 경우만) */}
+                {(() => {
+                  const spec = specByHost.get(host)
+                  if (!spec) return null
+                  return (
+                    <div className="flex items-center gap-1.5 mb-3 px-1 text-xs text-slate-500 truncate" title={`${spec.cpu_model} · ${formatBytes(spec.memory_total_bytes)}`}>
+                      <Cpu size={11} className="text-slate-600 shrink-0" />
+                      <span className="font-medium tabular-nums">{spec.cpu_cores}코어</span>
+                      <span className="text-slate-700">·</span>
+                      <span className="truncate">{shortCPU(spec.cpu_model)}</span>
+                      <span className="text-slate-700">·</span>
+                      <span className="font-medium shrink-0">{formatBytes(spec.memory_total_bytes)}</span>
+                    </div>
+                  )
+                })()}
 
                 {/* Metrics Section — 항상 표시 (오프라인이면 placeholder) */}
                 <div

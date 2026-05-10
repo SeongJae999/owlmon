@@ -1,5 +1,12 @@
-# OWLmon 로컬 개발 환경
-# 사용법: docker compose up -d
+# OWLmon 통합 환경 (로컬 개발 + 단일 호스트 배포 공용)
+# 사용법:
+#   1) cp .env.example .env  →  비밀번호/SMTP 채우기
+#   2) docker compose up -d --build
+#
+# 외부 노출 포트 (운영):
+#   80     웹 UI (nginx)
+#   4317   에이전트 OTLP (gRPC)
+# 그 외(9090, 3000, 5433, 8080)는 로컬 개발 편의용으로 노출 — 운영에선 제거 가능
 
 services:
   # 메트릭 저장소 (TSDB)
@@ -58,5 +65,53 @@ services:
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U owlmon -d owlmon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # OWLmon API 서버 (Go) — server/ 디렉토리 멀티스테이지 빌드
+  owlmon-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: owlmon-server
+    ports:
+      - "8080:8080"   # 로컬 개발 편의용 (운영에선 nginx 통해서만 접근하면 됨)
+    environment:
+      - OWLMON_USERNAME=${OWLMON_USERNAME:-admin}
+      - OWLMON_PASSWORD_HASH=${OWLMON_PASSWORD_HASH}
+      - OWLMON_PROMETHEUS_URL=http://prometheus:9090
+      - OWLMON_LISTEN=:8080
+      - POSTGRES_DSN=postgres://owlmon:owlmon@postgres:5432/owlmon?sslmode=disable
+      - OWLMON_JWT_SECRET=${OWLMON_JWT_SECRET:-}
+      # SMTP (선택 — .env에 비워두면 알림 비활성)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_TO=${SMTP_TO:-}
+    volumes:
+      - ./data/owlmon-server:/app/data   # JWT secret 등 영속화
+    depends_on:
+      postgres:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+
+  # OWLmon 웹 (정적 파일 + /api 프록시)
+  owlmon-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: owlmon-web
+    ports:
+      - "80:80"
+    depends_on:
+      - owlmon-server
     restart: unless-stopped
 

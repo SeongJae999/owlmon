@@ -32,6 +32,7 @@ type AppContext struct {
 	SyntheticStore     *db.SyntheticStore
 	DPMStore           *db.DPMStore
 	AgentStore         *db.AgentStore
+	SpecsStore         *db.SpecsStore
 }
 
 // InitDB는 데이터베이스와 저장소를 초기화합니다.
@@ -57,6 +58,7 @@ func InitDB() *AppContext {
 			appCtx.SyntheticStore = db.NewSyntheticStore(pool)
 			appCtx.DPMStore = db.NewDPMStore(pool)
 			appCtx.AgentStore = db.NewAgentStore(pool)
+			appCtx.SpecsStore = db.NewSpecsStore(pool)
 		}
 	}
 

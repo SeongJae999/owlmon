@@ -13,6 +13,7 @@ import (
 	"github.com/seongJae/owlmon/agent/exporter"
 	"github.com/seongJae/owlmon/agent/logtail"
 	"github.com/seongJae/owlmon/agent/service"
+	"github.com/seongJae/owlmon/agent/specs"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -50,6 +51,17 @@ func startAgent() func() {
 		endpoint = "localhost:4317"
 	}
 
+	// 수집 주기 (환경변수 OWLMON_COLLECT_INTERVAL 우선, 기본 15초 — Prometheus/Datadog 표준선)
+	// 형식: "15s", "1m" 같은 Go duration 문자열
+	collectInterval := 15 * time.Second
+	if v := os.Getenv("OWLMON_COLLECT_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			collectInterval = d
+		} else {
+			log.Printf("OWLMON_COLLECT_INTERVAL 파싱 실패 (%q) — 기본 15초 사용", v)
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	otlpExp, err := exporter.NewOTLPExporter(ctx, endpoint)
@@ -68,7 +80,7 @@ func startAgent() func() {
 
 	provider := metric.NewMeterProvider(
 		metric.WithReader(metric.NewPeriodicReader(exp,
-			metric.WithInterval(30*time.Second),
+			metric.WithInterval(collectInterval),
 		)),
 		metric.WithResource(res),
 	)
@@ -120,7 +132,10 @@ func startAgent() func() {
 	}
 
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)
-	log.Printf("수집 주기: 30초 | 서비스 체크: %d개", len(cfg.Checks))
+	log.Printf("수집 주기: %s | 서비스 체크: %d개", collectInterval, len(cfg.Checks))
+
+	// 스펙 1회 수집/전송 (백그라운드 — 실패해도 메트릭 송신엔 영향 없음)
+	go sendSpecsOnce(ctx, cfg)
 
 	return func() {
 		cancel()
@@ -135,4 +150,34 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// sendSpecsOnce는 호스트 스펙을 1회 수집해서 OWLmon 서버로 전송한다.
+// 실패해도 에이전트의 메트릭 송신엔 영향 없도록 별도 goroutine에서 호출한다.
+func sendSpecsOnce(ctx context.Context, cfg *config.Config) {
+	s, err := specs.Collect()
+	if err != nil {
+		log.Printf("스펙 수집 실패: %v", err)
+		return
+	}
+
+	serverURL := cfg.Logs.ServerURL
+	if serverURL == "" {
+		serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
+	}
+	agentKey := cfg.Logs.AgentKey
+	if agentKey == "" {
+		agentKey = getEnv("OWLMON_AGENT_KEY", "")
+	}
+
+	// 송신 타임아웃 분리
+	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	if err := s.Send(sendCtx, serverURL, agentKey); err != nil {
+		log.Printf("스펙 전송 실패 (메트릭 송신엔 영향 없음): %v", err)
+		return
+	}
+	log.Printf("호스트 스펙 전송 완료: CPU=%s(%d코어), RAM=%dGB, 디스크=%d개",
+		s.CPU.Model, s.CPU.Cores, s.MemoryTotalBytes/(1<<30), len(s.Disks))
 }
