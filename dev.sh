@@ -117,7 +117,10 @@ fi
 # 3. Docker 인프라
 # ---------------------------------------------------------------------------
 echo "[1/4] Docker 인프라 시작..."
-docker compose -f "$ROOT/docker-compose.yml" up -d
+# server/web은 dev에서 호스트의 go run / vite로 띄우므로 인프라 서비스만 명시 기동
+# (전체 컨테이너 띄우기는 운영 배포에서: docker compose up -d --build)
+docker compose -f "$ROOT/docker-compose.yml" up -d \
+    postgres prometheus otel-collector grafana
 echo "      완료"
 
 # PostgreSQL ready 대기 (최대 30초)
