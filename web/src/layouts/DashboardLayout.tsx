@@ -206,12 +206,12 @@ export default function DashboardLayout() {
 
         {/* Scrollable Area */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-8 scroll-smooth">
-          <div className="max-w-[1600px] mx-auto">
+          <div className="w-full">
             <Outlet />
           </div>
 
           {/* Global Footer in Main Area */}
-          <footer className="max-w-[1600px] mx-auto mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 pb-8">
+          <footer className="w-full mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 pb-8">
             <div className="flex items-center gap-2 text-slate-500">
               <div className="w-5 h-5 bg-slate-800 rounded flex items-center justify-center text-xs font-bold">O</div>
               <span className="text-xs font-medium">OWLmon v1.2</span>
