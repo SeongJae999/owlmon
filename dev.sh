@@ -195,8 +195,8 @@ echo "{\"server\": $SERVER_JOB_PID, \"agent\": $AGENT_JOB_PID, \"web\": $WEB_JOB
 
 echo ""
 echo "=== 실행 완료 ==="
-sleep 2 && open "http://localhost:5173" &
-echo "대시보드:   http://localhost:5173"
+sleep 2 && open "http://localhost:3001" &
+echo "대시보드:   http://localhost:3001"
 echo "API 서버:   http://localhost:8080"
 echo "Prometheus: http://localhost:9090"
 echo ""
