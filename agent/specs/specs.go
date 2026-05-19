@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 )
@@ -150,12 +151,19 @@ func formatOS(platform, version string) string {
 	return platform + " " + version
 }
 
-// collectDisks는 Linux의 /sys/block을 순회하며 물리 디스크 정보를 수집한다.
-// 가상 디바이스(loop, ram 등)는 제외.
+// collectDisks는 호스트의 물리 디스크 정보를 수집한다.
+// Linux: /sys/block 직접 읽기 (모델/회전속도 정확)
+// macOS/Windows/기타: gopsutil disk.Partitions로 마운트된 파티션 수집 (모델/회전속도는 미지원)
 func collectDisks() []DiskInfo {
-	if runtime.GOOS != "linux" {
-		return nil
+	if runtime.GOOS == "linux" {
+		return collectDisksLinux()
 	}
+	return collectDisksFallback()
+}
+
+// collectDisksLinux는 sysfs로 정확한 디스크 정보를 가져온다.
+// 가상 디바이스(loop, ram 등)는 제외.
+func collectDisksLinux() []DiskInfo {
 	entries, err := os.ReadDir("/sys/block")
 	if err != nil {
 		return nil
@@ -182,6 +190,69 @@ func collectDisks() []DiskInfo {
 		disks = append(disks, d)
 	}
 	return disks
+}
+
+// collectDisksFallback은 Linux 외 OS(macOS/Windows/BSD)에서 마운트된 파티션을 수집한다.
+// gopsutil disk.Partitions 기반 — 모델명·회전속도는 정확하게 알 수 없어 빈 값/false로 둔다.
+func collectDisksFallback() []DiskInfo {
+	partitions, err := disk.Partitions(false)
+	if err != nil {
+		return nil
+	}
+	var disks []DiskInfo
+	seen := map[string]bool{}
+	for _, p := range partitions {
+		// 가상/임시 파일시스템 제외
+		if isVirtualFs(p.Fstype) {
+			continue
+		}
+
+		usage, err := disk.Usage(p.Mountpoint)
+		if err != nil || usage.Total == 0 {
+			continue
+		}
+
+		// (크기 + fstype) 기준 dedup — APFS 컨테이너처럼 같은 물리 디스크의
+		// 여러 논리 볼륨이 보일 때 한 줄로 합침
+		key := fmt.Sprintf("%d:%s", usage.Total, p.Fstype)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		// Model 자리에 파일시스템 표시 (정확한 디스크 모델은 OS별 외부 명령 필요)
+		d := DiskInfo{
+			Name:       cleanDeviceName(p.Device),
+			SizeBytes:  usage.Total,
+			Rotational: false, // macOS/Windows는 대부분 SSD — 보수적으로 false (UI 'SSD' 배지)
+			Model:      strings.ToUpper(p.Fstype),
+		}
+		disks = append(disks, d)
+	}
+	return disks
+}
+
+// isVirtualFs는 모니터링 가치 없는 가상 파일시스템을 판별한다.
+func isVirtualFs(fs string) bool {
+	switch strings.ToLower(fs) {
+	case "tmpfs", "devfs", "devtmpfs", "proc", "sysfs", "cgroup", "cgroup2",
+		"overlay", "squashfs", "fuse.gvfsd-fuse", "autofs", "tracefs", "debugfs",
+		"securityfs", "pstore", "bpf", "configfs", "mqueue", "hugetlbfs":
+		return true
+	}
+	// fuse.* 류 (snap 등)
+	if strings.HasPrefix(strings.ToLower(fs), "fuse.") {
+		return true
+	}
+	return false
+}
+
+// cleanDeviceName은 OS별로 다른 형식의 디바이스 경로를 짧게 정리한다.
+// 예) "/dev/disk1s5s1" → "disk1s5s1",  "C:\\" → "C:"
+func cleanDeviceName(s string) string {
+	s = strings.TrimPrefix(s, "/dev/")
+	s = strings.TrimSuffix(s, "\\")
+	return s
 }
 
 // collectNetworks는 활성 인터페이스의 MAC/IPv4를 수집한다.
