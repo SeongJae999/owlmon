@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -16,21 +17,36 @@ import (
 	"github.com/seongJae/owlmon/server/rules"
 )
 
+// SendAlertFn은 알림 발송 콜백 (Checker.SendAlert 시그니처).
+type SendAlertFn func(host, category, severity, subject, body string)
+
 // LogHandler는 로그 수집/검색/라벨링 API를 처리합니다.
 type LogHandler struct {
 	store      *db.LogStore
-	annStore   *db.LogAnnotationStore // 라벨링 (옵션 — nil이면 라벨 기능 비활성)
+	annStore   *db.LogAnnotationStore // 라벨링 (옵션)
 	agentStore *db.AgentStore         // 개별 키 검증용
-	legacyKey  string                 // 하위 호환성용
+	matchStore *db.LogRuleMatchStore  // 룰 매칭 기록 저장 (옵션, nil이면 기록 X)
+	sendAlert  SendAlertFn            // 알림 발송 콜백 (nil이면 알림 비활성)
+	legacyKey  string                 // Agent Key (env)
 	rules      *rules.Engine          // 룰 매칭 엔진 (nil이면 룰 기능 비활성)
 	maskOpts   masking.MaskOptions    // PII 마스킹 옵션
 }
 
-func NewLogHandler(store *db.LogStore, annStore *db.LogAnnotationStore, agentStore *db.AgentStore, legacyKey string, engine *rules.Engine) *LogHandler {
+func NewLogHandler(
+	store *db.LogStore,
+	annStore *db.LogAnnotationStore,
+	agentStore *db.AgentStore,
+	legacyKey string,
+	engine *rules.Engine,
+	matchStore *db.LogRuleMatchStore,
+	sendAlert SendAlertFn,
+) *LogHandler {
 	return &LogHandler{
 		store:      store,
 		annStore:   annStore,
 		agentStore: agentStore,
+		matchStore: matchStore,
+		sendAlert:  sendAlert,
 		legacyKey:  legacyKey,
 		rules:      engine,
 		maskOpts:   masking.DefaultOptions(),
@@ -91,35 +107,71 @@ func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	if err := h.store.Ingest(r.Context(), records); err != nil {
+	ids, err := h.store.Ingest(r.Context(), records)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// 룰 매칭 — DB INSERT 후 ID 받아서 비동기 평가
-	// (응답은 즉시 보내고, 매칭/알림은 백그라운드)
-	if h.rules != nil && h.rules.RuleCount() > 0 {
-		go h.evaluateRulesAsync(records)
+	// 룰 매칭 — 비동기로 평가 + 매칭 저장 + 알림 트리거
+	if h.rules != nil && h.rules.RuleCount() > 0 && len(ids) == len(records) {
+		go h.evaluateRulesAsync(records, ids)
 	}
 
 	w.WriteHeader(http.StatusCreated)
 }
 
-// evaluateRulesAsync는 ingest된 로그에 룰을 평가한다.
-// 매칭 시 log_rule_matches에 기록 + cooldown 통과 시 알림.
-// 현재는 매칭 기록만, 알림은 다음 단계(Phase 1.5+).
-func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord) {
+// evaluateRulesAsync는 ingest된 로그에 룰 평가 → 매칭 저장 → 알림 트리거.
+func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	for _, rec := range records {
-		matches := h.rules.Evaluate(rec.Line)
-		for _, m := range matches {
-			// log_rule_matches에 기록은 다음 PR — 지금은 인메모리 평가만 검증
-			_ = m
-			_ = rec
+
+	// 1. 매칭 수집
+	type triggerKey struct {
+		ruleID int64
+		host   string
+	}
+	var matches []db.LogRuleMatch
+	triggers := make(map[triggerKey]rules.Match) // 동일 (룰,호스트) 묶어서 한 번만 알림
+
+	for i, rec := range records {
+		for _, m := range h.rules.Evaluate(rec.Line) {
+			matches = append(matches, db.LogRuleMatch{
+				LogID:    ids[i],
+				RuleID:   m.RuleID,
+				Host:     rec.Host,
+				Severity: m.Severity,
+			})
+			triggers[triggerKey{m.RuleID, rec.Host}] = m
 		}
 	}
-	_ = ctx
+	if len(matches) == 0 {
+		return
+	}
+
+	// 2. 매칭 일괄 저장
+	if h.matchStore != nil {
+		if err := h.matchStore.BatchInsert(ctx, matches); err != nil {
+			// 매칭 저장 실패해도 알림은 계속 시도
+		}
+	}
+
+	// 3. 알림 트리거 — 룰별로 cooldown 평가 후 발송
+	if h.sendAlert == nil {
+		return
+	}
+	for key, m := range triggers {
+		ok, _ := h.rules.ShouldAlert(ctx, key.ruleID, 0) // 0 = engine 안에서 룰 기본값 사용 (다음 PR에서 cooldown_seconds 전달)
+		if !ok {
+			continue
+		}
+		subject := fmt.Sprintf("[OWLmon] %s — %s", key.host, m.Name)
+		body := fmt.Sprintf(
+			"호스트: %s\n룰: %s\n심각도: %s\n자세히: 웹 대시보드에서 호스트의 로그 검색을 확인하세요.",
+			key.host, m.Name, m.Severity)
+		h.sendAlert(key.host, "log_rule", m.Severity, subject, body)
+		_ = h.rules.RecordAlert(ctx, key.ruleID)
+	}
 }
 
 // Search GET /api/logs — 로그 검색

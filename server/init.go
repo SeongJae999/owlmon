@@ -35,6 +35,8 @@ type AppContext struct {
 	AgentStore         *db.AgentStore
 	SpecsStore         *db.SpecsStore
 	RulesEngine        *rules.Engine
+	LogRuleMatchStore  *db.LogRuleMatchStore
+	EmailConfig        *alert.EmailConfig
 }
 
 // InitDB는 데이터베이스와 저장소를 초기화합니다.
@@ -61,6 +63,7 @@ func InitDB() *AppContext {
 			appCtx.DPMStore = db.NewDPMStore(pool)
 			appCtx.AgentStore = db.NewAgentStore(pool)
 			appCtx.SpecsStore = db.NewSpecsStore(pool)
+			appCtx.LogRuleMatchStore = db.NewLogRuleMatchStore(pool)
 			// 룰 엔진 초기화 + 첫 로드
 			engine := rules.NewEngine(pool)
 			if err := engine.Reload(context.Background()); err != nil {

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -55,28 +54,48 @@ func NewLogStore(pool *pgxpool.Pool) *LogStore {
 	return &LogStore{pool: pool}
 }
 
-// Ingest는 로그 레코드를 배치 삽입합니다.
-func (s *LogStore) Ingest(ctx context.Context, records []LogRecord) error {
+// Ingest는 로그 레코드를 배치 삽입하고 생성된 id 목록을 반환한다.
+// 룰 매칭에서 log_rule_matches.log_id FK 채우는 데 사용.
+func (s *LogStore) Ingest(ctx context.Context, records []LogRecord) ([]int64, error) {
 	if len(records) == 0 {
-		return nil
+		return nil, nil
 	}
-	// 배치당 최대 1000건 제한
+	// 배치당 최대 1000건 제한 (INSERT 파라미터 6000개 이내)
 	if len(records) > 1000 {
 		records = records[:1000]
 	}
 
-	entries := make([][]any, len(records))
+	// INSERT ... VALUES ($1,$2,...) RETURNING id
+	// (CopyFrom은 RETURNING 지원 안 함 — 룰 매칭 위해 id 필요)
+	var sb strings.Builder
+	sb.WriteString("INSERT INTO logs (timestamp, host, source, file_path, line, level) VALUES ")
+	args := make([]any, 0, len(records)*6)
 	for i, r := range records {
-		entries[i] = []any{r.Timestamp, r.Host, r.Source, r.FilePath, r.Line, r.Level}
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		base := i * 6
+		fmt.Fprintf(&sb, "($%d,$%d,$%d,$%d,$%d,$%d)",
+			base+1, base+2, base+3, base+4, base+5, base+6)
+		args = append(args, r.Timestamp, r.Host, r.Source, r.FilePath, r.Line, r.Level)
 	}
+	sb.WriteString(" RETURNING id")
 
-	_, err := s.pool.CopyFrom(
-		ctx,
-		pgx.Identifier{"logs"},
-		[]string{"timestamp", "host", "source", "file_path", "line", "level"},
-		pgx.CopyFromRows(entries),
-	)
-	return err
+	rows, err := s.pool.Query(ctx, sb.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := make([]int64, 0, len(records))
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // Search는 로그를 검색합니다.
