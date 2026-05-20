@@ -7,10 +7,10 @@ import { cn } from '../utils/cn'
 import AnnotateModal from './AnnotateModal'
 
 const LEVEL_CONFIG: Record<string, { bg: string, text: string }> = {
-  ERROR: { bg: 'bg-rose-500/100/15', text: 'text-rose-300' },
-  FATAL: { bg: 'bg-rose-500/100/15', text: 'text-rose-300' },
-  WARN: { bg: 'bg-amber-500/100/15', text: 'text-amber-300' },
-  WARNING: { bg: 'bg-amber-500/100/15', text: 'text-amber-300' },
+  ERROR: { bg: 'bg-rose-500/15', text: 'text-rose-300' },
+  FATAL: { bg: 'bg-rose-500/15', text: 'text-rose-300' },
+  WARN: { bg: 'bg-amber-500/15', text: 'text-amber-300' },
+  WARNING: { bg: 'bg-amber-500/15', text: 'text-amber-300' },
   INFO: { bg: 'bg-blue-500/15', text: 'text-blue-300' },
   DEBUG: { bg: 'bg-slate-800', text: 'text-slate-400' },
 }
@@ -69,7 +69,7 @@ export default function LogViewer() {
       {/* Filter Bar */}
       <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800 shadow-sm">
         <div className="flex flex-col lg:flex-row gap-4 items-end lg:items-center">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 w-full">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1 w-full">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Host</label>
               <select 
@@ -199,94 +199,175 @@ export default function LogViewer() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-800/50 border-b border-slate-800">
-                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">시간</th>
-                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 shrink-0">레벨</th>
-                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-28 shrink-0">호스트</th>
-                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">소스</th>
-                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">내용</th>
-                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16 shrink-0 text-right">라벨</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {records.map(r => {
-                  const lvlCfg = LEVEL_CONFIG[r.level?.toUpperCase()] ?? { bg: 'bg-slate-800', text: 'text-slate-400' }
-                  const ts = new Date(r.timestamp)
-                  return (
-                    <tr key={r.id} className="hover:bg-slate-800/50 transition-colors group align-top">
-                      <td className="px-3 py-1.5 text-[11px] text-slate-400 font-mono whitespace-nowrap"
-                          title={ts.toLocaleString('ko-KR')}>
-                        {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                      </td>
-                      <td className="px-3 py-1.5">
+          <>
+            {/* Desktop: Table view (md+) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-800/50 border-b border-slate-800">
+                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">시간</th>
+                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 shrink-0">레벨</th>
+                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-28 shrink-0">호스트</th>
+                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">소스</th>
+                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">내용</th>
+                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16 shrink-0 text-right">라벨</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {records.map(r => {
+                    const lvlCfg = LEVEL_CONFIG[r.level?.toUpperCase()] ?? { bg: 'bg-slate-800', text: 'text-slate-400' }
+                    const ts = new Date(r.timestamp)
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-800/50 transition-colors group align-top">
+                        <td className="px-3 py-1.5 text-[11px] text-slate-400 font-mono whitespace-nowrap"
+                            title={ts.toLocaleString('ko-KR')}>
+                          {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {r.level && (
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
+                              lvlCfg.bg, lvlCfg.text
+                            )}>
+                              {r.level}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-xs font-semibold text-slate-300 truncate group-hover:text-indigo-400 transition-colors">
+                          <div className="flex items-center gap-1">
+                            <Server size={10} className="opacity-40 shrink-0" />
+                            {r.host}
+                          </div>
+                        </td>
+                        <td className="px-3 py-1.5 text-[11px] text-slate-500 truncate">
+                          {r.source}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <code className="block text-[11px] leading-snug text-slate-300 whitespace-pre-wrap break-all font-mono">
+                            {r.line}
+                          </code>
+                          {r.matched_rules && r.matched_rules.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {r.matched_rules.map(mr => {
+                                const c = mr.severity === 'critical'
+                                  ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                                  : mr.severity === 'warning'
+                                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                    : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
+                                return (
+                                  <button
+                                    key={mr.id}
+                                    onClick={() => { setRuleID(mr.id); setPage(0) }}
+                                    className={cn(
+                                      "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
+                                      c
+                                    )}
+                                    title={`'${mr.name}' 룰만 필터`}
+                                  >
+                                    <ListChecks size={10} />
+                                    {mr.name}
+                                    <span className="opacity-60">·{severityLabel(mr.severity)}</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-right">
+                          <button
+                            onClick={() => setSelectedLog(r)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
+                            title="이 로그에 원인/조치 라벨 부여"
+                          >
+                            <Tag size={10} />
+                            라벨
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: Card view (< md) */}
+            <div className="md:hidden divide-y divide-slate-800">
+              {records.map(r => {
+                const lvlCfg = LEVEL_CONFIG[r.level?.toUpperCase()] ?? { bg: 'bg-slate-800', text: 'text-slate-400' }
+                const ts = new Date(r.timestamp)
+                return (
+                  <div key={r.id} className="px-3 py-2.5 hover:bg-slate-800/40 transition-colors">
+                    {/* Top row: 시간 + 레벨 + 라벨 버튼 */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap shrink-0"
+                              title={ts.toLocaleString('ko-KR')}>
+                          {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                        </span>
                         {r.level && (
                           <span className={cn(
-                            "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
+                            "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight shrink-0",
                             lvlCfg.bg, lvlCfg.text
                           )}>
                             {r.level}
                           </span>
                         )}
-                      </td>
-                      <td className="px-3 py-1.5 text-xs font-semibold text-slate-300 truncate group-hover:text-indigo-400 transition-colors">
-                        <div className="flex items-center gap-1">
-                          <Server size={10} className="opacity-40 shrink-0" />
-                          {r.host}
-                        </div>
-                      </td>
-                      <td className="px-3 py-1.5 text-[11px] text-slate-500 truncate">
-                        {r.source}
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <code className="block text-[11px] leading-snug text-slate-300 whitespace-pre-wrap break-all font-mono">
-                          {r.line}
-                        </code>
-                        {r.matched_rules && r.matched_rules.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {r.matched_rules.map(mr => {
-                              const c = mr.severity === 'critical'
-                                ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                                : mr.severity === 'warning'
-                                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                  : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
-                              return (
-                                <button
-                                  key={mr.id}
-                                  onClick={() => { setRuleID(mr.id); setPage(0) }}
-                                  className={cn(
-                                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
-                                    c
-                                  )}
-                                  title={`'${mr.name}' 룰만 필터`}
-                                >
-                                  <ListChecks size={10} />
-                                  {mr.name}
-                                  <span className="opacity-60">·{severityLabel(mr.severity)}</span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-1.5 text-right">
-                        <button
-                          onClick={() => setSelectedLog(r)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
-                          title="이 로그에 원인/조치 라벨 부여"
-                        >
-                          <Tag size={10} />
-                          라벨
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedLog(r)}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 shrink-0"
+                        title="이 로그에 원인/조치 라벨 부여"
+                      >
+                        <Tag size={10} />
+                        라벨
+                      </button>
+                    </div>
+
+                    {/* Meta: host · source */}
+                    <div className="flex items-center gap-1.5 mb-1.5 text-[10px] text-slate-500">
+                      <Server size={10} className="opacity-50 shrink-0" />
+                      <span className="font-semibold text-slate-400 truncate">{r.host}</span>
+                      <span className="opacity-50">·</span>
+                      <span className="truncate">{r.source}</span>
+                    </div>
+
+                    {/* Line */}
+                    <code className="block text-[11px] leading-snug text-slate-300 whitespace-pre-wrap break-all font-mono">
+                      {r.line}
+                    </code>
+
+                    {/* Matched rules */}
+                    {r.matched_rules && r.matched_rules.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {r.matched_rules.map(mr => {
+                          const c = mr.severity === 'critical'
+                            ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                            : mr.severity === 'warning'
+                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                              : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
+                          return (
+                            <button
+                              key={mr.id}
+                              onClick={() => { setRuleID(mr.id); setPage(0) }}
+                              className={cn(
+                                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
+                                c
+                              )}
+                              title={`'${mr.name}' 룰만 필터`}
+                            >
+                              <ListChecks size={10} />
+                              {mr.name}
+                              <span className="opacity-60">·{severityLabel(mr.severity)}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
 
         {/* Annotate Modal */}

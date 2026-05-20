@@ -13,7 +13,7 @@ export default {
           200: '#ced9fd',
           300: '#adc0fc',
           400: '#8da8fa',
-          50: '#6d8ff9',
+          500: '#6d8ff9',
           600: '#4f72f2',
           700: '#3a59d9',
           800: '#2841bc',
@@ -31,7 +31,16 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'Pretendard', 'system-ui', 'sans-serif'],
-      }
+      },
+      keyframes: {
+        'alert-pulse': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(244,63,94,0.45)' },
+          '50%':      { boxShadow: '0 0 0 8px rgba(244,63,94,0)' },
+        },
+      },
+      animation: {
+        'alert-pulse': 'alert-pulse 2s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

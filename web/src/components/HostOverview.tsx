@@ -162,7 +162,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                   inMaintenance
                     ? "border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60"
                     : (alertCount > 0 || hasCritical)
-                      ? "border-rose-500/40 hover:border-rose-500/70 hover:bg-rose-500/[0.03]"
+                      ? "border-rose-500/50 hover:border-rose-500/80 hover:bg-rose-500/[0.05] animate-alert-pulse shadow-[0_0_0_1px_rgba(244,63,94,0.25)] ring-1 ring-rose-500/20"
                       : hasWarning
                         ? "border-amber-500/40 hover:border-amber-500/70 hover:bg-amber-500/[0.03]"
                         : isOffline
