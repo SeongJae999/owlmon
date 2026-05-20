@@ -97,9 +97,18 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
       if (maintenanceSet.has(host)) { acc.maintenance++; return acc }
       const offline = hostStatuses[host] === 'offline'
       const hasCritical = activeAlerts.some(a => a.host === host && a.severity === 'critical')
-      const hasWarning = activeAlerts.some(a => a.host === host && a.severity === 'warning')
-      if (offline || hasCritical) acc.fault++
-      else if (hasWarning) acc.warning++
+      const hasWarning  = activeAlerts.some(a => a.host === host && a.severity === 'warning')
+
+      // 메트릭 임계치 (카드 테두리 로직과 동일)
+      const m = hostMetrics[host]
+      const cpu = m?.cpu ?? 0
+      const mem = m?.memory ?? 0
+      const dsk = m?.disk ?? 0
+      const metricCritical = cpu >= 90 || mem >= 95 || dsk >= 90
+      const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= 85)
+
+      if (offline || hasCritical || metricCritical) acc.fault++
+      else if (hasWarning || metricWarning) acc.warning++
       else acc.ok++
       return acc
     },
