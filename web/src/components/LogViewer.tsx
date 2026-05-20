@@ -1,35 +1,93 @@
-import { useState } from 'react'
-import { searchLogs, getLogSources, type LogSearchParams, type LogRecord } from '../api/logs'
+import { useState, useMemo } from 'react'
+import { searchLogs, getLogSources, type LogSearchParams, type LogRecord, type MatchedRule } from '../api/logs'
 import { listRules, severityLabel } from '../api/rules'
 import { useQuery } from '@tanstack/react-query'
-import { Search, RefreshCcw, Server, FileText, ChevronLeft, ChevronRight, Info, AlertCircle, Tag, ListChecks } from 'lucide-react'
+import {
+  Search, RefreshCcw, Server, ChevronLeft, ChevronRight, Info, AlertCircle,
+  Tag, ListChecks, ChevronDown, ChevronRight as ChevronRightSmall, Layers,
+} from 'lucide-react'
 import { cn } from '../utils/cn'
 import AnnotateModal from './AnnotateModal'
 
-const LEVEL_CONFIG: Record<string, { bg: string, text: string }> = {
-  ERROR: { bg: 'bg-rose-500/15', text: 'text-rose-300' },
-  FATAL: { bg: 'bg-rose-500/15', text: 'text-rose-300' },
-  WARN: { bg: 'bg-amber-500/15', text: 'text-amber-300' },
-  WARNING: { bg: 'bg-amber-500/15', text: 'text-amber-300' },
-  INFO: { bg: 'bg-blue-500/15', text: 'text-blue-300' },
-  DEBUG: { bg: 'bg-slate-800', text: 'text-slate-400' },
+const LEVEL_CONFIG: Record<string, { bg: string, text: string, ring: string }> = {
+  ERROR:   { bg: 'bg-rose-500/15',  text: 'text-rose-300',  ring: 'ring-rose-500/30' },
+  FATAL:   { bg: 'bg-rose-500/15',  text: 'text-rose-300',  ring: 'ring-rose-500/30' },
+  WARN:    { bg: 'bg-amber-500/15', text: 'text-amber-300', ring: 'ring-amber-500/30' },
+  WARNING: { bg: 'bg-amber-500/15', text: 'text-amber-300', ring: 'ring-amber-500/30' },
+  INFO:    { bg: 'bg-blue-500/15',  text: 'text-blue-300',  ring: 'ring-blue-500/30' },
+  DEBUG:   { bg: 'bg-slate-700',    text: 'text-slate-400', ring: 'ring-slate-600/30' },
+}
+
+interface LogGroup {
+  key: string
+  host: string
+  source: string
+  level: string
+  line: string
+  count: number
+  firstTs: number
+  lastTs: number
+  records: LogRecord[]
+  matched_rules?: MatchedRule[]
+}
+
+function groupRecords(records: LogRecord[]): LogGroup[] {
+  const map = new Map<string, LogGroup>()
+  for (const r of records) {
+    const key = `${r.host}|${r.source}|${(r.level || '').toUpperCase()}|${r.line}`
+    const ts = new Date(r.timestamp).getTime()
+    const existing = map.get(key)
+    if (existing) {
+      existing.count++
+      existing.firstTs = Math.min(existing.firstTs, ts)
+      existing.lastTs = Math.max(existing.lastTs, ts)
+      existing.records.push(r)
+    } else {
+      map.set(key, {
+        key,
+        host: r.host,
+        source: r.source,
+        level: (r.level || '').toUpperCase(),
+        line: r.line,
+        count: 1,
+        firstTs: ts,
+        lastTs: ts,
+        records: [r],
+        matched_rules: r.matched_rules,
+      })
+    }
+  }
+  return [...map.values()].sort((a, b) => b.lastTs - a.lastTs)
+}
+
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString('ko-KR', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  })
+}
+
+function formatTimeRange(first: number, last: number): string {
+  if (first === last) return formatTime(last)
+  return `${formatTime(first)} ~ ${formatTime(last)}`
 }
 
 export default function LogViewer() {
   const [autoRefresh, setAutoRefresh] = useState(false)
-  const [refreshSec, setRefreshSec] = useState(30) // 5 → 30 (사용자 읽는 동안 깜빡임 방지)
+  const [refreshSec, setRefreshSec] = useState(30)
   const [host, setHost] = useState('')
   const [source, setSource] = useState('')
   const [level, setLevel] = useState('')
   const [ruleID, setRuleID] = useState<number | ''>('')
   const [queryText, setQueryText] = useState('')
   const [page, setPage] = useState(0)
+  const [groupMode, setGroupMode] = useState(true)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selectedLog, setSelectedLog] = useState<LogRecord | null>(null)
   const limit = 50
 
   const { data: sources = [] } = useQuery({
     queryKey: ['logSources'],
-    queryFn: getLogSources
+    queryFn: getLogSources,
   })
 
   const { data: rules = [] } = useQuery({
@@ -59,123 +117,197 @@ export default function LogViewer() {
   const uniqueSources = [...new Set(filteredSources.map(s => s.source))]
   const totalPages = Math.ceil(total / limit)
 
+  const groups = useMemo(() => groupRecords(records), [records])
+  const duplicatesCollapsed = records.length - groups.length
+
   const handleSearch = () => {
     setPage(0)
     refetch()
   }
 
+  const toggleExpand = (key: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // 활성 필터 칩 표시용
+  const activeFilters: { label: string; onClear: () => void }[] = []
+  if (host)   activeFilters.push({ label: `HOST: ${host}`,   onClear: () => { setHost(''); setPage(0) } })
+  if (source) activeFilters.push({ label: `SOURCE: ${source}`, onClear: () => { setSource(''); setPage(0) } })
+  if (level)  activeFilters.push({ label: `LEVEL: ${level}`,  onClear: () => { setLevel(''); setPage(0) } })
+  if (ruleID) {
+    const r = rules.find(x => x.id === ruleID)
+    activeFilters.push({ label: `RULE: ${r?.name ?? ruleID}`, onClear: () => { setRuleID(''); setPage(0) } })
+  }
+  if (queryText) activeFilters.push({ label: `검색: ${queryText}`, onClear: () => { setQueryText(''); setPage(0); setTimeout(() => refetch(), 0) } })
+
+  const selectCls = "bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-lg pl-3 pr-7 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all cursor-pointer appearance-none bg-no-repeat bg-[length:14px_14px] bg-[right_0.5rem_center]"
+  const selectStyle = {
+    backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Filter Bar */}
-      <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800 shadow-sm">
-        <div className="flex flex-col lg:flex-row gap-4 items-end lg:items-center">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-1 w-full">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Host</label>
-              <select 
-                className="w-full bg-slate-800 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                value={host} 
-                onChange={e => { setHost(e.target.value); setPage(0) }}
+    <div className="space-y-4">
+      {/* ─── Search & Filter Bar ─────────────────────────── */}
+      <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800 shadow-sm space-y-3">
+        {/* Row 1: 검색 input + 4개 필터 (lg에서 한 줄, 미만에서 줄 바꿈) */}
+        <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
+          {/* 검색 input (가장 강조) */}
+          <div className="relative flex-1 min-w-0 lg:min-w-[260px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+            <input
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-9 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all"
+              placeholder="로그 본문 검색..."
+              value={queryText}
+              onChange={e => setQueryText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
+            />
+            {queryText && (
+              <button
+                onClick={() => { setQueryText(''); setPage(0); setTimeout(() => refetch(), 0) }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 text-xs px-1"
+                title="검색어 지우기"
               >
-                <option value="">전체 호스트</option>
-                {uniqueHosts.map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Source</label>
-              <select 
-                className="w-full bg-slate-800 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                value={source} 
-                onChange={e => { setSource(e.target.value); setPage(0) }}
-              >
-                <option value="">전체 소스</option>
-                {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Level</label>
-              <select
-                className="w-full bg-slate-800 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                value={level}
-                onChange={e => { setLevel(e.target.value); setPage(0) }}
-              >
-                <option value="">전체 레벨</option>
-                <option value="ERROR">ERROR</option>
-                <option value="WARN">WARN</option>
-                <option value="INFO">INFO</option>
-                <option value="DEBUG">DEBUG</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Rule</label>
-              <select
-                className="w-full bg-slate-800 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                value={ruleID}
-                onChange={e => { setRuleID(e.target.value ? Number(e.target.value) : ''); setPage(0) }}
-              >
-                <option value="">전체 룰</option>
-                {rules.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            </div>
+                ✕
+              </button>
+            )}
           </div>
 
-          <div className="flex gap-2 w-full lg:w-auto">
-            <div className="relative flex-1 lg:w-64">
-              <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                placeholder="검색 키워드..."
-                value={queryText}
-                onChange={e => setQueryText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
-              />
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-            </div>
-            <button 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm shadow-indigo-500/20 shrink-0"
-              onClick={handleSearch}
+          {/* 필터 4개 */}
+          <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2">
+            <select
+              className={selectCls}
+              style={selectStyle}
+              value={host}
+              onChange={e => { setHost(e.target.value); setSource(''); setPage(0) }}
+              title="호스트 필터"
             >
-              검색
-            </button>
+              <option value="">전체 호스트</option>
+              {uniqueHosts.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+            <select
+              className={selectCls}
+              style={selectStyle}
+              value={source}
+              onChange={e => { setSource(e.target.value); setPage(0) }}
+              title="소스 필터"
+            >
+              <option value="">전체 소스</option>
+              {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select
+              className={selectCls}
+              style={selectStyle}
+              value={level}
+              onChange={e => { setLevel(e.target.value); setPage(0) }}
+              title="레벨 필터"
+            >
+              <option value="">전체 레벨</option>
+              <option value="ERROR">ERROR</option>
+              <option value="WARN">WARN</option>
+              <option value="INFO">INFO</option>
+              <option value="DEBUG">DEBUG</option>
+            </select>
+            <select
+              className={selectCls}
+              style={selectStyle}
+              value={ruleID}
+              onChange={e => { setRuleID(e.target.value ? Number(e.target.value) : ''); setPage(0) }}
+              title="룰 필터"
+            >
+              <option value="">전체 룰</option>
+              {rules.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
           </div>
+
+          <button
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm shadow-indigo-500/20 shrink-0"
+            onClick={handleSearch}
+          >
+            검색
+          </button>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <div className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={autoRefresh} 
-                  onChange={e => setAutoRefresh(e.target.checked)} 
-                />
-                <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-900 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-              </div>
-              <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-400 transition-colors">자동 새로고침</span>
+        {/* Row 2: 활성 필터 칩 (있을 때만) */}
+        {activeFilters.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">활성 필터</span>
+            {activeFilters.map((f, i) => (
+              <button
+                key={i}
+                onClick={f.onClear}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/20 hover:text-indigo-200 transition-colors"
+                title="필터 제거"
+              >
+                {f.label}
+                <span className="text-slate-500">✕</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Row 3: 결과 카운트 + 그룹뷰 토글 + 자동 새로고침 */}
+        <div className="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">결과</span>
+            <span className="text-2xl font-bold text-slate-100 tabular-nums leading-none">{total.toLocaleString()}</span>
+            <span className="text-xs text-slate-500">건</span>
+            {groupMode && duplicatesCollapsed > 0 && (
+              <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-300">
+                <Layers size={10} />
+                페이지 내 중복 {duplicatesCollapsed}건 압축됨
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* 그룹뷰 토글 */}
+            <label className="flex items-center gap-1.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={groupMode}
+                onChange={e => setGroupMode(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="relative w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-900 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+              <span className="text-[11px] font-semibold text-slate-400 group-hover:text-slate-200 transition-colors flex items-center gap-1">
+                <Layers size={11} /> 중복 묶기
+              </span>
+            </label>
+
+            {/* 자동 새로고침 */}
+            <label className="flex items-center gap-1.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={e => setAutoRefresh(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="relative w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-emerald-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-900 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+              <span className="text-[11px] font-semibold text-slate-400 group-hover:text-slate-200 transition-colors">자동 새로고침</span>
             </label>
             <select
               value={refreshSec}
               onChange={e => setRefreshSec(Number(e.target.value))}
               disabled={!autoRefresh}
-              className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-300 disabled:opacity-40"
+              className="text-[11px] bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-300 disabled:opacity-40"
             >
               <option value={10}>10초</option>
               <option value={30}>30초</option>
               <option value={60}>1분</option>
               <option value={300}>5분</option>
             </select>
-            {autoRefresh && (
-              <RefreshCcw size={12} className="text-indigo-500 animate-spin" />
-            )}
-          </div>
-          <div className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-1 rounded">
-            검색 결과: <span className="text-slate-400">{total.toLocaleString()}</span>건
+            {autoRefresh && <RefreshCcw size={12} className="text-emerald-400 animate-spin" />}
           </div>
         </div>
       </div>
 
-      {/* Log Content */}
-      <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-sm overflow-hidden">
+      {/* ─── Log Content ─────────────────────────────────── */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
         {isLoading && records.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-slate-400 animate-pulse">
             <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
@@ -198,176 +330,226 @@ export default function LogViewer() {
               </>
             )}
           </div>
-        ) : (
-          <>
-            {/* Desktop: Table view (md+) */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-800/50 border-b border-slate-800">
-                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">시간</th>
-                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 shrink-0">레벨</th>
-                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-28 shrink-0">호스트</th>
-                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">소스</th>
-                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">내용</th>
-                    <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16 shrink-0 text-right">라벨</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {records.map(r => {
-                    const lvlCfg = LEVEL_CONFIG[r.level?.toUpperCase()] ?? { bg: 'bg-slate-800', text: 'text-slate-400' }
-                    const ts = new Date(r.timestamp)
-                    return (
-                      <tr key={r.id} className="hover:bg-slate-800/50 transition-colors group align-top">
-                        <td className="px-3 py-1.5 text-[11px] text-slate-400 font-mono whitespace-nowrap"
-                            title={ts.toLocaleString('ko-KR')}>
-                          {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                        </td>
-                        <td className="px-3 py-1.5">
-                          {r.level && (
-                            <span className={cn(
-                              "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
-                              lvlCfg.bg, lvlCfg.text
-                            )}>
-                              {r.level}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-1.5 text-xs font-semibold text-slate-300 truncate group-hover:text-indigo-400 transition-colors">
-                          <div className="flex items-center gap-1">
-                            <Server size={10} className="opacity-40 shrink-0" />
-                            {r.host}
-                          </div>
-                        </td>
-                        <td className="px-3 py-1.5 text-[11px] text-slate-500 truncate">
-                          {r.source}
-                        </td>
-                        <td className="px-3 py-1.5">
-                          <code className="block text-[11px] leading-snug text-slate-300 whitespace-pre-wrap break-all font-mono">
-                            {r.line}
-                          </code>
-                          {r.matched_rules && r.matched_rules.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {r.matched_rules.map(mr => {
-                                const c = mr.severity === 'critical'
-                                  ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                                  : mr.severity === 'warning'
-                                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                    : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
-                                return (
-                                  <button
-                                    key={mr.id}
-                                    onClick={() => { setRuleID(mr.id); setPage(0) }}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
-                                      c
-                                    )}
-                                    title={`'${mr.name}' 룰만 필터`}
-                                  >
-                                    <ListChecks size={10} />
-                                    {mr.name}
-                                    <span className="opacity-60">·{severityLabel(mr.severity)}</span>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-1.5 text-right">
-                          <button
-                            onClick={() => setSelectedLog(r)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
-                            title="이 로그에 원인/조치 라벨 부여"
-                          >
-                            <Tag size={10} />
-                            라벨
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+        ) : groupMode ? (
+          /* ─── Grouped view ─────────────────────────────── */
+          <div className="divide-y divide-slate-800">
+            {groups.map(g => {
+              const lvlCfg = LEVEL_CONFIG[g.level] ?? { bg: 'bg-slate-700', text: 'text-slate-400', ring: 'ring-slate-600/30' }
+              const isExpanded = expanded.has(g.key)
+              const hasMultiple = g.count > 1
 
-            {/* Mobile: Card view (< md) */}
-            <div className="md:hidden divide-y divide-slate-800">
-              {records.map(r => {
-                const lvlCfg = LEVEL_CONFIG[r.level?.toUpperCase()] ?? { bg: 'bg-slate-800', text: 'text-slate-400' }
-                const ts = new Date(r.timestamp)
-                return (
-                  <div key={r.id} className="px-3 py-2.5 hover:bg-slate-800/40 transition-colors">
-                    {/* Top row: 시간 + 레벨 + 라벨 버튼 */}
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap shrink-0"
-                              title={ts.toLocaleString('ko-KR')}>
-                          {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                        </span>
-                        {r.level && (
-                          <span className={cn(
-                            "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight shrink-0",
-                            lvlCfg.bg, lvlCfg.text
-                          )}>
-                            {r.level}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => setSelectedLog(r)}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 shrink-0"
-                        title="이 로그에 원인/조치 라벨 부여"
-                      >
-                        <Tag size={10} />
-                        라벨
-                      </button>
-                    </div>
+              return (
+                <div key={g.key} className="group/row hover:bg-slate-800/40 transition-colors">
+                  {/* 그룹 헤더 행 */}
+                  <div className="flex items-start gap-2 px-3 py-2">
+                    {/* 펼치기 버튼 (count > 1만) */}
+                    <button
+                      onClick={() => hasMultiple && toggleExpand(g.key)}
+                      disabled={!hasMultiple}
+                      className={cn(
+                        "shrink-0 mt-0.5 p-0.5 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-700 transition-colors",
+                        !hasMultiple && "invisible"
+                      )}
+                      title={isExpanded ? "접기" : `원본 ${g.count}건 펼치기`}
+                    >
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRightSmall size={14} />}
+                    </button>
 
-                    {/* Meta: host · source */}
-                    <div className="flex items-center gap-1.5 mb-1.5 text-[10px] text-slate-500">
+                    {/* 시간 */}
+                    <span
+                      className="shrink-0 text-[10px] text-slate-400 font-mono whitespace-nowrap mt-1 w-[58px] tabular-nums"
+                      title={hasMultiple
+                        ? `${formatTimeRange(g.firstTs, g.lastTs)} (${g.count}회)`
+                        : new Date(g.lastTs).toLocaleString('ko-KR')}
+                    >
+                      {formatTime(g.lastTs)}
+                    </span>
+
+                    {/* 레벨 뱃지 */}
+                    <span className={cn(
+                      "shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight mt-0.5 w-[52px] text-center",
+                      lvlCfg.bg, lvlCfg.text
+                    )}>
+                      {g.level || '—'}
+                    </span>
+
+                    {/* count 뱃지 */}
+                    {hasMultiple && (
+                      <span className="shrink-0 mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30 tabular-nums">
+                        ×{g.count}
+                      </span>
+                    )}
+
+                    {/* host · source */}
+                    <span className="shrink-0 hidden md:inline-flex items-center gap-1 mt-1 text-[11px] text-slate-400 max-w-[180px] truncate">
                       <Server size={10} className="opacity-50 shrink-0" />
-                      <span className="font-semibold text-slate-400 truncate">{r.host}</span>
-                      <span className="opacity-50">·</span>
-                      <span className="truncate">{r.source}</span>
-                    </div>
+                      <span className="font-semibold truncate">{g.host}</span>
+                      <span className="opacity-40">·</span>
+                      <span className="truncate text-slate-500">{g.source}</span>
+                    </span>
 
-                    {/* Line */}
-                    <code className="block text-[11px] leading-snug text-slate-300 whitespace-pre-wrap break-all font-mono">
-                      {r.line}
+                    {/* 메시지 (한 줄, truncate) */}
+                    <code
+                      className="flex-1 min-w-0 text-[11px] leading-snug text-slate-300 font-mono truncate mt-1"
+                      title={g.line}
+                    >
+                      {g.line}
                     </code>
 
-                    {/* Matched rules */}
-                    {r.matched_rules && r.matched_rules.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {r.matched_rules.map(mr => {
-                          const c = mr.severity === 'critical'
-                            ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                            : mr.severity === 'warning'
-                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                              : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
-                          return (
-                            <button
-                              key={mr.id}
-                              onClick={() => { setRuleID(mr.id); setPage(0) }}
-                              className={cn(
-                                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
-                                c
-                              )}
-                              title={`'${mr.name}' 룰만 필터`}
-                            >
-                              <ListChecks size={10} />
-                              {mr.name}
-                              <span className="opacity-60">·{severityLabel(mr.severity)}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
+                    {/* 라벨 버튼 */}
+                    <button
+                      onClick={() => setSelectedLog(g.records[g.records.length - 1])}
+                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
+                      title="이 로그에 원인/조치 라벨 부여"
+                    >
+                      <Tag size={10} />
+                      라벨
+                    </button>
                   </div>
-                )
-              })}
-            </div>
-          </>
+
+                  {/* 모바일 메타 (md 미만) */}
+                  <div className="md:hidden px-3 pb-1.5 -mt-1 ml-[88px] text-[10px] text-slate-500 flex items-center gap-1.5">
+                    <Server size={10} className="opacity-50 shrink-0" />
+                    <span className="font-semibold text-slate-400 truncate">{g.host}</span>
+                    <span className="opacity-40">·</span>
+                    <span className="truncate">{g.source}</span>
+                  </div>
+
+                  {/* 룰 뱃지 */}
+                  {g.matched_rules && g.matched_rules.length > 0 && (
+                    <div className="px-3 pb-2 -mt-1 ml-[88px] flex flex-wrap gap-1">
+                      {g.matched_rules.map(mr => {
+                        const c = mr.severity === 'critical'
+                          ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                          : mr.severity === 'warning'
+                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
+                        return (
+                          <button
+                            key={mr.id}
+                            onClick={() => { setRuleID(mr.id); setPage(0) }}
+                            className={cn(
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
+                              c,
+                            )}
+                            title={`'${mr.name}' 룰만 필터`}
+                          >
+                            <ListChecks size={10} />
+                            {mr.name}
+                            <span className="opacity-60">·{severityLabel(mr.severity)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* 펼친 원본 */}
+                  {isExpanded && hasMultiple && (
+                    <div className="ml-[88px] mr-3 mb-2 border-l-2 border-slate-700 pl-3 space-y-1">
+                      {g.records.slice(0, 20).map(r => (
+                        <div key={r.id} className="flex items-baseline gap-2 text-[10px]">
+                          <span className="text-slate-500 font-mono tabular-nums shrink-0 w-[60px]">
+                            {new Date(r.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                          </span>
+                          <button
+                            onClick={() => setSelectedLog(r)}
+                            className="text-indigo-400 hover:text-indigo-300 underline-offset-2 hover:underline shrink-0"
+                            title="이 인스턴스 라벨링"
+                          >
+                            #{r.id}
+                          </button>
+                          <code className="text-slate-400 font-mono truncate" title={r.line}>{r.line}</code>
+                        </div>
+                      ))}
+                      {g.records.length > 20 && (
+                        <div className="text-[10px] text-slate-500 italic pt-1">
+                          ... 그리고 {g.records.length - 20}건 더 (페이지 내). 더 보려면 중복 묶기를 끄거나 검색을 좁히세요.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          /* ─── Flat view ────────────────────────────────── */
+          <div className="divide-y divide-slate-800">
+            {records.map(r => {
+              const lvlCfg = LEVEL_CONFIG[(r.level || '').toUpperCase()] ?? { bg: 'bg-slate-700', text: 'text-slate-400', ring: 'ring-slate-600/30' }
+              const ts = new Date(r.timestamp)
+              return (
+                <div key={r.id} className="group/row hover:bg-slate-800/40 transition-colors">
+                  <div className="flex items-start gap-2 px-3 py-1.5">
+                    <span
+                      className="shrink-0 text-[10px] text-slate-400 font-mono whitespace-nowrap mt-1 w-[58px] tabular-nums"
+                      title={ts.toLocaleString('ko-KR')}
+                    >
+                      {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                    </span>
+                    <span className={cn(
+                      "shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight mt-0.5 w-[52px] text-center",
+                      lvlCfg.bg, lvlCfg.text,
+                    )}>
+                      {r.level || '—'}
+                    </span>
+                    <span className="shrink-0 hidden md:inline-flex items-center gap-1 mt-1 text-[11px] text-slate-400 max-w-[180px] truncate">
+                      <Server size={10} className="opacity-50 shrink-0" />
+                      <span className="font-semibold truncate">{r.host}</span>
+                      <span className="opacity-40">·</span>
+                      <span className="truncate text-slate-500">{r.source}</span>
+                    </span>
+                    <code
+                      className="flex-1 min-w-0 text-[11px] leading-snug text-slate-300 font-mono truncate mt-1"
+                      title={r.line}
+                    >
+                      {r.line}
+                    </code>
+                    <button
+                      onClick={() => setSelectedLog(r)}
+                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
+                      title="이 로그에 원인/조치 라벨 부여"
+                    >
+                      <Tag size={10} />
+                      라벨
+                    </button>
+                  </div>
+                  <div className="md:hidden px-3 pb-1.5 -mt-1 ml-[68px] text-[10px] text-slate-500 flex items-center gap-1.5">
+                    <Server size={10} className="opacity-50 shrink-0" />
+                    <span className="font-semibold text-slate-400 truncate">{r.host}</span>
+                    <span className="opacity-40">·</span>
+                    <span className="truncate">{r.source}</span>
+                  </div>
+                  {r.matched_rules && r.matched_rules.length > 0 && (
+                    <div className="px-3 pb-1.5 -mt-1 ml-[68px] flex flex-wrap gap-1">
+                      {r.matched_rules.map(mr => {
+                        const c = mr.severity === 'critical'
+                          ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                          : mr.severity === 'warning'
+                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                            : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
+                        return (
+                          <button
+                            key={mr.id}
+                            onClick={() => { setRuleID(mr.id); setPage(0) }}
+                            className={cn(
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
+                              c,
+                            )}
+                            title={`'${mr.name}' 룰만 필터`}
+                          >
+                            <ListChecks size={10} />
+                            {mr.name}
+                            <span className="opacity-60">·{severityLabel(mr.severity)}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
 
         {/* Annotate Modal */}
@@ -380,21 +562,21 @@ export default function LogViewer() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 bg-slate-800/50 border-t border-slate-800">
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-800/30 border-t border-slate-800">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Page <span className="text-slate-100">{page + 1}</span> of <span className="text-slate-100">{totalPages}</span>
+              Page <span className="text-slate-100">{page + 1}</span> / <span className="text-slate-100">{totalPages.toLocaleString()}</span>
             </div>
             <div className="flex gap-2">
-              <button 
+              <button
                 className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-indigo-400 hover:border-indigo-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
-                disabled={page === 0} 
+                disabled={page === 0}
                 onClick={() => setPage(p => p - 1)}
               >
                 <ChevronLeft size={18} />
               </button>
-              <button 
+              <button
                 className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-indigo-400 hover:border-indigo-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
-                disabled={page >= totalPages - 1} 
+                disabled={page >= totalPages - 1}
                 onClick={() => setPage(p => p + 1)}
               >
                 <ChevronRight size={18} />
