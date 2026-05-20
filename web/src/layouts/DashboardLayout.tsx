@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Menu,
   Bell,
-  Search
+  Search,
+  ListChecks,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { id: 'synthetic', path: '/synthetic', icon: Globe, label: '사이트 점검', section: 'monitor' },
   { id: 'dpm', path: '/dpm', icon: Database, label: 'DB 성능', section: 'monitor' },
   { id: 'logs', path: '/logs', icon: FileText, label: '로그 뷰어', section: 'monitor' },
+  { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 룰', section: 'manage' },
   { id: 'alert-history', path: '/history', icon: History, label: '알림 히스토리', section: 'manage' },
   { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 설정', section: 'manage' },
   { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서', section: 'manage' },
