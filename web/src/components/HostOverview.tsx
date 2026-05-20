@@ -137,6 +137,14 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
             const uptime = uptimes[host]
             const inMaintenance = maintenanceSet.has(host)
 
+            // 메트릭 임계 상태 — 알림이 아직 안 떴어도 시각적 경고
+            // (CPU 70/90, MEM 80/95, DISK 85/90)
+            const cpu = metrics?.cpu ?? 0
+            const mem = metrics?.memory ?? 0
+            const dsk = metrics?.disk ?? 0
+            const hasCritical = cpu >= 90 || mem >= 95 || dsk >= 90
+            const hasWarning  = !hasCritical && (cpu >= 70 || mem >= 80 || dsk >= 85)
+
             return (
               <div
                 key={host}
@@ -144,11 +152,13 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                   "group bg-slate-900 rounded-xl border p-4 transition-all duration-200 flex flex-col h-full cursor-pointer",
                   inMaintenance
                     ? "border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60"
-                    : alertCount > 0
+                    : (alertCount > 0 || hasCritical)
                       ? "border-rose-500/40 hover:border-rose-500/70 hover:bg-rose-500/[0.03]"
-                      : isOffline
-                        ? "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                        : "border-slate-800 hover:border-indigo-500/60 hover:bg-slate-900/80"
+                      : hasWarning
+                        ? "border-amber-500/40 hover:border-amber-500/70 hover:bg-amber-500/[0.03]"
+                        : isOffline
+                          ? "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                          : "border-slate-800 hover:border-indigo-500/60 hover:bg-slate-900/80"
                 )}
               >
                 {/* Card Header */}
@@ -160,11 +170,21 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                   >
                     <div className={cn(
                       "w-2 h-2 rounded-full shrink-0 mt-1.5",
-                      inMaintenance ? "bg-purple-400" : isOffline ? "bg-rose-500" : "bg-emerald-400"
+                      inMaintenance ? "bg-purple-400"
+                        : isOffline ? "bg-rose-500"
+                        : (alertCount > 0 || hasCritical) ? "bg-rose-400"
+                        : hasWarning ? "bg-amber-400"
+                        : "bg-emerald-400"
                     )} />
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-sm text-slate-100 group-hover:text-indigo-400 transition-colors block break-words leading-snug">{host}</span>
-                      <span className="text-xs font-medium text-slate-500 mt-0.5 block">{isOffline ? '연결 끊김' : inMaintenance ? '점검 중' : '정상 동작'}</span>
+                      <span className="text-xs font-medium text-slate-500 mt-0.5 block">
+                        {isOffline ? '연결 끊김'
+                          : inMaintenance ? '점검 중'
+                          : (alertCount > 0 || hasCritical) ? '경고 (위험)'
+                          : hasWarning ? '주의'
+                          : '정상 동작'}
+                      </span>
                     </div>
                   </div>
 
