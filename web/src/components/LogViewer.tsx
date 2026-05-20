@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { searchLogs, getLogSources, type LogSearchParams, type LogRecord } from '../api/logs'
+import { listRules, severityLabel } from '../api/rules'
 import { useQuery } from '@tanstack/react-query'
-import { Search, RefreshCcw, Server, FileText, ChevronLeft, ChevronRight, Info, AlertCircle, Tag } from 'lucide-react'
+import { Search, RefreshCcw, Server, FileText, ChevronLeft, ChevronRight, Info, AlertCircle, Tag, ListChecks } from 'lucide-react'
 import { cn } from '../utils/cn'
 import AnnotateModal from './AnnotateModal'
 
@@ -19,6 +20,7 @@ export default function LogViewer() {
   const [host, setHost] = useState('')
   const [source, setSource] = useState('')
   const [level, setLevel] = useState('')
+  const [ruleID, setRuleID] = useState<number | ''>('')
   const [queryText, setQueryText] = useState('')
   const [page, setPage] = useState(0)
   const [selectedLog, setSelectedLog] = useState<LogRecord | null>(null)
@@ -29,14 +31,21 @@ export default function LogViewer() {
     queryFn: getLogSources
   })
 
+  const { data: rules = [] } = useQuery({
+    queryKey: ['log-rules'],
+    queryFn: listRules,
+    staleTime: 60_000,
+  })
+
   const { data: logData, isLoading, refetch } = useQuery({
-    queryKey: ['logs', host, source, level, queryText, page],
+    queryKey: ['logs', host, source, level, ruleID, queryText, page],
     queryFn: () => {
       const params: LogSearchParams = { limit, offset: page * limit }
       if (host) params.host = host
       if (source) params.source = source
       if (level) params.level = level
       if (queryText) params.query = queryText
+      if (ruleID) params.rule_id = ruleID
       return searchLogs(params)
     },
     refetchInterval: autoRefresh ? 5000 : false,
@@ -84,9 +93,9 @@ export default function LogViewer() {
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Level</label>
-              <select 
+              <select
                 className="w-full bg-slate-800 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                value={level} 
+                value={level}
                 onChange={e => { setLevel(e.target.value); setPage(0) }}
               >
                 <option value="">전체 레벨</option>
@@ -94,6 +103,17 @@ export default function LogViewer() {
                 <option value="WARN">WARN</option>
                 <option value="INFO">INFO</option>
                 <option value="DEBUG">DEBUG</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Rule</label>
+              <select
+                className="w-full bg-slate-800 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+                value={ruleID}
+                onChange={e => { setRuleID(e.target.value ? Number(e.target.value) : ''); setPage(0) }}
+              >
+                <option value="">전체 룰</option>
+                {rules.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
           </div>
@@ -215,6 +235,32 @@ export default function LogViewer() {
                         <code className="block text-[11px] leading-relaxed text-slate-400 whitespace-pre-wrap break-all font-mono">
                           {r.line}
                         </code>
+                        {r.matched_rules && r.matched_rules.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {r.matched_rules.map(mr => {
+                              const c = mr.severity === 'critical'
+                                ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                                : mr.severity === 'warning'
+                                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                  : 'bg-slate-500/15 text-slate-300 border-slate-500/30'
+                              return (
+                                <button
+                                  key={mr.id}
+                                  onClick={() => { setRuleID(mr.id); setPage(0) }}
+                                  className={cn(
+                                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
+                                    c
+                                  )}
+                                  title={`'${mr.name}' 룰만 필터`}
+                                >
+                                  <ListChecks size={10} />
+                                  {mr.name}
+                                  <span className="opacity-60">·{severityLabel(mr.severity)}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <button

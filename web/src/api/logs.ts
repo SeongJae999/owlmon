@@ -1,5 +1,11 @@
 import axios from 'axios'
 
+export interface MatchedRule {
+  id: number
+  name: string
+  severity: 'info' | 'warning' | 'critical'
+}
+
 export interface LogRecord {
   id: number
   timestamp: string
@@ -8,6 +14,7 @@ export interface LogRecord {
   file_path: string
   line: string
   level: string
+  matched_rules?: MatchedRule[]
 }
 
 export interface LogSearchParams {
@@ -15,6 +22,7 @@ export interface LogSearchParams {
   source?: string
   level?: string
   query?: string
+  rule_id?: number
   from?: string
   to?: string
   limit?: number
