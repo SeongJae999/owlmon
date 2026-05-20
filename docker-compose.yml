@@ -87,6 +87,8 @@ services:
       - OWLMON_LISTEN=:8080
       - POSTGRES_DSN=postgres://owlmon:owlmon@postgres:5432/owlmon?sslmode=disable
       - OWLMON_JWT_SECRET=${OWLMON_JWT_SECRET:-}
+      # 에이전트 로그 수집 인증 키 (모든 에이전트 config.yaml의 agent_key와 일치해야 함)
+      - OWLMON_AGENT_KEY=${OWLMON_AGENT_KEY:-}
       # SMTP (선택 — .env에 비워두면 알림 비활성)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
