@@ -130,7 +130,11 @@ func (e *Engine) Evaluate(line string) []Match {
 //   1) cooldown — 마지막 알림 후 cooldownSec 안 지났으면 false
 //   2) threshold — thCount/thWindow 둘 다 > 0이면 최근 thWindow초 안 매칭 횟수 >= thCount일 때만 true.
 //      한 쪽이라도 0/null이면 threshold 평가 skip (1회 매칭으로도 알림)
-func (e *Engine) ShouldAlert(ctx context.Context, ruleID int64, cooldownSec, thCount, thWindow int) (bool, error) {
+//
+// recentNewCount: 이 ingest 배치에서 방금 INSERT한 신규 매칭 수.
+//   pgxpool의 별도 connection visibility 지연으로 DB COUNT가 신규 row를 못 볼
+//   경우를 대비 — max(DB COUNT, newCount)로 보정.
+func (e *Engine) ShouldAlert(ctx context.Context, ruleID int64, cooldownSec, thCount, thWindow, recentNewCount int) (bool, error) {
 	// 1. cooldown
 	var lastAt *time.Time
 	_ = e.pool.QueryRow(ctx,
@@ -142,13 +146,18 @@ func (e *Engine) ShouldAlert(ctx context.Context, ruleID int64, cooldownSec, thC
 
 	// 2. threshold (옵션)
 	if thCount > 0 && thWindow > 0 {
-		var count int
+		var dbCount int
 		err := e.pool.QueryRow(ctx, `
 			SELECT COUNT(*) FROM log_rule_matches
 			WHERE rule_id = $1 AND matched_at > NOW() - ($2 || ' seconds')::interval`,
-			ruleID, thWindow).Scan(&count)
+			ruleID, thWindow).Scan(&dbCount)
 		if err != nil {
 			return false, err
+		}
+		// visibility race 보정 — 신규 매칭이 아직 DB에서 안 보일 수 있으니 max로
+		count := dbCount
+		if recentNewCount > count {
+			count = recentNewCount
 		}
 		if count < thCount {
 			return false, nil

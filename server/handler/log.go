@@ -133,6 +133,7 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 	}
 	var matches []db.LogRuleMatch
 	triggers := make(map[triggerKey]rules.Match) // 동일 (룰,호스트) 묶어서 한 번만 알림
+	newByRule := make(map[int64]int)             // 룰별 신규 매칭 수 (race 보정용)
 
 	for i, rec := range records {
 		for _, m := range h.rules.Evaluate(rec.Line) {
@@ -143,6 +144,7 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 				Severity: m.Severity,
 			})
 			triggers[triggerKey{m.RuleID, rec.Host}] = m
+			newByRule[m.RuleID]++
 		}
 	}
 	if len(matches) == 0 {
@@ -161,7 +163,7 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 		return
 	}
 	for key, m := range triggers {
-		ok, _ := h.rules.ShouldAlert(ctx, key.ruleID, m.CooldownSeconds, m.ThresholdCount, m.ThresholdWindow)
+		ok, _ := h.rules.ShouldAlert(ctx, key.ruleID, m.CooldownSeconds, m.ThresholdCount, m.ThresholdWindow, newByRule[key.ruleID])
 		if !ok {
 			continue
 		}
