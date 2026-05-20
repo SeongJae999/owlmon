@@ -17,6 +17,7 @@ const LEVEL_CONFIG: Record<string, { bg: string, text: string }> = {
 
 export default function LogViewer() {
   const [autoRefresh, setAutoRefresh] = useState(false)
+  const [refreshSec, setRefreshSec] = useState(30) // 5 → 30 (사용자 읽는 동안 깜빡임 방지)
   const [host, setHost] = useState('')
   const [source, setSource] = useState('')
   const [level, setLevel] = useState('')
@@ -48,7 +49,7 @@ export default function LogViewer() {
       if (ruleID) params.rule_id = ruleID
       return searchLogs(params)
     },
-    refetchInterval: autoRefresh ? 5000 : false,
+    refetchInterval: autoRefresh ? refreshSec * 1000 : false,
   })
 
   const records = logData?.records || []
@@ -150,8 +151,19 @@ export default function LogViewer() {
                 />
                 <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-900 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
               </div>
-              <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-400 transition-colors">자동 새로고침 (5초)</span>
+              <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-400 transition-colors">자동 새로고침</span>
             </label>
+            <select
+              value={refreshSec}
+              onChange={e => setRefreshSec(Number(e.target.value))}
+              disabled={!autoRefresh}
+              className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-300 disabled:opacity-40"
+            >
+              <option value={10}>10초</option>
+              <option value={30}>30초</option>
+              <option value={60}>1분</option>
+              <option value={300}>5분</option>
+            </select>
             {autoRefresh && (
               <RefreshCcw size={12} className="text-indigo-500 animate-spin" />
             )}
@@ -191,48 +203,45 @@ export default function LogViewer() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-800/50 border-b border-slate-800">
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-44 shrink-0">시간</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">레벨</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-32 shrink-0">호스트</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-32 shrink-0">소스</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">내용</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 shrink-0 text-right">라벨</th>
+                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">시간</th>
+                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 shrink-0">레벨</th>
+                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-28 shrink-0">호스트</th>
+                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 shrink-0">소스</th>
+                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">내용</th>
+                  <th className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16 shrink-0 text-right">라벨</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {records.map(r => {
                   const lvlCfg = LEVEL_CONFIG[r.level?.toUpperCase()] ?? { bg: 'bg-slate-800', text: 'text-slate-400' }
+                  const ts = new Date(r.timestamp)
                   return (
-                    <tr key={r.id} className="hover:bg-slate-800/50 transition-colors group">
-                      <td className="px-4 py-2.5 text-xs text-slate-400 font-medium whitespace-nowrap">
-                        {new Date(r.timestamp).toLocaleString('ko-KR', { 
-                          month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' 
-                        })}
+                    <tr key={r.id} className="hover:bg-slate-800/50 transition-colors group align-top">
+                      <td className="px-3 py-1.5 text-[11px] text-slate-400 font-mono whitespace-nowrap"
+                          title={ts.toLocaleString('ko-KR')}>
+                        {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 py-1.5">
                         {r.level && (
                           <span className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
+                            "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
                             lvlCfg.bg, lvlCfg.text
                           )}>
                             {r.level}
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-xs font-bold text-slate-400 truncate group-hover:text-indigo-400 transition-colors">
-                        <div className="flex items-center gap-1.5">
-                          <Server size={10} className="opacity-40" />
+                      <td className="px-3 py-1.5 text-xs font-semibold text-slate-300 truncate group-hover:text-indigo-400 transition-colors">
+                        <div className="flex items-center gap-1">
+                          <Server size={10} className="opacity-40 shrink-0" />
                           {r.host}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-xs font-semibold text-slate-500 truncate">
-                        <div className="flex items-center gap-1.5">
-                          <FileText size={10} className="opacity-40" />
-                          {r.source}
-                        </div>
+                      <td className="px-3 py-1.5 text-[11px] text-slate-500 truncate">
+                        {r.source}
                       </td>
-                      <td className="px-4 py-2.5">
-                        <code className="block text-[11px] leading-relaxed text-slate-400 whitespace-pre-wrap break-all font-mono">
+                      <td className="px-3 py-1.5">
+                        <code className="block text-[11px] leading-snug text-slate-300 whitespace-pre-wrap break-all font-mono">
                           {r.line}
                         </code>
                         {r.matched_rules && r.matched_rules.length > 0 && (
@@ -262,13 +271,13 @@ export default function LogViewer() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-3 py-1.5 text-right">
                         <button
                           onClick={() => setSelectedLog(r)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
                           title="이 로그에 원인/조치 라벨 부여"
                         >
-                          <Tag size={11} />
+                          <Tag size={10} />
                           라벨
                         </button>
                       </td>
