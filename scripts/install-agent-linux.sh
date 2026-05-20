@@ -109,6 +109,8 @@ logs:
   journald:
     enabled: $ENABLE_JOURNALD
     source: "journald"
+    # 매칭된 라인만 송신 — DB 폭증 방지. 빈 배열이면 안전 기본값 사용
+    include_patterns: ["error", "fatal", "panic", "warning", "warn", "fail", "denied", "OOM", "kill"]
 
   tails: []
 YAML

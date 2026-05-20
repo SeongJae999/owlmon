@@ -15,7 +15,7 @@ type JournaldCollector struct{}
 
 // NewJournaldCollector는 stub 인스턴스를 반환합니다.
 // 인자는 호환성을 위해 받지만 사용되지 않습니다.
-func NewJournaldCollector(_ string, _ string, _ func(LogEntry)) *JournaldCollector {
+func NewJournaldCollector(_ string, _ string, _ []string, _ func(LogEntry)) *JournaldCollector {
 	return &JournaldCollector{}
 }
 

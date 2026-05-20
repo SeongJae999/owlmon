@@ -20,23 +20,26 @@ import (
 //
 // 의존성: systemd가 설치된 Linux + journalctl 명령. CGO/sdjournal 사용 안 함.
 type JournaldCollector struct {
-	hostname string
-	source   string // 라벨 (예: "journald")
-	pushFunc func(LogEntry)
-	mu       sync.Mutex
-	cmd      *exec.Cmd
+	hostname        string
+	source          string // 라벨 (예: "journald")
+	includePatterns []string // 매칭 필터 (빈 배열이면 전부 송신 — 디스크 폭증 위험)
+	pushFunc        func(LogEntry)
+	mu              sync.Mutex
+	cmd             *exec.Cmd
 }
 
 // NewJournaldCollector는 새 collector를 생성합니다.
+// includePatterns가 비어있지 않으면, MESSAGE에 그 단어 중 하나라도 포함된 라인만 송신합니다.
 // pushFunc는 LogEntry를 받아 Tailer 버퍼에 추가하는 콜백입니다.
-func NewJournaldCollector(hostname, source string, pushFunc func(LogEntry)) *JournaldCollector {
+func NewJournaldCollector(hostname, source string, includePatterns []string, pushFunc func(LogEntry)) *JournaldCollector {
 	if source == "" {
 		source = "journald"
 	}
 	return &JournaldCollector{
-		hostname: hostname,
-		source:   source,
-		pushFunc: pushFunc,
+		hostname:        hostname,
+		source:          source,
+		includePatterns: includePatterns,
+		pushFunc:        pushFunc,
 	}
 }
 
@@ -86,6 +89,10 @@ func (c *JournaldCollector) run(ctx context.Context) error {
 		raw := scanner.Bytes()
 		entry, ok := parseJournaldLine(raw, c.hostname, c.source)
 		if !ok {
+			continue
+		}
+		// include_patterns 필터 — 매칭 안 되면 송신 X (DB 폭증 방지)
+		if len(c.includePatterns) > 0 && !matchesAny(entry.Line, c.includePatterns) {
 			continue
 		}
 		c.pushFunc(entry)

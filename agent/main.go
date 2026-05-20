@@ -126,7 +126,12 @@ func startAgent() func() {
 
 		// journald 수집 (Linux 전용 — 다른 OS에서는 stub이 자동 비활성)
 		if cfg.Logs.Journald.Enabled {
-			jc := logtail.NewJournaldCollector(hostname, cfg.Logs.Journald.Source, tailer.Push)
+			patterns := cfg.Logs.Journald.IncludePatterns
+			// 패턴 미지정 시 안전한 기본값 — DB 폭증 방지
+			if len(patterns) == 0 {
+				patterns = []string{"error", "fatal", "panic", "warning", "warn", "fail", "denied", "OOM", "kill"}
+			}
+			jc := logtail.NewJournaldCollector(hostname, cfg.Logs.Journald.Source, patterns, tailer.Push)
 			jc.Start(ctx)
 		}
 	}

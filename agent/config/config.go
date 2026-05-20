@@ -27,8 +27,9 @@ type LogConfig struct {
 
 // JournaldConfig는 systemd journal 수집 설정입니다.
 type JournaldConfig struct {
-	Enabled bool   `yaml:"enabled"` // 기본 false (opt-in)
-	Source  string `yaml:"source"`  // 라벨 (기본 "journald")
+	Enabled         bool     `yaml:"enabled"`          // 기본 false (opt-in)
+	Source          string   `yaml:"source"`           // 라벨 (기본 "journald")
+	IncludePatterns []string `yaml:"include_patterns"` // 빈 배열이면 main.go의 안전 기본값 사용
 }
 
 // TailConfig는 개별 로그 파일 수집 설정입니다.
