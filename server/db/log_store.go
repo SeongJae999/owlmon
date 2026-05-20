@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -9,16 +10,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// MatchedRule은 로그가 매칭된 룰 요약.
+type MatchedRule struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Severity string `json:"severity"`
+}
+
 // LogRecord는 수집된 로그 한 줄입니다.
 type LogRecord struct {
-	ID        int64     `json:"id"`
-	Timestamp time.Time `json:"timestamp"`
-	Host      string    `json:"host"`
-	Source    string    `json:"source"`
-	FilePath  string    `json:"file_path"`
-	Line      string    `json:"line"`
-	Level     string    `json:"level"`
-	CreatedAt time.Time `json:"created_at"`
+	ID            int64         `json:"id"`
+	Timestamp     time.Time     `json:"timestamp"`
+	Host          string        `json:"host"`
+	Source        string        `json:"source"`
+	FilePath      string        `json:"file_path"`
+	Line          string        `json:"line"`
+	Level         string        `json:"level"`
+	CreatedAt     time.Time     `json:"created_at"`
+	MatchedRules  []MatchedRule `json:"matched_rules,omitempty"` // Search 시 채워짐 (Ingest 시엔 비움)
 }
 
 // LogSearchParams는 로그 검색 조건입니다.
@@ -27,6 +36,7 @@ type LogSearchParams struct {
 	Source string
 	Level  string
 	Query  string // ILIKE 검색
+	RuleID int64  // > 0이면 해당 룰에 매칭된 로그만
 	From   time.Time
 	To     time.Time
 	Limit  int
@@ -138,6 +148,12 @@ func (s *LogStore) Search(ctx context.Context, p LogSearchParams) (*LogSearchRes
 		args = append(args, p.To)
 		argN++
 	}
+	// 룰 필터: 해당 룰에 매칭된 log_id만
+	if p.RuleID > 0 {
+		where = append(where, fmt.Sprintf("id IN (SELECT log_id FROM log_rule_matches WHERE rule_id=$%d)", argN))
+		args = append(args, p.RuleID)
+		argN++
+	}
 
 	whereClause := ""
 	if len(where) > 0 {
@@ -151,11 +167,40 @@ func (s *LogStore) Search(ctx context.Context, p LogSearchParams) (*LogSearchRes
 		return nil, err
 	}
 
-	// 데이터 조회
-	dataQuery := fmt.Sprintf(
-		"SELECT id, timestamp, host, source, file_path, line, level, created_at FROM logs %s ORDER BY timestamp DESC LIMIT $%d OFFSET $%d",
-		whereClause, argN, argN+1,
+	// 데이터 조회 — 매칭 룰을 jsonb_agg로 같이 가져옴 (LEFT JOIN + GROUP BY)
+	dataQuery := fmt.Sprintf(`
+		SELECT l.id, l.timestamp, l.host, l.source, l.file_path, l.line, l.level, l.created_at,
+		       COALESCE(
+		         jsonb_agg(jsonb_build_object('id', lr.id, 'name', lr.name, 'severity', lr.severity))
+		           FILTER (WHERE lr.id IS NOT NULL),
+		         '[]'::jsonb
+		       ) AS matched_rules
+		FROM logs l
+		LEFT JOIN log_rule_matches lrm ON lrm.log_id = l.id
+		LEFT JOIN log_rules        lr  ON lr.id     = lrm.rule_id
+		%s
+		GROUP BY l.id
+		ORDER BY l.timestamp DESC
+		LIMIT $%d OFFSET $%d`,
+		strings.Replace(whereClause, "host=", "l.host=", 1), // host 컬럼 alias 명시
+		argN, argN+1,
 	)
+	// 단순 alias 치환 위 1회 — host/source/level/timestamp/line/id 모두 명시 필요
+	dataQuery = strings.NewReplacer(
+		"WHERE host=", "WHERE l.host=",
+		" AND host=", " AND l.host=",
+		"WHERE source=", "WHERE l.source=",
+		" AND source=", " AND l.source=",
+		"WHERE level=", "WHERE l.level=",
+		" AND level=", " AND l.level=",
+		"WHERE line ILIKE", "WHERE l.line ILIKE",
+		" AND line ILIKE", " AND l.line ILIKE",
+		"WHERE timestamp", "WHERE l.timestamp",
+		" AND timestamp", " AND l.timestamp",
+		"WHERE id IN", "WHERE l.id IN",
+		" AND id IN", " AND l.id IN",
+	).Replace(dataQuery)
+
 	dataArgs := append(args, p.Limit, p.Offset)
 
 	rows, err := s.pool.Query(ctx, dataQuery, dataArgs...)
@@ -167,8 +212,12 @@ func (s *LogStore) Search(ctx context.Context, p LogSearchParams) (*LogSearchRes
 	var records []LogRecord
 	for rows.Next() {
 		var r LogRecord
-		if err := rows.Scan(&r.ID, &r.Timestamp, &r.Host, &r.Source, &r.FilePath, &r.Line, &r.Level, &r.CreatedAt); err != nil {
+		var matchedRulesJSON []byte
+		if err := rows.Scan(&r.ID, &r.Timestamp, &r.Host, &r.Source, &r.FilePath, &r.Line, &r.Level, &r.CreatedAt, &matchedRulesJSON); err != nil {
 			return nil, err
+		}
+		if len(matchedRulesJSON) > 0 {
+			_ = json.Unmarshal(matchedRulesJSON, &r.MatchedRules)
 		}
 		records = append(records, r)
 	}

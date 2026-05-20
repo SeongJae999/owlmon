@@ -204,6 +204,9 @@ func (h *LogHandler) Search(w http.ResponseWriter, r *http.Request) {
 		Level:  q.Get("level"),
 		Query:  q.Get("query"),
 	}
+	if v := q.Get("rule_id"); v != "" {
+		params.RuleID, _ = strconv.ParseInt(v, 10, 64)
+	}
 	params.Limit, _ = strconv.Atoi(q.Get("limit"))
 	if params.Limit <= 0 {
 		params.Limit = 100
