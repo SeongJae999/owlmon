@@ -115,6 +115,17 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Get("/api/agents", agentHandler.List)
 		r.Post("/api/agents/{id}/status", agentHandler.UpdateStatus)
 		r.Delete("/api/agents/{id}", agentHandler.Delete)
+
+		// Log Rules (Admin) — CRUD + 통계
+		if appCtx.DBPool != nil && appCtx.RulesEngine != nil {
+			rulesHandler := handler.NewRulesHandler(appCtx.DBPool, appCtx.RulesEngine)
+			r.Get("/api/log-rules", rulesHandler.List)
+			r.Post("/api/log-rules", rulesHandler.Create)
+			r.Put("/api/log-rules/{id}", rulesHandler.Update)
+			r.Post("/api/log-rules/{id}/toggle", rulesHandler.Toggle)
+			r.Delete("/api/log-rules/{id}", rulesHandler.Delete)
+			r.Get("/api/log-rules/stats", rulesHandler.MatchStats)
+		}
 	})
 
 	// Log Ingest (Agent Key Auth)
