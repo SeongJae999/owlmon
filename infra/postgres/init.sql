@@ -192,3 +192,86 @@ CREATE TABLE IF NOT EXISTS agent_specs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_specs_updated ON agent_specs (updated_at DESC);
+
+-- ─── 로그 룰셋 (Phase 1: 정규식 + 빈도 임계치 기반 이상 탐지) ──────────
+-- 사용자가 정의하는 룰. 로그 ingest 시 평가되어 매칭되면 알림 생성.
+CREATE TABLE IF NOT EXISTS log_rules (
+    id              BIGSERIAL PRIMARY KEY,
+    name            TEXT NOT NULL UNIQUE,           -- "SSH 무차별 대입"
+    pattern         TEXT NOT NULL,                  -- 정규식 (Go RE2 문법)
+    severity        TEXT NOT NULL DEFAULT 'warning', -- info / warning / critical
+    threshold_count INT,                            -- N회 매칭 시 알림 (null = 1회로도 알림)
+    threshold_window INT,                           -- 위 N회 평가 시간 창 (초)
+    cooldown_seconds INT NOT NULL DEFAULT 300,      -- 같은 룰 알림 재발송까지 최소 간격
+    enabled         BOOLEAN NOT NULL DEFAULT true,
+    description     TEXT,                           -- 운영자용 설명/대응 가이드
+    category        TEXT,                           -- security / system / network / app
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_log_rules_enabled ON log_rules (enabled) WHERE enabled = true;
+CREATE INDEX IF NOT EXISTS idx_log_rules_category ON log_rules (category);
+
+-- 룰 매칭 이력 (어떤 로그가 어떤 룰에 걸렸는지)
+CREATE TABLE IF NOT EXISTS log_rule_matches (
+    id          BIGSERIAL PRIMARY KEY,
+    log_id      BIGINT NOT NULL REFERENCES logs(id) ON DELETE CASCADE,
+    rule_id     BIGINT NOT NULL REFERENCES log_rules(id) ON DELETE CASCADE,
+    matched_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    host        TEXT NOT NULL,
+    severity    TEXT NOT NULL                       -- 매칭 시점의 severity 스냅샷
+);
+
+CREATE INDEX IF NOT EXISTS idx_log_rule_matches_rule ON log_rule_matches (rule_id, matched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_log_rule_matches_host ON log_rule_matches (host, matched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_log_rule_matches_time ON log_rule_matches (matched_at DESC);
+
+-- 룰별 최근 알림 발송 시각 (cooldown 평가용 — 같은 룰 5분 내 재알림 방지)
+CREATE TABLE IF NOT EXISTS log_rule_alert_history (
+    rule_id         BIGINT PRIMARY KEY REFERENCES log_rules(id) ON DELETE CASCADE,
+    last_alerted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ─── 사전 정의 룰셋 (운영자가 즉시 사용 가능한 30개 기본 룰) ────────────
+INSERT INTO log_rules (name, pattern, severity, category, description, cooldown_seconds) VALUES
+-- 시스템 (메모리/디스크/커널)
+('OOM Killer 발동',           'Out of memory.*[Kk]ill', 'critical', 'system',  '메모리 부족으로 프로세스 강제 종료. 즉시 메모리 확보·재시작 필요', 300),
+('디스크 가득 참',             'No space left on device', 'critical', 'system', '디스크 100% 도달. 큰 파일·로그 정리 필요', 600),
+('파일시스템 read-only',       '[Rr]emounting filesystem read-only', 'critical', 'system', '디스크 오류로 자동 read-only 전환', 600),
+('커널 패닉',                  'Kernel panic.*not syncing', 'critical', 'system', '시스템 치명적 오류. 재부팅 필요', 60),
+('Watchdog 타임아웃',          'soft lockup.*[Cc]pu', 'critical', 'system', 'CPU soft lockup — 커널 hang 의심', 300),
+('Out of inodes',              'No space left on device.*inode', 'critical', 'system', 'inode 고갈 — 작은 파일 너무 많음', 600),
+-- 보안 (SSH/sudo/방화벽)
+('SSH 무차별 대입 의심',       'Failed password.*for.*from', 'warning',  'security', '비밀번호 실패 반복. fail2ban·차단 검토', 300),
+('SSH 잘못된 사용자',          'Invalid user.*from', 'warning', 'security', '존재하지 않는 계정 시도 — 스캔 가능성', 300),
+('sudo 권한 거부',             'sudo.*authentication failure', 'warning', 'security', 'sudo 인증 실패 — 비인가 시도 가능성', 600),
+('SSH root 로그인 시도',       'Failed.*root from', 'warning', 'security', 'root 직접 로그인 시도 — 보안 정책 위반 가능성', 300),
+('sshd protocol 오류',         'fatal:.*protocol', 'warning', 'security', 'SSH 프로토콜 오류 — 비정상 클라이언트', 600),
+-- 네트워크
+('네트워크 인터페이스 다운',   'Link is Down|carrier lost', 'critical', 'network', '네트워크 끊김 감지', 60),
+('DNS 해상 실패 다발',         'Temporary failure in name resolution', 'warning', 'network', 'DNS 응답 지연/실패', 600),
+('TCP RST 폭증',               'TCP.*RST', 'warning', 'network', '비정상 연결 종료 증가', 600),
+('Out of socket memory',       'Out of socket memory', 'critical', 'network', '소켓 자원 고갈 — 동시 연결 한계', 300),
+-- 애플리케이션 (Java/Python/web)
+('Java OutOfMemoryError',      'java\.lang\.OutOfMemoryError', 'critical', 'app', 'Java 힙/스택 메모리 부족', 300),
+('Java NullPointerException 폭증', 'NullPointerException', 'warning', 'app', '자바 NPE 발생 — 코드 결함 가능성', 600),
+('Python Exception traceback', 'Traceback \(most recent call', 'warning', 'app', '파이썬 미처리 예외', 600),
+('HTTP 5xx 폭증',              '" 5\d{2} ', 'warning', 'app', 'HTTP 5xx 응답 증가 — 서버 오류', 600),
+('HTTP 503 Service Unavailable', '" 503 ', 'critical', 'app', '서비스 일시 중단', 300),
+('nginx upstream timeout',     'upstream timed out', 'warning', 'app', 'nginx 백엔드 응답 지연', 600),
+('nginx connection refused',   'connect\(\) failed.*Connection refused', 'critical', 'app', '백엔드 다운 의심', 300),
+-- DB
+('PostgreSQL too many connections', 'too many connections', 'critical', 'app', 'DB 연결 풀 고갈', 300),
+('PostgreSQL deadlock',        'deadlock detected', 'warning', 'app', 'DB 데드락 발생', 600),
+('MySQL too many connections', 'Too many connections', 'critical', 'app', 'MySQL 연결 한계 도달', 300),
+-- 컨테이너 / k8s
+('Docker container OOM',       'oom_reaper.*killed', 'critical', 'app', '컨테이너 OOM kill', 300),
+('Kubernetes pod CrashLoopBackOff', 'CrashLoopBackOff', 'warning', 'app', 'Pod 반복 크래시', 600),
+-- 인증서
+('SSL 인증서 만료 임박 경고',  'certificate has expired|will expire', 'warning', 'security', 'SSL 인증서 갱신 필요', 86400),
+-- 시간 동기화
+('NTP 동기화 실패',            'no peer.*ntp|chrony.*reach 0', 'warning', 'system', '시간 동기화 실패 — 인증 오류 유발 가능', 3600),
+-- 일반
+('Segmentation fault',         'segfault|Segmentation fault', 'warning', 'app', '프로세스 segfault — 코드/메모리 오류', 300)
+ON CONFLICT (name) DO NOTHING;
