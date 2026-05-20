@@ -128,6 +128,11 @@ func parseJournaldLine(raw []byte, hostname, source string) (LogEntry, bool) {
 	if rec.Message == "" {
 		return LogEntry{}, false
 	}
+	// 자기 자신 제외 — agent의 systemd unit 로그가 journal로 흘러들어와
+	// include_patterns에 우연히 매칭되면 self-logging 무한 반복 발생.
+	if rec.Unit == "owlmon-agent.service" || rec.SyslogIdentifier == "owlmon-agent" {
+		return LogEntry{}, false
+	}
 
 	// __REALTIME_TIMESTAMP는 microsecond since epoch 문자열
 	ts := time.Now()
