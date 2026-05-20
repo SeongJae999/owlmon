@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"time"
@@ -189,7 +190,15 @@ func (h *StatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	daysElapsed := now.Day() // 이번 달 경과 일수 (1~31)
 	durationStr := fmt.Sprintf("%dd", daysElapsed)
-	expectedSamples := float64(daysElapsed * 24 * 120) // 30초 간격 = 시간당 120개
+	// 수집 주기 (env: OWLMON_COLLECT_INTERVAL_SEC, 기본 15초 — 에이전트 기본값과 일치)
+	intervalSec := 15
+	if v := os.Getenv("OWLMON_COLLECT_INTERVAL_SEC"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			intervalSec = n
+		}
+	}
+	samplesPerHour := 3600 / intervalSec
+	expectedSamples := float64(daysElapsed * 24 * samplesPerHour)
 
 	hosts, err := h.labelValues("host_name")
 	if err != nil {
