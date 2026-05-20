@@ -132,8 +132,8 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 		host   string
 	}
 	var matches []db.LogRuleMatch
-	triggers := make(map[triggerKey]rules.Match) // 동일 (룰,호스트) 묶어서 한 번만 알림
-	newByRule := make(map[int64]int)             // 룰별 신규 매칭 수 (race 보정용)
+	triggers := make(map[triggerKey]rules.Match)
+	windowByRule := make(map[int64]int) // 룰별 threshold_window (트랜잭션 COUNT 대상)
 
 	for i, rec := range records {
 		for _, m := range h.rules.Evaluate(rec.Line) {
@@ -144,28 +144,42 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 				Severity: m.Severity,
 			})
 			triggers[triggerKey{m.RuleID, rec.Host}] = m
-			newByRule[m.RuleID]++
+			if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
+				windowByRule[m.RuleID] = m.ThresholdWindow
+			}
 		}
 	}
 	if len(matches) == 0 {
 		return
 	}
 
-	// 2. 매칭 일괄 저장
+	// 2. 매칭 INSERT + 룰별 windowed COUNT (트랜잭션 안 — visibility race 회피)
+	var ruleCounts map[int64]int
 	if h.matchStore != nil {
-		if err := h.matchStore.BatchInsert(ctx, matches); err != nil {
-			// 매칭 저장 실패해도 알림은 계속 시도
+		var err error
+		ruleCounts, err = h.matchStore.BatchInsertAndCount(ctx, matches, windowByRule)
+		if err != nil {
+			// 실패해도 알림은 계속 시도 (매칭 없으면 count 비어있음)
+			ruleCounts = map[int64]int{}
 		}
+	} else {
+		ruleCounts = map[int64]int{}
 	}
 
-	// 3. 알림 트리거 — 룰별 cooldown + threshold 평가 후 발송
+	// 3. 알림 트리거
 	if h.sendAlert == nil {
 		return
 	}
 	for key, m := range triggers {
-		ok, _ := h.rules.ShouldAlert(ctx, key.ruleID, m.CooldownSeconds, m.ThresholdCount, m.ThresholdWindow, newByRule[key.ruleID])
-		if !ok {
+		// cooldown
+		if !h.rules.CooldownPassed(ctx, key.ruleID, m.CooldownSeconds) {
 			continue
+		}
+		// threshold (옵션) — 트랜잭션 안 COUNT라 신규 매칭 포함 보장
+		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
+			if ruleCounts[key.ruleID] < m.ThresholdCount {
+				continue
+			}
 		}
 		subject := fmt.Sprintf("[OWLmon] %s — %s", key.host, m.Name)
 		var detail string
