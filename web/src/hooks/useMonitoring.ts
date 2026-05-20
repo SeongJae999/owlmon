@@ -8,6 +8,8 @@ export const useHosts = () => {
   return useQuery({
     queryKey: ['hosts'],
     queryFn: fetchHosts,
+    refetchInterval: 60000,             // 호스트 목록 1분마다 갱신
+    refetchIntervalInBackground: true,
   })
 }
 
@@ -17,6 +19,7 @@ export const useAllHostStatuses = (hosts: string[]) => {
     queryFn: () => fetchAllHostStatuses(hosts),
     enabled: hosts.length > 0,
     refetchInterval: 30000,
+    refetchIntervalInBackground: true,
   })
 }
 
@@ -25,6 +28,7 @@ export const useAllHostMetrics = () => {
     queryKey: ['allHostMetrics'],
     queryFn: fetchAllHostMetrics,
     refetchInterval: 30000,
+    refetchIntervalInBackground: true,
   })
 }
 
