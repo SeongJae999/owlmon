@@ -234,6 +234,8 @@ CREATE TABLE IF NOT EXISTS log_rule_alert_history (
 );
 
 -- ─── 사전 정의 룰셋 (운영자가 즉시 사용 가능한 30개 기본 룰) ────────────
+-- threshold_count/window가 NULL이면 1회 매칭으로도 즉시 알림.
+-- 빈도 기반 룰(SSH brute force, HTTP 5xx 등)은 INSERT 후 별도 UPDATE로 threshold 지정 (아래 참조).
 INSERT INTO log_rules (name, pattern, severity, category, description, cooldown_seconds) VALUES
 -- 시스템 (메모리/디스크/커널)
 ('OOM Killer 발동',           'Out of memory.*[Kk]ill', 'critical', 'system',  '메모리 부족으로 프로세스 강제 종료. 즉시 메모리 확보·재시작 필요', 300),
@@ -275,3 +277,13 @@ INSERT INTO log_rules (name, pattern, severity, category, description, cooldown_
 -- 일반
 ('Segmentation fault',         'segfault|Segmentation fault', 'warning', 'app', '프로세스 segfault — 코드/메모리 오류', 300)
 ON CONFLICT (name) DO NOTHING;
+
+-- 빈도 기반 룰에 threshold 보강 (1회 매칭으로 알림 보내면 노이즈 큼)
+UPDATE log_rules SET threshold_count = 10, threshold_window = 60   WHERE name = 'SSH 무차별 대입 의심';
+UPDATE log_rules SET threshold_count = 5,  threshold_window = 60   WHERE name = 'SSH 잘못된 사용자';
+UPDATE log_rules SET threshold_count = 3,  threshold_window = 300  WHERE name = 'sudo 권한 거부';
+UPDATE log_rules SET threshold_count = 50, threshold_window = 300  WHERE name = 'HTTP 5xx 폭증';
+UPDATE log_rules SET threshold_count = 20, threshold_window = 300  WHERE name = 'Java NullPointerException 폭증';
+UPDATE log_rules SET threshold_count = 10, threshold_window = 600  WHERE name = 'Python Exception traceback';
+UPDATE log_rules SET threshold_count = 30, threshold_window = 600  WHERE name = 'nginx upstream timeout';
+UPDATE log_rules SET threshold_count = 100, threshold_window = 60  WHERE name = 'TCP RST 폭증';

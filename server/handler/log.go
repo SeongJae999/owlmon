@@ -156,19 +156,23 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 		}
 	}
 
-	// 3. 알림 트리거 — 룰별로 cooldown 평가 후 발송
+	// 3. 알림 트리거 — 룰별 cooldown + threshold 평가 후 발송
 	if h.sendAlert == nil {
 		return
 	}
 	for key, m := range triggers {
-		ok, _ := h.rules.ShouldAlert(ctx, key.ruleID, 0) // 0 = engine 안에서 룰 기본값 사용 (다음 PR에서 cooldown_seconds 전달)
+		ok, _ := h.rules.ShouldAlert(ctx, key.ruleID, m.CooldownSeconds, m.ThresholdCount, m.ThresholdWindow)
 		if !ok {
 			continue
 		}
 		subject := fmt.Sprintf("[OWLmon] %s — %s", key.host, m.Name)
+		var detail string
+		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
+			detail = fmt.Sprintf(" (%d초 이내 %d회 이상 매칭)", m.ThresholdWindow, m.ThresholdCount)
+		}
 		body := fmt.Sprintf(
-			"호스트: %s\n룰: %s\n심각도: %s\n자세히: 웹 대시보드에서 호스트의 로그 검색을 확인하세요.",
-			key.host, m.Name, m.Severity)
+			"호스트: %s\n룰: %s%s\n심각도: %s\n자세히: 웹 대시보드 → 로그 룰 / 로그 뷰어에서 확인.",
+			key.host, m.Name, detail, m.Severity)
 		h.sendAlert(key.host, "log_rule", m.Severity, subject, body)
 		_ = h.rules.RecordAlert(ctx, key.ruleID)
 	}

@@ -34,9 +34,12 @@ type Rule struct {
 
 // Match는 한 로그 라인의 매칭 결과.
 type Match struct {
-	RuleID   int64
-	Name     string
-	Severity string
+	RuleID          int64
+	Name            string
+	Severity        string
+	ThresholdCount  int // 0이면 1회 매칭으로도 알림
+	ThresholdWindow int // 초
+	CooldownSeconds int
 }
 
 // Engine은 룰셋을 캐시하고 매칭을 수행한다.
@@ -111,30 +114,48 @@ func (e *Engine) Evaluate(line string) []Match {
 	for _, r := range e.rules {
 		if r.compiled.MatchString(line) {
 			matches = append(matches, Match{
-				RuleID:   r.ID,
-				Name:     r.Name,
-				Severity: r.Severity,
+				RuleID:          r.ID,
+				Name:            r.Name,
+				Severity:        r.Severity,
+				ThresholdCount:  r.ThresholdCount,
+				ThresholdWindow: r.ThresholdWindow,
+				CooldownSeconds: r.CooldownSeconds,
 			})
 		}
 	}
 	return matches
 }
 
-// ShouldAlert는 룰의 cooldown/threshold 정책상 지금 알림을 보내야 하는지 판단한다.
-// 단순화: 현재는 cooldown 기반만 (마지막 알림 후 N초 지났나).
-// threshold_count/window는 향후 확장 (Phase 1.5).
-func (e *Engine) ShouldAlert(ctx context.Context, ruleID int64, cooldownSec int) (bool, error) {
+// ShouldAlert는 룰 정책상 지금 알림을 보내야 하는지 판단한다.
+//   1) cooldown — 마지막 알림 후 cooldownSec 안 지났으면 false
+//   2) threshold — thCount/thWindow 둘 다 > 0이면 최근 thWindow초 안 매칭 횟수 >= thCount일 때만 true.
+//      한 쪽이라도 0/null이면 threshold 평가 skip (1회 매칭으로도 알림)
+func (e *Engine) ShouldAlert(ctx context.Context, ruleID int64, cooldownSec, thCount, thWindow int) (bool, error) {
+	// 1. cooldown
 	var lastAt *time.Time
-	err := e.pool.QueryRow(ctx,
+	_ = e.pool.QueryRow(ctx,
 		`SELECT last_alerted_at FROM log_rule_alert_history WHERE rule_id = $1`,
 		ruleID).Scan(&lastAt)
-	if err != nil && err.Error() != "no rows in result set" {
-		// 첫 알림이면 row 없음 — 보내야 함
+	if lastAt != nil && time.Since(*lastAt) < time.Duration(cooldownSec)*time.Second {
+		return false, nil
 	}
-	if lastAt == nil {
-		return true, nil
+
+	// 2. threshold (옵션)
+	if thCount > 0 && thWindow > 0 {
+		var count int
+		err := e.pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM log_rule_matches
+			WHERE rule_id = $1 AND matched_at > NOW() - ($2 || ' seconds')::interval`,
+			ruleID, thWindow).Scan(&count)
+		if err != nil {
+			return false, err
+		}
+		if count < thCount {
+			return false, nil
+		}
 	}
-	return time.Since(*lastAt) >= time.Duration(cooldownSec)*time.Second, nil
+
+	return true, nil
 }
 
 // RecordAlert는 알림 발송 시각을 갱신한다 (cooldown 평가용).
