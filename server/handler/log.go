@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -159,7 +160,7 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 		var err error
 		ruleCounts, err = h.matchStore.BatchInsertAndCount(ctx, matches, windowByRule)
 		if err != nil {
-			// 실패해도 알림은 계속 시도 (매칭 없으면 count 비어있음)
+			log.Printf("[로그 룰] BatchInsertAndCount 실패 (매칭 %d건, 룰 %d개): %v", len(matches), len(windowByRule), err)
 			ruleCounts = map[int64]int{}
 		}
 	} else {

@@ -51,11 +51,12 @@ func (s *LogRuleMatchStore) BatchInsert(ctx context.Context, matches []LogRuleMa
 
 // CountByRule은 룰별 최근 시간창 안의 매칭 횟수 (threshold 평가용).
 func (s *LogRuleMatchStore) CountByRule(ctx context.Context, ruleID int64, windowSec int) (int, error) {
+	threshold := time.Now().Add(-time.Duration(windowSec) * time.Second)
 	var n int
 	err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*) FROM log_rule_matches
-		WHERE rule_id = $1 AND matched_at > NOW() - ($2 || ' seconds')::interval`,
-		ruleID, windowSec).Scan(&n)
+		WHERE rule_id = $1 AND matched_at > $2`,
+		ruleID, threshold).Scan(&n)
 	return n, err
 }
 
@@ -96,13 +97,15 @@ func (s *LogRuleMatchStore) BatchInsertAndCount(
 	}
 
 	// 2) 룰별 COUNT (트랜잭션 안 — 본인 INSERT row 보장됨)
+	// timestamp를 Go 측에서 계산해서 직접 전달 — pgx의 int→text 변환 우회
 	counts := make(map[int64]int, len(windowByRule))
 	for ruleID, windowSec := range windowByRule {
+		threshold := time.Now().Add(-time.Duration(windowSec) * time.Second)
 		var c int
 		if err := tx.QueryRow(ctx, `
 			SELECT COUNT(*) FROM log_rule_matches
-			WHERE rule_id = $1 AND matched_at > NOW() - ($2 || ' seconds')::interval`,
-			ruleID, windowSec).Scan(&c); err != nil {
+			WHERE rule_id = $1 AND matched_at > $2`,
+			ruleID, threshold).Scan(&c); err != nil {
 			return nil, err
 		}
 		counts[ruleID] = c
