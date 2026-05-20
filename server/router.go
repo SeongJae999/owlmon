@@ -92,7 +92,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 		// Log
 		if appCtx.LogStore != nil {
-			logHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, getEnv("OWLMON_AGENT_KEY", ""))
+			logHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, getEnv("OWLMON_AGENT_KEY", ""), appCtx.RulesEngine)
 			r.Get("/api/logs", logHandler.Search)
 			r.Get("/api/logs/sources", logHandler.Sources)
 			r.Get("/api/logs/annotations", logHandler.ListAnnotations)
@@ -119,7 +119,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 	// Log Ingest (Agent Key Auth)
 	if appCtx.LogStore != nil {
-		logIngestHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, getEnv("OWLMON_AGENT_KEY", ""))
+		logIngestHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, getEnv("OWLMON_AGENT_KEY", ""), appCtx.RulesEngine)
 		r.Post("/api/logs/ingest", logIngestHandler.Ingest)
 	}
 

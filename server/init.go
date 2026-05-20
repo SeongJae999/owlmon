@@ -14,6 +14,7 @@ import (
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/dpm"
 	"github.com/seongJae/owlmon/server/report"
+	"github.com/seongJae/owlmon/server/rules"
 	snmppkg "github.com/seongJae/owlmon/server/snmp"
 	"github.com/seongJae/owlmon/server/synthetic"
 )
@@ -33,6 +34,7 @@ type AppContext struct {
 	DPMStore           *db.DPMStore
 	AgentStore         *db.AgentStore
 	SpecsStore         *db.SpecsStore
+	RulesEngine        *rules.Engine
 }
 
 // InitDB는 데이터베이스와 저장소를 초기화합니다.
@@ -59,6 +61,14 @@ func InitDB() *AppContext {
 			appCtx.DPMStore = db.NewDPMStore(pool)
 			appCtx.AgentStore = db.NewAgentStore(pool)
 			appCtx.SpecsStore = db.NewSpecsStore(pool)
+			// 룰 엔진 초기화 + 첫 로드
+			engine := rules.NewEngine(pool)
+			if err := engine.Reload(context.Background()); err != nil {
+				log.Printf("로그 룰 로드 실패: %v", err)
+			} else {
+				log.Printf("로그 룰 %d개 로드 완료", engine.RuleCount())
+			}
+			appCtx.RulesEngine = engine
 		}
 	}
 
