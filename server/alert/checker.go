@@ -444,6 +444,22 @@ func (c *Checker) feedDiskPredictor() {
 }
 
 func (c *Checker) labelValues(label string) ([]string, error) {
+	// host_name은 활성 시리즈만 반환 — stale 호스트(꺼진 에이전트, 옛 hostname) 자동 제외
+	// 이걸 안 하면 30일 retention 동안 한 번이라도 송신한 호스트 모두에게 'down' 알람 발사
+	if label == "host_name" {
+		results, err := c.query("count(system_cpu_usage_percent) by (host_name)")
+		if err == nil {
+			hosts := make([]string, 0, len(results))
+			for _, r := range results {
+				if name := r.metric["host_name"]; name != "" {
+					hosts = append(hosts, name)
+				}
+			}
+			return hosts, nil
+		}
+		// instant query 실패 시 기본 labelValues로 폴백
+	}
+
 	resp, err := http.Get(c.prometheusURL + "/api/v1/label/" + label + "/values")
 	if err != nil {
 		return nil, err
