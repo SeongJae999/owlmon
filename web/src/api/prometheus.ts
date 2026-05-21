@@ -32,15 +32,17 @@ export async function queryRange(
   }))
 }
 
-// 연결된 호스트 목록 조회 (최근 10분 내 메트릭 보낸 호스트만 — stale 제외)
-// Prometheus 2.24+의 label values 시간 범위 매개변수 사용
+// 연결된 호스트 목록 조회 — instant query로 진짜 활성 시리즈만 가져옴.
+// labelValues API는 retention 안 chunk가 걸쳐있기만 해도 반환해서 stale 호스트가 잡힘.
+// instant query는 lookback delta(5분) 안에 데이터 있는 시리즈만 반환 → 정확.
 export async function fetchHosts(): Promise<string[]> {
-  const now = Math.floor(Date.now() / 1000)
-  const start = now - 10 * 60
-  const res = await axios.get(`${PROMETHEUS_URL}/api/v1/label/host_name/values`, {
-    params: { start, end: now },
+  const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+    params: { query: 'count(system_cpu_usage_percent) by (host_name)' },
   })
-  return res.data?.data ?? []
+  const results = res.data?.data?.result ?? []
+  return results
+    .map((r: any) => r.metric?.host_name)
+    .filter((h: string | undefined): h is string => !!h)
 }
 
 // 호스트 다운 여부 확인 (최근 2분 내 데이터가 있으면 온라인)
