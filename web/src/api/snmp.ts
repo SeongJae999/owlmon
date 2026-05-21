@@ -24,6 +24,8 @@ export interface DeviceStatus {
   UptimeSec: number
   Interfaces: InterfaceStats[]
   CollectedAt: string
+  LastError?: string
+  ResponseMs?: number
 }
 
 export async function getSNMPDevices(): Promise<SNMPDevice[]> {

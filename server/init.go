@@ -37,6 +37,7 @@ type AppContext struct {
 	RulesEngine        *rules.Engine
 	LogRuleMatchStore  *db.LogRuleMatchStore
 	EmailConfig        *alert.EmailConfig
+	SNMPPoller         *snmppkg.Poller // 백그라운드 ticker와 HTTP handler가 공유 (한 인스턴스만)
 }
 
 // InitDB는 데이터베이스와 저장소를 초기화합니다.
@@ -145,17 +146,19 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 		reporter.Start()
 	}
 
-	// 6. SNMP 폴러
+	// 6. SNMP 폴러 — handler와 백그라운드 ticker가 같은 인스턴스 공유
 	if appCtx.SNMPDeviceStore != nil {
-		snmpPoller := snmppkg.NewPoller()
+		if appCtx.SNMPPoller == nil {
+			appCtx.SNMPPoller = snmppkg.NewPoller()
+		}
 		go func() {
-			ticker := time.NewTicker(60 * time.Second)
+			ticker := time.NewTicker(30 * time.Second) // 60s → 30s (UI 갱신 체감 ↑)
 			defer ticker.Stop()
 			for {
 				devices, err := appCtx.SNMPDeviceStore.List(context.Background())
 				if err == nil {
 					for _, dev := range devices {
-						go snmpPoller.Poll(dev)
+						go appCtx.SNMPPoller.Poll(dev)
 					}
 				}
 				<-ticker.C

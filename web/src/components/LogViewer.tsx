@@ -235,7 +235,7 @@ export default function LogViewer() {
         {/* Row 2: 활성 필터 칩 (있을 때만) */}
         {activeFilters.length > 0 && (
           <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">활성 필터</span>
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">활성 필터</span>
             {activeFilters.map((f, i) => (
               <button
                 key={i}
@@ -257,7 +257,7 @@ export default function LogViewer() {
             <span className="text-2xl font-bold text-slate-100 tabular-nums leading-none">{total.toLocaleString()}</span>
             <span className="text-xs text-slate-500">건</span>
             {groupMode && duplicatesCollapsed > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-300">
+              <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[11px] font-bold text-amber-300">
                 <Layers size={10} />
                 페이지 내 중복 {duplicatesCollapsed}건 압축됨
               </span>
@@ -357,7 +357,7 @@ export default function LogViewer() {
 
                     {/* 시간 */}
                     <span
-                      className="shrink-0 text-[10px] text-slate-400 font-mono whitespace-nowrap mt-1 w-[58px] tabular-nums"
+                      className="shrink-0 text-[11px] text-slate-300 font-mono whitespace-nowrap mt-1 w-[62px] tabular-nums"
                       title={hasMultiple
                         ? `${formatTimeRange(g.firstTs, g.lastTs)} (${g.count}회)`
                         : new Date(g.lastTs).toLocaleString('ko-KR')}
@@ -367,7 +367,7 @@ export default function LogViewer() {
 
                     {/* 레벨 뱃지 */}
                     <span className={cn(
-                      "shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight mt-0.5 w-[52px] text-center",
+                      "shrink-0 px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-tight mt-0.5 w-[52px] text-center",
                       lvlCfg.bg, lvlCfg.text
                     )}>
                       {g.level || '—'}
@@ -375,13 +375,13 @@ export default function LogViewer() {
 
                     {/* count 뱃지 */}
                     {hasMultiple && (
-                      <span className="shrink-0 mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30 tabular-nums">
+                      <span className="shrink-0 mt-0.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30 tabular-nums">
                         ×{g.count}
                       </span>
                     )}
 
                     {/* host · source */}
-                    <span className="shrink-0 hidden md:inline-flex items-center gap-1 mt-1 text-[11px] text-slate-400 max-w-[180px] truncate">
+                    <span className="shrink-0 hidden md:inline-flex items-center gap-1 mt-1 text-xs text-slate-300 max-w-[180px] truncate">
                       <Server size={10} className="opacity-50 shrink-0" />
                       <span className="font-semibold truncate">{g.host}</span>
                       <span className="opacity-40">·</span>
@@ -390,7 +390,7 @@ export default function LogViewer() {
 
                     {/* 메시지 (한 줄, truncate) */}
                     <code
-                      className="flex-1 min-w-0 text-[11px] leading-snug text-slate-300 font-mono truncate mt-1"
+                      className="flex-1 min-w-0 text-[12.5px] leading-snug text-slate-100 font-mono truncate mt-0.5"
                       title={g.line}
                     >
                       {g.line}
@@ -399,7 +399,7 @@ export default function LogViewer() {
                     {/* 라벨 버튼 */}
                     <button
                       onClick={() => setSelectedLog(g.records[g.records.length - 1])}
-                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
+                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
                       title="이 로그에 원인/조치 라벨 부여"
                     >
                       <Tag size={10} />
@@ -408,7 +408,7 @@ export default function LogViewer() {
                   </div>
 
                   {/* 모바일 메타 (md 미만) */}
-                  <div className="md:hidden px-3 pb-1.5 -mt-1 ml-[88px] text-[10px] text-slate-500 flex items-center gap-1.5">
+                  <div className="md:hidden px-3 pb-1.5 -mt-1 ml-[88px] text-[11px] text-slate-500 flex items-center gap-1.5">
                     <Server size={10} className="opacity-50 shrink-0" />
                     <span className="font-semibold text-slate-400 truncate">{g.host}</span>
                     <span className="opacity-40">·</span>
@@ -429,7 +429,7 @@ export default function LogViewer() {
                             key={mr.id}
                             onClick={() => { setRuleID(mr.id); setPage(0) }}
                             className={cn(
-                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold border hover:opacity-80",
                               c,
                             )}
                             title={`'${mr.name}' 룰만 필터`}
@@ -447,8 +447,8 @@ export default function LogViewer() {
                   {isExpanded && hasMultiple && (
                     <div className="ml-[88px] mr-3 mb-2 border-l-2 border-slate-700 pl-3 space-y-1">
                       {g.records.slice(0, 20).map(r => (
-                        <div key={r.id} className="flex items-baseline gap-2 text-[10px]">
-                          <span className="text-slate-500 font-mono tabular-nums shrink-0 w-[60px]">
+                        <div key={r.id} className="flex items-baseline gap-2 text-[11.5px]">
+                          <span className="text-slate-400 font-mono tabular-nums shrink-0 w-[62px]">
                             {new Date(r.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                           </span>
                           <button
@@ -458,11 +458,11 @@ export default function LogViewer() {
                           >
                             #{r.id}
                           </button>
-                          <code className="text-slate-400 font-mono truncate" title={r.line}>{r.line}</code>
+                          <code className="text-slate-200 font-mono truncate" title={r.line}>{r.line}</code>
                         </div>
                       ))}
                       {g.records.length > 20 && (
-                        <div className="text-[10px] text-slate-500 italic pt-1">
+                        <div className="text-[11px] text-slate-500 italic pt-1">
                           ... 그리고 {g.records.length - 20}건 더 (페이지 내). 더 보려면 중복 묶기를 끄거나 검색을 좁히세요.
                         </div>
                       )}
@@ -482,39 +482,39 @@ export default function LogViewer() {
                 <div key={r.id} className="group/row hover:bg-slate-800/40 transition-colors">
                   <div className="flex items-start gap-2 px-3 py-1.5">
                     <span
-                      className="shrink-0 text-[10px] text-slate-400 font-mono whitespace-nowrap mt-1 w-[58px] tabular-nums"
+                      className="shrink-0 text-[11px] text-slate-300 font-mono whitespace-nowrap mt-1 w-[62px] tabular-nums"
                       title={ts.toLocaleString('ko-KR')}
                     >
                       {ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                     </span>
                     <span className={cn(
-                      "shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight mt-0.5 w-[52px] text-center",
+                      "shrink-0 px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-tight mt-0.5 w-[52px] text-center",
                       lvlCfg.bg, lvlCfg.text,
                     )}>
                       {r.level || '—'}
                     </span>
-                    <span className="shrink-0 hidden md:inline-flex items-center gap-1 mt-1 text-[11px] text-slate-400 max-w-[180px] truncate">
+                    <span className="shrink-0 hidden md:inline-flex items-center gap-1 mt-1 text-xs text-slate-300 max-w-[180px] truncate">
                       <Server size={10} className="opacity-50 shrink-0" />
                       <span className="font-semibold truncate">{r.host}</span>
                       <span className="opacity-40">·</span>
                       <span className="truncate text-slate-500">{r.source}</span>
                     </span>
                     <code
-                      className="flex-1 min-w-0 text-[11px] leading-snug text-slate-300 font-mono truncate mt-1"
+                      className="flex-1 min-w-0 text-[12.5px] leading-snug text-slate-100 font-mono truncate mt-0.5"
                       title={r.line}
                     >
                       {r.line}
                     </code>
                     <button
                       onClick={() => setSelectedLog(r)}
-                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
+                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
                       title="이 로그에 원인/조치 라벨 부여"
                     >
                       <Tag size={10} />
                       라벨
                     </button>
                   </div>
-                  <div className="md:hidden px-3 pb-1.5 -mt-1 ml-[68px] text-[10px] text-slate-500 flex items-center gap-1.5">
+                  <div className="md:hidden px-3 pb-1.5 -mt-1 ml-[68px] text-[11px] text-slate-500 flex items-center gap-1.5">
                     <Server size={10} className="opacity-50 shrink-0" />
                     <span className="font-semibold text-slate-400 truncate">{r.host}</span>
                     <span className="opacity-40">·</span>
@@ -533,7 +533,7 @@ export default function LogViewer() {
                             key={mr.id}
                             onClick={() => { setRuleID(mr.id); setPage(0) }}
                             className={cn(
-                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border hover:opacity-80",
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold border hover:opacity-80",
                               c,
                             )}
                             title={`'${mr.name}' 룰만 필터`}

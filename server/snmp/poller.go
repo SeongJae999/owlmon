@@ -46,11 +46,13 @@ type InterfaceStats struct {
 
 // DeviceStatus는 장비 전체 상태입니다.
 type DeviceStatus struct {
-	Device     Device
-	Up         bool
-	UptimeSec  float64
-	Interfaces []InterfaceStats
+	Device      Device
+	Up          bool
+	UptimeSec   float64
+	Interfaces  []InterfaceStats
 	CollectedAt time.Time
+	LastError   string `json:",omitempty"` // 폴링 실패 시 사람이 읽을 수 있는 메시지
+	ResponseMs  int64                       // 폴링 소요 시간 (ms)
 }
 
 // ifCounter는 이전 폴링 값(delta 계산용)을 저장합니다.
@@ -100,7 +102,9 @@ func (p *Poller) Status(deviceID int64) *DeviceStatus {
 }
 
 func (p *Poller) poll(dev Device) *DeviceStatus {
-	status := &DeviceStatus{Device: dev, CollectedAt: time.Now()}
+	start := time.Now()
+	status := &DeviceStatus{Device: dev, CollectedAt: start}
+	defer func() { status.ResponseMs = time.Since(start).Milliseconds() }()
 
 	g := &gosnmp.GoSNMP{
 		Target:    dev.IP,
@@ -111,6 +115,7 @@ func (p *Poller) poll(dev Device) *DeviceStatus {
 		Retries:   1,
 	}
 	if err := g.Connect(); err != nil {
+		status.LastError = fmt.Sprintf("연결 실패: %v", err)
 		log.Printf("[SNMP] %s(%s) 연결 실패: %v", dev.Name, dev.IP, err)
 		return status
 	}
@@ -119,6 +124,7 @@ func (p *Poller) poll(dev Device) *DeviceStatus {
 	// 시스템 기본 정보
 	sysResult, err := g.Get([]string{oidSysName, oidSysUpTime})
 	if err != nil {
+		status.LastError = fmt.Sprintf("SNMP 조회 실패 (community/방화벽 확인): %v", err)
 		log.Printf("[SNMP] %s(%s) 조회 실패: %v", dev.Name, dev.IP, err)
 		return status
 	}

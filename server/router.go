@@ -71,9 +71,12 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			r.Delete("/api/assets/{id}", assetHandler.Delete)
 		}
 
-		// SNMP
+		// SNMP — appCtx.SNMPPoller는 init.go의 백그라운드 폴러와 같은 인스턴스
 		if appCtx.SNMPDeviceStore != nil {
-			snmpHandler := handler.NewSNMPHandler(appCtx.SNMPDeviceStore, snmppkg.NewPoller())
+			if appCtx.SNMPPoller == nil {
+				appCtx.SNMPPoller = snmppkg.NewPoller()
+			}
+			snmpHandler := handler.NewSNMPHandler(appCtx.SNMPDeviceStore, appCtx.SNMPPoller)
 			r.Get("/api/snmp/devices", snmpHandler.ListDevices)
 			r.Post("/api/snmp/devices", snmpHandler.AddDevice)
 			r.Delete("/api/snmp/devices/{id}", snmpHandler.DeleteDevice)

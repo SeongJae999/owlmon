@@ -30,21 +30,21 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
   return (
     <div className={cn(
       "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
-      status.Up ? "border-slate-800" : "border-rose-500/30 ring-1 ring-rose-50"
+      status.Up ? "border-slate-800" : "border-rose-500/40 ring-1 ring-rose-500/20"
     )}>
       {/* Background Icon */}
-      <Network size={80} className="absolute -right-4 -bottom-4 text-slate-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      <Network size={80} className="absolute -right-4 -bottom-4 text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className={cn(
-            "w-2.5 h-2.5 rounded-full ring-4 ring-offset-2",
-            status.Up ? "bg-green-500 ring-green-500/10 animate-pulse" : "bg-rose-500/100 ring-rose-500/10"
+            "w-2.5 h-2.5 rounded-full ring-4 ring-offset-2 ring-offset-slate-900",
+            status.Up ? "bg-emerald-500 ring-emerald-500/20 animate-pulse" : "bg-rose-500 ring-rose-500/20"
           )} />
           <div>
             <h4 className="font-bold text-slate-100 leading-tight">{status.Device.Name}</h4>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-[11px] font-bold text-slate-400 font-mono">{status.Device.IP}</span>
               {status.Up && status.UptimeSec > 0 && (
                 <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
@@ -52,11 +52,21 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
                   {formatUptime(status.UptimeSec)}
                 </div>
               )}
+              {status.ResponseMs !== undefined && status.ResponseMs > 0 && (
+                <span className={cn(
+                  "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded",
+                  status.ResponseMs < 200 ? "bg-emerald-500/10 text-emerald-300"
+                    : status.ResponseMs < 1000 ? "bg-amber-500/10 text-amber-300"
+                    : "bg-rose-500/10 text-rose-300"
+                )}>
+                  {status.ResponseMs}ms
+                </span>
+              )}
             </div>
           </div>
         </div>
-        <button 
-          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/100/10 transition-all"
+        <button
+          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all"
           onClick={onDelete}
         >
           <Trash2 size={16} />
@@ -64,22 +74,31 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
       </div>
 
       {!status.Up ? (
-        <div className="bg-rose-500/100/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-800 text-xs font-bold">
-          <AlertTriangle size={16} className="shrink-0" />
-          <p>응답 없음: 장비 오프라인 또는 SNMP 설정 확인 필요</p>
+        <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-start gap-3 text-rose-200 text-xs font-medium">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <p className="font-bold">SNMP 응답 없음</p>
+            {status.LastError ? (
+              <p className="text-[11px] text-rose-300/90 break-words font-mono">{status.LastError}</p>
+            ) : (
+              <p className="text-[11px] text-rose-300/80">
+                다음 폴링(30초 주기)을 기다리거나, 장비의 SNMP 활성화/community/방화벽을 확인하세요.
+              </p>
+            )}
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
           {/* Status Summary */}
           <div className="flex gap-4">
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">UP: {activeIfs.length}</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">UP: {activeIfs.length}</span>
             </div>
             {downIfs.length > 0 && (
               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-rose-500/100" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">DOWN: {downIfs.length}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">DOWN: {downIfs.length}</span>
               </div>
             )}
           </div>
@@ -94,7 +113,7 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
                     <ArrowDown size={10} />
                     {formatBps(iface.InBps)}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-rose-500">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-rose-300">
                     <ArrowUp size={10} />
                     {formatBps(iface.OutBps)}
                   </div>
@@ -111,9 +130,9 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
       )}
 
       {status.CollectedAt && (
-        <div className="mt-4 pt-3 border-t border-slate-50 flex justify-end">
-          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-            Last Check: {new Date(status.CollectedAt).toLocaleTimeString('ko-KR')}
+        <div className="mt-4 pt-3 border-t border-slate-800 flex justify-end">
+          <div className="text-[10px] font-semibold text-slate-500 tabular-nums">
+            마지막 확인: {new Date(status.CollectedAt).toLocaleTimeString('ko-KR')}
           </div>
         </div>
       )}
@@ -125,6 +144,7 @@ export default function SNMPDashboard() {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ Name: '', IP: '', Community: 'public', Port: 161 })
+  const [fastRefresh, setFastRefresh] = useState(false) // 등록 직후 짧은 갱신 모드
 
   const { data: devices = [], isLoading: devicesLoading } = useQuery({
     queryKey: ['snmpDevices'],
@@ -134,7 +154,7 @@ export default function SNMPDashboard() {
   const { data: statuses = [] } = useQuery({
     queryKey: ['snmpStatus'],
     queryFn: getSNMPStatus,
-    refetchInterval: 60000,
+    refetchInterval: fastRefresh ? 2000 : 15000, // 등록 직후 2초, 평소 15초 (서버 ticker는 30초)
   })
 
   const addMutation = useMutation({
@@ -144,6 +164,9 @@ export default function SNMPDashboard() {
       queryClient.invalidateQueries({ queryKey: ['snmpStatus'] })
       setShowAdd(false)
       setForm({ Name: '', IP: '', Community: 'public', Port: 161 })
+      // 등록 후 10초간 빠른 새로고침 → 첫 폴링 결과 즉시 표시
+      setFastRefresh(true)
+      setTimeout(() => setFastRefresh(false), 10000)
     }
   })
 
@@ -260,12 +283,22 @@ export default function SNMPDashboard() {
           {devices.map(dev => {
             const status = statusMap.get(dev.ID)
             if (!status) return (
-              <div key={dev.ID} className="bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-sm animate-pulse">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
-                  <div className="h-4 w-32 bg-slate-800 rounded" />
+              <div key={dev.ID} className="bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-sm">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <RefreshCcw size={14} className="text-indigo-400 animate-spin shrink-0" />
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-slate-100 leading-tight truncate">{dev.Name}</h4>
+                      <span className="text-[11px] font-bold text-slate-400 font-mono">{dev.IP}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="h-3 w-48 bg-slate-800 rounded" />
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  📡 첫 SNMP 폴링 대기 중...
+                  <div className="text-[10px] text-slate-500 mt-1">
+                    응답 도착 시 즉시 갱신됨 (최대 30초)
+                  </div>
+                </div>
               </div>
             )
             return (
