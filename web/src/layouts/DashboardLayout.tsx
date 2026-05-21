@@ -23,6 +23,7 @@ import {
   ListChecks,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
+import EmailStatusBanner from '../components/EmailStatusBanner'
 
 const NAV_ITEMS = [
   { id: 'overview', path: '/', icon: LayoutGrid, label: '전체 현황', section: 'monitor' },
@@ -209,6 +210,7 @@ export default function DashboardLayout() {
         {/* Scrollable Area */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-8 scroll-smooth">
           <div className="w-full">
+            <EmailStatusBanner />
             <Outlet />
           </div>
 

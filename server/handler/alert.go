@@ -9,11 +9,45 @@ import (
 
 type AlertHandler struct {
 	store   alert.ConfigStorer
-	checker *alert.Checker // nil이면 ack/유지보수 기능 비활성
+	checker *alert.Checker     // nil이면 ack/유지보수 기능 비활성
+	email   *alert.EmailConfig // SMTP 설정 상태 확인용
 }
 
-func NewAlertHandler(store alert.ConfigStorer, checker *alert.Checker) *AlertHandler {
-	return &AlertHandler{store: store, checker: checker}
+func NewAlertHandler(store alert.ConfigStorer, checker *alert.Checker, email *alert.EmailConfig) *AlertHandler {
+	return &AlertHandler{store: store, checker: checker, email: email}
+}
+
+// GetEmailStatus는 SMTP 설정 + 수신자 등록 상태를 반환합니다.
+// 미설정 상태면 UI 배너로 운영자에게 경고하기 위해 사용.
+// GET /api/alert/email-status
+func (h *AlertHandler) GetEmailStatus(w http.ResponseWriter, r *http.Request) {
+	issues := []string{}
+	smtpConfigured := h.email != nil && h.email.Host != "" && h.email.Username != "" && h.email.Password != ""
+	if h.email == nil || h.email.Host == "" {
+		issues = append(issues, "SMTP_HOST 미설정")
+	}
+	if h.email != nil && h.email.Host != "" && h.email.Username == "" {
+		issues = append(issues, "SMTP_USERNAME 미설정")
+	}
+	if h.email != nil && h.email.Host != "" && h.email.Password == "" {
+		issues = append(issues, "SMTP_PASSWORD 미설정")
+	}
+
+	recipientsCount := 0
+	cfg := h.store.Get()
+	recipientsCount = len(cfg.Recipients)
+	if recipientsCount == 0 {
+		issues = append(issues, "알림 수신자 등록 없음 (관리자 이메일)")
+	}
+
+	resp := map[string]interface{}{
+		"smtp_configured":  smtpConfigured,
+		"recipients_count": recipientsCount,
+		"healthy":          smtpConfigured && recipientsCount > 0,
+		"issues":           issues,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 // GetConfig는 현재 알림 설정을 반환합니다.

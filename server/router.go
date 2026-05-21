@@ -17,7 +17,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret)
 	proxyHandler, _ := handler.NewProxyHandler(prometheusURL)
-	alertHandler := handler.NewAlertHandler(appCtx.ConfigStore, checker)
+	alertHandler := handler.NewAlertHandler(appCtx.ConfigStore, checker, appCtx.EmailConfig)
 	statusHandler := handler.NewStatusHandler(prometheusURL, appCtx.ConfigStore, checker, appCtx.DBPool)
 	anomalyHandler := handler.NewAnomalyHandler(checker.Detector, checker.Predictor)
 	agentHandler := handler.NewAgentHandler(appCtx.AgentStore)
@@ -46,6 +46,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		// Alert
 		r.Get("/api/alert/config", alertHandler.GetConfig)
 		r.Post("/api/alert/config", alertHandler.SetConfig)
+		r.Get("/api/alert/email-status", alertHandler.GetEmailStatus)
 		r.Post("/api/alert/ack", alertHandler.AckAlert)
 		r.Get("/api/alert/status", statusHandler.GetStatus)
 		r.Get("/api/uptime", statusHandler.GetUptime)

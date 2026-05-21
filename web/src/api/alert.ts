@@ -19,6 +19,19 @@ export async function setAlertConfig(cfg: AlertConfig): Promise<AlertConfig> {
   return res.data
 }
 
+// 이메일 송신 상태 (SMTP 환경변수 + 수신자 등록)
+export interface EmailStatus {
+  smtp_configured: boolean
+  recipients_count: number
+  healthy: boolean
+  issues: string[]
+}
+
+export async function getEmailStatus(): Promise<EmailStatus> {
+  const res = await axios.get('/api/alert/email-status')
+  return res.data
+}
+
 export interface AlertRecord {
   id: number
   sent_at: string
