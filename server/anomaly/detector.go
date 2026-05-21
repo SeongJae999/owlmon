@@ -23,6 +23,21 @@ const (
 	zWarning          = 2.5 // Z-score 경고 기준
 )
 
+// 절대값 필터 — z-score만 보면 11% CPU 변동도 critical로 잡힘
+// 실제 운영자 입장에서 의미 있는 절대값 수준 이상일 때만 anomaly 알람 발사
+var minAbsoluteForAnomaly = map[string]float64{
+	"cpu":    50, // 50% 미만은 z-score 높아도 노이즈
+	"memory": 60,
+	"disk":   70,
+}
+
+// 진짜 critical 절대값 임계치 — 이 이상이고 z-score도 critical 이면 critical 알람
+var criticalAbsoluteForAnomaly = map[string]float64{
+	"cpu":    80,
+	"memory": 90,
+	"disk":   85,
+}
+
 // Anomaly는 이상탐지 결과입니다.
 type Anomaly struct {
 	Host       string    `json:"host"`
@@ -167,10 +182,24 @@ func (d *Detector) Feed(host, metric string, value float64, ts time.Time) *Anoma
 		return nil
 	}
 
+	// 절대값 필터 — 미미한 수준이면 z-score 높아도 무시 (alert fatigue 방지)
+	// 예: CPU 11% → 평소보다 z=3.4로 튀어도 진짜 위험 X
+	if minAbs, ok := minAbsoluteForAnomaly[metric]; ok && value < minAbs {
+		d.clearAnomaly(host, metric)
+		return nil
+	}
+
 	zscore := (value - mean) / stddev
 
+	// severity 결정: z-score + 절대값 둘 다 위험해야 critical
+	// (z 임계치 넘어도 절대값이 낮으면 warning)
+	absoluteCritical := false
+	if critAbs, ok := criticalAbsoluteForAnomaly[metric]; ok && value >= critAbs {
+		absoluteCritical = true
+	}
+
 	var severity string
-	if math.Abs(zscore) >= zThreshold {
+	if math.Abs(zscore) >= zThreshold && absoluteCritical {
 		severity = "critical"
 	} else if math.Abs(zscore) >= zWarning {
 		severity = "warning"

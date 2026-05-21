@@ -275,13 +275,16 @@ INSERT INTO log_rules (name, pattern, severity, category, description, cooldown_
 -- 시간 동기화
 ('NTP 동기화 실패',            'no peer.*ntp|chrony.*reach 0', 'warning', 'system', '시간 동기화 실패 — 인증 오류 유발 가능', 3600),
 -- 일반
-('Segmentation fault',         'segfault|Segmentation fault', 'warning', 'app', '프로세스 segfault — 코드/메모리 오류', 300)
+('Segmentation fault',         'segfault|Segmentation fault', 'warning', 'app', '프로세스 segfault — 코드/메모리 오류', 300),
+-- 보안 — catch-all 인증 실패 (sudo/SSH/PAM 광범위 보완. 좁은 패턴 룰이 못 잡는 케이스 보완)
+('일반 인증 실패 폭증',         'authentication failure', 'warning', 'auth', '5분에 5회 이상 인증 실패 — PAM/SSH/sudo 광범위 catch-all (기존 SSH/sudo 룰 보완)', 600)
 ON CONFLICT (name) DO NOTHING;
 
 -- 빈도 기반 룰에 threshold 보강 (1회 매칭으로 알림 보내면 노이즈 큼)
 UPDATE log_rules SET threshold_count = 10, threshold_window = 60   WHERE name = 'SSH 무차별 대입 의심';
 UPDATE log_rules SET threshold_count = 5,  threshold_window = 60   WHERE name = 'SSH 잘못된 사용자';
 UPDATE log_rules SET threshold_count = 3,  threshold_window = 300  WHERE name = 'sudo 권한 거부';
+UPDATE log_rules SET threshold_count = 5,  threshold_window = 300  WHERE name = '일반 인증 실패 폭증';
 UPDATE log_rules SET threshold_count = 50, threshold_window = 300  WHERE name = 'HTTP 5xx 폭증';
 UPDATE log_rules SET threshold_count = 20, threshold_window = 300  WHERE name = 'Java NullPointerException 폭증';
 UPDATE log_rules SET threshold_count = 10, threshold_window = 600  WHERE name = 'Python Exception traceback';
