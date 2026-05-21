@@ -25,6 +25,21 @@ export async function getRuleStats(): Promise<Record<number, number>> {
   return res.data ?? {}
 }
 
+export interface RuleStatDetail {
+  rule_id: number
+  matches_1h: number
+  matches_24h: number
+  matches_7d: number
+  matches_30d: number
+  alerts_fired: number
+  last_match_at?: string
+}
+
+export async function getRuleStatsDetailed(): Promise<Record<number, RuleStatDetail>> {
+  const res = await axios.get('/api/log-rules/stats/detailed')
+  return res.data ?? {}
+}
+
 export async function createRule(input: LogRuleInput): Promise<LogRule> {
   const res = await axios.post('/api/log-rules', input)
   return res.data

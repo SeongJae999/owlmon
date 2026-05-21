@@ -16,6 +16,7 @@ import DPMDashboard from './components/DPMDashboard'
 import LogViewer from './components/LogViewer'
 import MonthlyReportModal from './components/MonthlyReport'
 import RulesPage from './pages/RulesPage'
+import RuleStatsPage from './pages/RuleStatsPage'
 
 export default function App() {
   const authenticated = isLoggedIn()
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/dpm" element={<DPMDashboard />} />
         <Route path="/logs" element={<LogViewer />} />
         <Route path="/rules" element={<RulesPage />} />
+        <Route path="/rules/stats" element={<RuleStatsPage />} />
         <Route path="/history" element={<AlertHistory />} />
         <Route path="/settings" element={<AlertSettings />} />
         <Route path="/report" element={<MonthlyReportModal />} />

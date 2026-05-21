@@ -129,6 +129,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			r.Post("/api/log-rules/{id}/toggle", rulesHandler.Toggle)
 			r.Delete("/api/log-rules/{id}", rulesHandler.Delete)
 			r.Get("/api/log-rules/stats", rulesHandler.MatchStats)
+			r.Get("/api/log-rules/stats/detailed", rulesHandler.MatchStatsDetailed)
 		}
 	})
 

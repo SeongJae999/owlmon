@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -191,6 +192,79 @@ func (h *RulesHandler) MatchStats(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(stats)
+}
+
+// MatchStatsDetailed GET /api/log-rules/stats/detailed
+// 룰별 1h/24h/7d/30d 매칭 + 알림 발사 카운트 + 마지막 매칭 시각.
+// 룰 매칭 통계 페이지의 데이터 소스.
+type RuleStatDetail struct {
+	RuleID        int64     `json:"rule_id"`
+	Matches1h     int       `json:"matches_1h"`
+	Matches24h    int       `json:"matches_24h"`
+	Matches7d     int       `json:"matches_7d"`
+	Matches30d   int       `json:"matches_30d"`
+	AlertsFired  int       `json:"alerts_fired"`         // alert_history(category='log_rule')에 룰 이름으로 발사된 카운트 (전 기간)
+	LastMatchAt  *string   `json:"last_match_at,omitempty"`
+}
+
+func (h *RulesHandler) MatchStatsDetailed(w http.ResponseWriter, r *http.Request) {
+	// 1) 룰별 매칭 카운트 (1h/24h/7d/30d + last)
+	rows, err := h.pool.Query(r.Context(), `
+		SELECT rule_id,
+		  COUNT(*) FILTER (WHERE matched_at > NOW() - INTERVAL '1 hour')   AS m1h,
+		  COUNT(*) FILTER (WHERE matched_at > NOW() - INTERVAL '24 hours') AS m24h,
+		  COUNT(*) FILTER (WHERE matched_at > NOW() - INTERVAL '7 days')   AS m7d,
+		  COUNT(*) FILTER (WHERE matched_at > NOW() - INTERVAL '30 days')  AS m30d,
+		  MAX(matched_at) AS last_at
+		FROM log_rule_matches
+		GROUP BY rule_id`)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	out := map[int64]*RuleStatDetail{}
+	for rows.Next() {
+		var rid int64
+		var m1h, m24h, m7d, m30d int
+		var lastAt *time.Time
+		if err := rows.Scan(&rid, &m1h, &m24h, &m7d, &m30d, &lastAt); err != nil {
+			continue
+		}
+		d := &RuleStatDetail{RuleID: rid, Matches1h: m1h, Matches24h: m24h, Matches7d: m7d, Matches30d: m30d}
+		if lastAt != nil {
+			s := lastAt.Format(time.RFC3339)
+			d.LastMatchAt = &s
+		}
+		out[rid] = d
+	}
+
+	// 2) 룰별 알림 발사 카운트 — alert_history의 subject가 룰 이름을 포함
+	//    log_rules.name과 alert_history.subject(category='log_rule')를 매칭
+	alertRows, err := h.pool.Query(r.Context(), `
+		SELECT r.id, COUNT(h.id) AS fired
+		FROM log_rules r
+		LEFT JOIN alert_history h
+		  ON h.category = 'log_rule' AND h.subject LIKE '%' || r.name || '%'
+		GROUP BY r.id`)
+	if err == nil {
+		defer alertRows.Close()
+		for alertRows.Next() {
+			var rid int64
+			var fired int
+			if err := alertRows.Scan(&rid, &fired); err == nil {
+				if d, ok := out[rid]; ok {
+					d.AlertsFired = fired
+				} else {
+					out[rid] = &RuleStatDetail{RuleID: rid, AlertsFired: fired}
+				}
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func (h *RulesHandler) reloadEngine() {

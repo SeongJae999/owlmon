@@ -21,6 +21,7 @@ import {
   Bell,
   Search,
   ListChecks,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { id: 'dpm', path: '/dpm', icon: Database, label: 'DB 성능', section: 'monitor' },
   { id: 'logs', path: '/logs', icon: FileText, label: '로그 뷰어', section: 'monitor' },
   { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 룰', section: 'manage' },
+  { id: 'rules-stats', path: '/rules/stats', icon: BarChart3, label: '룰 매칭 통계', section: 'manage' },
   { id: 'alert-history', path: '/history', icon: History, label: '알림 히스토리', section: 'manage' },
   { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 설정', section: 'manage' },
   { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서', section: 'manage' },
