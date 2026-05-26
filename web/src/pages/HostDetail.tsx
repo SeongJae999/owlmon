@@ -214,9 +214,9 @@ export default function HostDetailPage() {
         <summary className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-slate-800/40 transition-colors list-none">
           <div className="flex items-center gap-2.5">
             <div className="w-1 h-5 bg-violet-500 rounded-full" />
-            <h2 className="text-sm font-bold text-slate-200">상세 정보</h2>
+            <h2 className="text-sm font-bold text-slate-200">장비 정보</h2>
             <span className="text-[11px] font-medium text-slate-500">
-              호스트 스펙 + 서비스 체크 {serviceChecks.length > 0 && `(${serviceChecks.length})`}
+              하드웨어 스펙 {serviceChecks.length > 0 && `· 서비스 체크 ${serviceChecks.length}`}
             </span>
           </div>
           <span className="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
