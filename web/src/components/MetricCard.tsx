@@ -175,18 +175,23 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
       {/* Disk Prediction / Anomaly Details */}
       {(diskPrediction || hasAnomaly) && (
         <div className="mb-4">
-          {diskPrediction && diskPrediction.days_left >= 0 && diskPrediction.r2 >= 0.5 && (
+          {/* 디스크 예측 — 90일 이내만 표시 (그 너머는 noise) */}
+          {diskPrediction && diskPrediction.days_left >= 0 && diskPrediction.days_left <= 90 && diskPrediction.r2 >= 0.5 && (
             <div className={cn(
               "flex items-center justify-between px-3 py-2 rounded-lg border",
               diskPrediction.days_left <= 7
                 ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
-                : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                : diskPrediction.days_left <= 30
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                  : "bg-slate-700/30 border-slate-600/40 text-slate-300"
             )}>
               <div className="flex items-center gap-1.5 font-semibold text-xs">
                 <TrendingUp size={13} />
                 {diskPrediction.days_left <= 1
                   ? '24시간 내 부족 예상'
-                  : `약 ${Math.round(diskPrediction.days_left)}일 후 부족 예상`}
+                  : diskPrediction.days_left <= 30
+                    ? `약 ${Math.round(diskPrediction.days_left)}일 후 부족 예상`
+                    : `약 ${Math.round(diskPrediction.days_left)}일 후 부족 추세`}
               </div>
               <div className="text-xs font-medium opacity-70 tabular-nums">
                 {diskPrediction.slope >= 0 ? '+' : ''}{diskPrediction.slope.toFixed(2)}%/h
