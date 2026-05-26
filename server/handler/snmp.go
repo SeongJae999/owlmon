@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/seongJae/owlmon/server/db"
@@ -156,13 +157,12 @@ func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out := make([]devStat, 0, len(devices))
-	now := r.Context().Value("now")
-	_ = now
+	nowStr := time.Now().Format(time.RFC3339)
 	for _, d := range devices {
 		snap, _ := prom.SNMPStatusForDevice(h.prometheusURL, d.Name)
 		ds := devStat{
 			Device:      d,
-			CollectedAt: "now",
+			CollectedAt: nowStr,
 		}
 		if snap != nil {
 			ds.Up = snap.Up
