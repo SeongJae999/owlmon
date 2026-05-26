@@ -33,9 +33,6 @@ function MonitorCard({
       "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
       !hasChecked ? "border-slate-800" : isUp ? "border-slate-800" : "border-rose-500/30 ring-1 ring-rose-500/20"
     )}>
-      {/* Background Icon */}
-      <Globe size={80} className="absolute -right-4 -bottom-4 text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-6">
         <div className="flex items-center gap-3 min-w-0 flex-1">

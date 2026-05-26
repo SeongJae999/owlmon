@@ -25,9 +25,6 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
       cert.status === 'expired' || cert.status === 'critical' ? "border-rose-500/30 ring-1 ring-rose-500/20" : 
       cert.status === 'warning' ? "border-amber-500/30 ring-1 ring-amber-50" : "border-slate-800"
     )}>
-      {/* Background Icon */}
-      <ShieldCheck size={80} className="absolute -right-4 -bottom-4 text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">

@@ -23,17 +23,32 @@ function formatUptime(sec: number): string {
   return `${m}분`
 }
 
+// 시스템/관리용 인터페이스 — 운영자에게 의미 없음 (필터)
+function isSystemInterface(name: string): boolean {
+  return /CPU Interface|Loopback|Null|Vlan|VLAN|mgmt/i.test(name)
+}
+
+// "8 Gigabit - Level" → "Port 8 (Gigabit)" 같이 사람 친화적 변환
+function prettifyInterfaceName(raw: string): string {
+  // NETGEAR 패턴: "N Gigabit - Level" (Smart Switch 표준 ifDescr)
+  const netgear = raw.match(/^(\d+)\s+(Gigabit|FastEthernet|TenGigabit)\s*-\s*Level/i)
+  if (netgear) return `Port ${netgear[1]} (${netgear[2]})`
+  // Cisco/일반 패턴은 그대로 두되 길이만 truncate (상위에서 title 속성으로 풀텍스트 노출됨)
+  return raw
+}
+
 function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () => void }) {
-  const activeIfs = status.Interfaces?.filter(i => i.OperUp) ?? []
-  const downIfs = status.Interfaces?.filter(i => !i.OperUp) ?? []
+  const [showDown, setShowDown] = useState(false)
+  // 시스템 인터페이스 제거 + UP/DOWN 분리
+  const realIfs = (status.Interfaces ?? []).filter(i => !isSystemInterface(i.Name))
+  const activeIfs = realIfs.filter(i => i.OperUp)
+  const downIfs = realIfs.filter(i => !i.OperUp)
 
   return (
     <div className={cn(
-      "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
+      "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all relative overflow-hidden",
       status.Up ? "border-slate-800" : "border-rose-500/40 ring-1 ring-rose-500/20"
     )}>
-      {/* Background Icon */}
-      <Network size={80} className="absolute -right-4 -bottom-4 text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -90,42 +105,79 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
       ) : (
         <div className="space-y-4">
           {/* Status Summary */}
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">UP: {activeIfs.length}</span>
             </div>
             {downIfs.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">DOWN: {downIfs.length}</span>
+              <button
+                onClick={() => setShowDown(s => !s)}
+                className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                title="케이블 안 꽂힌 빈 포트 — 클릭하면 펼침"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                  미사용: {downIfs.length} {showDown ? '▴' : '▾'}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* Interface Traffic — UP만 + 트래픽 있는 것 우선 */}
+          <div className="space-y-2">
+            {activeIfs
+              .slice()
+              .sort((a, b) => (b.InBps + b.OutBps) - (a.InBps + a.OutBps))
+              .slice(0, 8)
+              .map(iface => {
+                const hasTraffic = iface.InBps > 0 || iface.OutBps > 0
+                return (
+                  <div key={iface.Index} className="p-2 bg-slate-800/50 rounded-lg border border-slate-800/50 flex items-center justify-between gap-4">
+                    <span className="text-[11px] font-bold text-slate-300 truncate flex-1 min-w-0" title={iface.Name}>
+                      {prettifyInterfaceName(iface.Name)}
+                    </span>
+                    {hasTraffic ? (
+                      <div className="flex gap-3 shrink-0">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-sky-400">
+                          <ArrowDown size={10} />
+                          {formatBps(iface.InBps)}
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-rose-300">
+                          <ArrowUp size={10} />
+                          {formatBps(iface.OutBps)}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-600 shrink-0">유휴</span>
+                    )}
+                  </div>
+                )
+              })}
+            {activeIfs.length === 0 && (
+              <div className="py-4 text-center text-[11px] font-bold text-slate-400 italic">
+                활성 인터페이스 없음
               </div>
             )}
           </div>
 
-          {/* Interface Traffic */}
-          <div className="space-y-2">
-            {activeIfs.filter(i => i.InBps > 0 || i.OutBps > 0).slice(0, 5).map(iface => (
-              <div key={iface.Index} className="p-2 bg-slate-800/50 rounded-lg border border-slate-800/50 flex items-center justify-between gap-4">
-                <span className="text-[11px] font-bold text-slate-400 truncate flex-1 min-w-0" title={iface.Name}>{iface.Name}</span>
-                <div className="flex gap-3 shrink-0">
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-sky-400">
-                    <ArrowDown size={10} />
-                    {formatBps(iface.InBps)}
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-rose-300">
-                    <ArrowUp size={10} />
-                    {formatBps(iface.OutBps)}
-                  </div>
-                </div>
+          {/* DOWN 포트 펼침 영역 */}
+          {showDown && downIfs.length > 0 && (
+            <div className="space-y-1 pt-2 border-t border-slate-800">
+              <div className="text-[10px] font-semibold text-slate-500 mb-1">미사용 포트 (케이블 없음)</div>
+              <div className="flex flex-wrap gap-1">
+                {downIfs.map(iface => (
+                  <span
+                    key={iface.Index}
+                    className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800/50 text-slate-500 border border-slate-800"
+                    title={iface.Name}
+                  >
+                    {prettifyInterfaceName(iface.Name)}
+                  </span>
+                ))}
               </div>
-            ))}
-            {activeIfs.filter(i => i.InBps === 0 && i.OutBps === 0).length > 0 && activeIfs.filter(i => i.InBps > 0 || i.OutBps > 0).length === 0 && (
-              <div className="py-4 text-center text-[11px] font-bold text-slate-400 italic">
-                트래픽 측정 중...
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
