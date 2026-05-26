@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import {
-  getSNMPDevices, getSNMPStatus, addSNMPDevice, deleteSNMPDevice,
-  type DeviceStatus,
+  getSNMPDevices, getSNMPStatus, addSNMPDevice, updateSNMPDevice, deleteSNMPDevice,
+  type DeviceStatus, type SNMPDevice,
 } from '../api/snmp'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Network, ArrowDown, ArrowUp, Clock, Trash2, Plus, X, Save, AlertTriangle, RefreshCcw } from 'lucide-react'
+import { Network, ArrowDown, ArrowUp, Clock, Trash2, Plus, X, Save, AlertTriangle, RefreshCcw, Pencil } from 'lucide-react'
 import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
 
@@ -37,7 +37,7 @@ function prettifyInterfaceName(raw: string): string {
   return raw
 }
 
-function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () => void }) {
+function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDelete: () => void; onEdit: () => void }) {
   const [showDown, setShowDown] = useState(false)
   // 시스템 인터페이스 제거 + UP/DOWN 분리
   const realIfs = (status.Interfaces ?? []).filter(i => !isSystemInterface(i.Name))
@@ -80,12 +80,22 @@ function DeviceCard({ status, onDelete }: { status: DeviceStatus; onDelete: () =
             </div>
           </div>
         </div>
-        <button
-          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all"
-          onClick={onDelete}
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-all"
+            onClick={onEdit}
+            title="장비 정보 수정"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all"
+            onClick={onDelete}
+            title="장비 삭제"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       {!status.Up ? (
@@ -196,6 +206,7 @@ export default function SNMPDashboard() {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ Name: '', IP: '', Community: 'public', Port: 161 })
+  const [editing, setEditing] = useState<SNMPDevice | null>(null)
   const [fastRefresh, setFastRefresh] = useState(false) // 등록 직후 짧은 갱신 모드
 
   const { data: devices = [], isLoading: devicesLoading } = useQuery({
@@ -222,6 +233,18 @@ export default function SNMPDashboard() {
     }
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Omit<SNMPDevice, 'ID'> }) => updateSNMPDevice(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['snmpDevices'] })
+      queryClient.invalidateQueries({ queryKey: ['snmpStatus'] })
+      setEditing(null)
+      // 변경 직후 빠른 갱신 — community/IP 바뀌었으면 다음 폴링 결과 즉시 보임
+      setFastRefresh(true)
+      setTimeout(() => setFastRefresh(false), 10000)
+    }
+  })
+
   const deleteMutation = useMutation({
     mutationFn: deleteSNMPDevice,
     onSuccess: () => {
@@ -239,6 +262,13 @@ export default function SNMPDashboard() {
   const handleDelete = (id: number) => {
     if (!confirm('이 장치를 삭제하시겠습니까?')) return
     deleteMutation.mutate(id)
+  }
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editing || !editing.Name || !editing.IP) return
+    const { ID, ...body } = editing
+    updateMutation.mutate({ id: ID, body })
   }
 
   const statusMap = new Map(statuses.map(s => [s.Device.ID, s]))
@@ -358,9 +388,81 @@ export default function SNMPDashboard() {
                 key={dev.ID}
                 status={status}
                 onDelete={() => handleDelete(dev.ID)}
+                onEdit={() => setEditing(dev)}
               />
             )
           })}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editing && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+          <form
+            onSubmit={handleEditSubmit}
+            onClick={e => e.stopPropagation()}
+            className="bg-slate-900 rounded-3xl border border-indigo-500/30 p-6 shadow-2xl w-full max-w-2xl space-y-5"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-100">장비 수정</h3>
+              <button type="button" onClick={() => setEditing(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Device Name</label>
+                <input
+                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                  value={editing.Name}
+                  onChange={e => setEditing({ ...editing, Name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">IP Address</label>
+                <input
+                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium font-mono"
+                  value={editing.IP}
+                  onChange={e => setEditing({ ...editing, IP: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">SNMP Community</label>
+                <input
+                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                  value={editing.Community}
+                  onChange={e => setEditing({ ...editing, Community: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">UDP Port</label>
+                <input
+                  type="number"
+                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                  value={editing.Port}
+                  onChange={e => setEditing({ ...editing, Port: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              {updateMutation.isError && (
+                <p className="text-xs text-rose-300 font-bold flex items-center gap-2 mr-auto">
+                  <AlertTriangle size={14} /> 수정 실패
+                </p>
+              )}
+              <button type="button" onClick={() => setEditing(null)} className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold transition-colors">
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={updateMutation.isPending}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+              >
+                {updateMutation.isPending ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
+                저장
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

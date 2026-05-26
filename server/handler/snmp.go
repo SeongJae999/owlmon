@@ -73,6 +73,41 @@ func (h *SNMPHandler) AddDevice(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(dev)
 }
 
+// UpdateDevice PUT /api/snmp/devices/{id}
+func (h *SNMPHandler) UpdateDevice(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "잘못된 ID", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		Name      string `json:"name"`
+		IP        string `json:"ip"`
+		Community string `json:"community"`
+		Port      int    `json:"port"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "잘못된 요청", http.StatusBadRequest)
+		return
+	}
+	if req.Community == "" {
+		req.Community = "public"
+	}
+	if req.Port == 0 {
+		req.Port = 161
+	}
+	dev := snmp.Device{ID: id, Name: req.Name, IP: req.IP, Community: req.Community, Port: req.Port}
+	if err := h.store.Update(context.Background(), dev); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// 즉시 재폴링 — 변경된 community/IP 즉시 반영
+	go h.poller.Poll(dev)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(dev)
+}
+
 // DeleteDevice DELETE /api/snmp/devices/{id}
 func (h *SNMPHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")

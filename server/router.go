@@ -80,6 +80,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			snmpHandler := handler.NewSNMPHandler(appCtx.SNMPDeviceStore, appCtx.SNMPPoller)
 			r.Get("/api/snmp/devices", snmpHandler.ListDevices)
 			r.Post("/api/snmp/devices", snmpHandler.AddDevice)
+			r.Put("/api/snmp/devices/{id}", snmpHandler.UpdateDevice)
 			r.Delete("/api/snmp/devices/{id}", snmpHandler.DeleteDevice)
 			r.Get("/api/snmp/status", snmpHandler.GetStatus)
 		}

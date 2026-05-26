@@ -38,6 +38,11 @@ export async function addSNMPDevice(device: Omit<SNMPDevice, 'ID'>): Promise<SNM
   return res.data
 }
 
+export async function updateSNMPDevice(id: number, device: Omit<SNMPDevice, 'ID'>): Promise<SNMPDevice> {
+  const res = await axios.put(`/api/snmp/devices/${id}`, device)
+  return res.data
+}
+
 export async function deleteSNMPDevice(id: number): Promise<void> {
   await axios.delete(`/api/snmp/devices/${id}`)
 }

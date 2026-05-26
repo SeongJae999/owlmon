@@ -44,6 +44,14 @@ func (s *SNMPDeviceStore) Add(ctx context.Context, d snmp.Device) (snmp.Device, 
 	return d, err
 }
 
+func (s *SNMPDeviceStore) Update(ctx context.Context, d snmp.Device) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE snmp_devices SET name=$1, ip=$2, community=$3, port=$4 WHERE id=$5`,
+		d.Name, d.IP, d.Community, d.Port, d.ID,
+	)
+	return err
+}
+
 func (s *SNMPDeviceStore) Delete(ctx context.Context, id int64) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM snmp_devices WHERE id=$1`, id)
 	return err
