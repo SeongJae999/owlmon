@@ -25,6 +25,19 @@ interface Props {
   critical?: number
   anomaly?: AnomalyInfo | null
   diskPrediction?: DiskPredictionInfo | null
+  // 절대값 표시 (예: "12.3 / 16.0 GB") — 둘 다 있으면 표시
+  usedBytes?: number | null
+  totalBytes?: number | null
+}
+
+// 사람 친화적 용량 포맷 (TB/GB/MB)
+function formatBytes(bytes: number): string {
+  const tb = 1024 ** 4
+  const gb = 1024 ** 3
+  const mb = 1024 ** 2
+  if (bytes >= tb) return `${(bytes / tb).toFixed(1)} TB`
+  if (bytes >= gb) return `${(bytes / gb).toFixed(1)} GB`
+  return `${(bytes / mb).toFixed(0)} MB`
 }
 
 function getStatus(value: number | null, warning = 70, critical = 90) {
@@ -65,7 +78,7 @@ const statusConfig = {
   },
 }
 
-export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction }: Props) {
+export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes }: Props) {
   const status = getStatus(value, warning, critical)
   const hasAnomaly = anomaly != null
   const cfg = statusConfig[status]
@@ -100,12 +113,19 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
       </div>
 
       {/* Current Value */}
-      <div className="flex items-baseline gap-1.5 mb-4">
+      <div className="flex items-baseline gap-1.5 mb-1">
         <span className="text-3xl font-bold text-slate-100 tabular-nums leading-none">
           {value !== null ? value.toFixed(1) : '--'}
         </span>
         <span className="text-sm font-medium text-slate-500">{unit}</span>
       </div>
+      {/* 절대값 (GB/TB) — 운영자가 한계 임박 즉시 인지용 */}
+      {usedBytes != null && totalBytes != null && totalBytes > 0 && (
+        <div className="text-xs font-semibold text-slate-400 tabular-nums mb-4">
+          {formatBytes(usedBytes)} <span className="text-slate-600">/</span> {formatBytes(totalBytes)}
+        </div>
+      )}
+      {(usedBytes == null || totalBytes == null) && <div className="mb-3" />}
 
       {/* Disk Prediction / Anomaly Details */}
       {(diskPrediction || hasAnomaly) && (

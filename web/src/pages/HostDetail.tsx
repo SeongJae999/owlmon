@@ -14,6 +14,7 @@ import { queryRange } from '../api/prometheus'
 import MetricCard from '../components/MetricCard'
 import ServiceCheckCard from '../components/ServiceCheckCard'
 import HostSpecCard from '../components/HostSpecCard'
+import { getHostSpec } from '../api/specs'
 import { ChevronLeft, Server, Activity, ShieldAlert, Zap, ArrowLeft } from 'lucide-react'
 import { cn } from '../utils/cn'
 
@@ -47,6 +48,40 @@ export default function HostDetailPage() {
     queryFn: () => queryRange(`max(system_disk_usage_percent{host_name="${hostName}"})`),
     enabled: !!hostName,
     refetchInterval: 30000
+  })
+
+  // 호스트 스펙 (메모리 총량 등)
+  const { data: hostSpec } = useQuery({
+    queryKey: ['host-spec', hostName],
+    queryFn: () => getHostSpec(hostName),
+    enabled: !!hostName,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // 절대값 (메모리/디스크 GB 표시용) — Prometheus instant query
+  const promQuery = async (q: string): Promise<number | null> => {
+    const r = await fetch(`/api/v1/query?query=${encodeURIComponent(q)}`)
+    const j = await r.json()
+    const v = j?.data?.result?.[0]?.value?.[1]
+    return v ? parseFloat(v) : null
+  }
+  const { data: memUsedBytes } = useQuery({
+    queryKey: ['absolute', 'mem-used', hostName],
+    queryFn: () => promQuery(`system_memory_used_bytes{host_name="${hostName}"}`),
+    enabled: !!hostName,
+    refetchInterval: 30000,
+  })
+  const { data: diskAbsolute } = useQuery({
+    queryKey: ['absolute', 'disk', hostName],
+    queryFn: async () => {
+      const [used, total] = await Promise.all([
+        promQuery(`sum(system_disk_used_bytes{host_name="${hostName}"})`),
+        promQuery(`sum(system_disk_total_bytes{host_name="${hostName}"})`),
+      ])
+      return { used, total }
+    },
+    enabled: !!hostName,
+    refetchInterval: 30000,
   })
 
   if (!hostName) {
@@ -145,6 +180,8 @@ export default function HostDetailPage() {
             warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80}
             critical={alertCfg?.mem_threshold ?? 95}
             anomaly={hostAnomalies.find(a => a.metric === 'memory')}
+            usedBytes={memUsedBytes}
+            totalBytes={hostSpec?.memory_total_bytes}
           />
           <MetricCard
             title="디스크"
@@ -155,6 +192,8 @@ export default function HostDetailPage() {
             critical={alertCfg?.disk_crit ?? 90}
             anomaly={hostAnomalies.find(a => a.metric === 'disk')}
             diskPrediction={anomalyData?.disk_predictions.find(p => p.host === hostName)}
+            usedBytes={diskAbsolute?.used}
+            totalBytes={diskAbsolute?.total}
           />
         </div>
       </div>
