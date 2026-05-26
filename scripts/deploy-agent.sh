@@ -98,6 +98,13 @@ YAML"
         else
             echo \"  ☑ self_update 이미 활성\"
         fi
+        # 의미 없는 기본 체크 정리 — "OWLmon Server Reachable"은 tautological
+        if grep -q "OWLmon Server Reachable" /opt/owlmon/config.yaml 2>/dev/null; then
+            '"$SUDO"' sed -i "/  - name: \"OWLmon Server Reachable\"/,/    interval: [0-9]*s/d" /opt/owlmon/config.yaml
+            # 이제 빈 checks: 헤더가 남으면 제거
+            '"$SUDO"' sed -i "/^checks:\$/{N;/^checks:\n\$/d;}" /opt/owlmon/config.yaml
+            echo \"  ☑ OWLmon Server Reachable 체크 제거됨\"
+        fi
         '"$SUDO"' systemctl start owlmon-agent
         sleep 1
         systemctl is-active owlmon-agent

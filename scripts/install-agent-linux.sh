@@ -94,11 +94,13 @@ cat > "$INSTALL_DIR/config.yaml" <<YAML
 # OWLmon 에이전트 설정 (install-agent-linux.sh 자동 생성)
 otlp_endpoint: "$ENDPOINT"
 
-checks:
-  - name: "OWLmon Server Reachable"
-    type: tcp
-    target: "${ENDPOINT}"
-    interval: 60s
+# 서비스 체크 — 사내 SMTP/DNS/업무 API 등을 추가하세요
+# checks:
+#   - name: "내부 메일 서버"
+#     type: tcp
+#     target: "mail.example.com:25"
+#     interval: 60s
+checks: []
 
 logs:
   enabled: true
