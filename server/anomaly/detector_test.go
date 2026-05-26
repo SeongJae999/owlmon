@@ -48,7 +48,7 @@ func TestGetTimeSlot_업무시간_경계(t *testing.T) {
 // --- 이동평균 윈도우 테스트 ---
 
 func TestMetricWindow_평균_계산(t *testing.T) {
-	w := newMetricWindow()
+	w := newMetricWindow(defaultWindowSize)
 	w.Add(10)
 	w.Add(20)
 	w.Add(30)
@@ -60,7 +60,7 @@ func TestMetricWindow_평균_계산(t *testing.T) {
 }
 
 func TestMetricWindow_표준편차_계산(t *testing.T) {
-	w := newMetricWindow()
+	w := newMetricWindow(defaultWindowSize)
 	// 같은 값 → 표준편차 0
 	for range 10 {
 		w.Add(50)
@@ -71,15 +71,15 @@ func TestMetricWindow_표준편차_계산(t *testing.T) {
 }
 
 func TestMetricWindow_순환버퍼_오버플로(t *testing.T) {
-	w := newMetricWindow()
-	// windowSize(120) + 10개 추가
-	for i := range windowSize + 10 {
+	w := newMetricWindow(defaultWindowSize)
+	// defaultWindowSize(120) + 10개 추가
+	for i := range defaultWindowSize + 10 {
 		w.Add(float64(i))
 	}
-	if w.count != windowSize {
-		t.Errorf("count = %d, 기대값 = %d", w.count, windowSize)
+	if w.count != defaultWindowSize {
+		t.Errorf("count = %d, 기대값 = %d", w.count, defaultWindowSize)
 	}
-	// 최근 windowSize개의 평균: (10+11+...+129) / 120
+	// 최근 defaultWindowSize개의 평균: (10+11+...+129) / 120
 	expectedMean := float64(10+129) / 2.0
 	if math.Abs(w.Mean()-expectedMean) > 0.1 {
 		t.Errorf("오버플로 후 평균 = %f, 기대값 ≈ %f", w.Mean(), expectedMean)
@@ -87,7 +87,7 @@ func TestMetricWindow_순환버퍼_오버플로(t *testing.T) {
 }
 
 func TestMetricWindow_Ready_최소샘플(t *testing.T) {
-	w := newMetricWindow()
+	w := newMetricWindow(defaultWindowSize)
 	for range minSamples - 1 {
 		w.Add(50)
 	}

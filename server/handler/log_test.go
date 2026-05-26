@@ -17,7 +17,7 @@ import (
 // newTestHandler는 Store가 모두 nil인 핸들러를 만든다.
 // (annStore=nil → 라벨링 메서드는 503 반환해야 함)
 func newTestHandler() *LogHandler {
-	return NewLogHandler(nil, nil, nil, "")
+	return NewLogHandler(nil, nil, nil, "", nil, nil, nil)
 }
 
 func mountAnnotateRouter(h *LogHandler) http.Handler {
