@@ -74,10 +74,10 @@ export default function DashboardLayout() {
       >
         {/* Brand */}
         <div className="h-16 flex items-center px-5 gap-3 border-b border-slate-800/50">
-          <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shrink-0">O</div>
+          <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shrink-0">W</div>
           {!sidebarCollapsed && (
             <div className="overflow-hidden whitespace-nowrap">
-              <p className="font-bold text-white text-lg">OWLmon</p>
+              <p className="font-bold text-white text-lg">willkomo</p>
               <p className="text-xs text-slate-500 font-medium">통합 모니터링</p>
             </div>
           )}
@@ -219,13 +219,13 @@ export default function DashboardLayout() {
           {/* Global Footer in Main Area */}
           <footer className="w-full mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 pb-8">
             <div className="flex items-center gap-2 text-slate-500">
-              <div className="w-5 h-5 bg-slate-800 rounded flex items-center justify-center text-xs font-bold">O</div>
-              <span className="text-xs font-medium">OWLmon v1.2</span>
+              <div className="w-5 h-5 bg-slate-800 rounded flex items-center justify-center text-xs font-bold">W</div>
+              <span className="text-xs font-medium">willkomo v1.2</span>
             </div>
             <div className="flex gap-6">
               <a href="#" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">문서</a>
               <a href="#" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">지원</a>
-              <a href="#" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">GitHub</a>
+              <a href="https://github.com/SeongJae999/owlmon" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">GitHub</a>
             </div>
           </footer>
         </main>
