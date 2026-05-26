@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { TrendingUp, Activity, MemoryStick, HardDrive } from 'lucide-react'
@@ -30,7 +30,7 @@ const HOST_COLORS = ['#60a5fa', '#a78bfa', '#f59e0b', '#34d399', '#f472b6', '#fb
 
 export default function TrendsPage() {
   const [rangeIdx, setRangeIdx] = useState(0) // 기본 24h
-  const [selectedHosts, setSelectedHosts] = useState<Set<string>>(new Set())
+  const [selectedHosts, setSelectedHosts] = useState<Set<string> | null>(null) // null = 초기화 전
 
   const { data: hosts = [] } = useQuery({
     queryKey: ['hosts'],
@@ -38,16 +38,18 @@ export default function TrendsPage() {
     refetchInterval: 60_000,
   })
 
-  // 호스트 목록 처음 로드되면 전부 선택
-  if (hosts.length > 0 && selectedHosts.size === 0) {
-    setSelectedHosts(new Set(hosts))
-  }
+  // 호스트 목록 처음 로드되면 전부 선택 (1회만 — 이후 사용자 액션 보존)
+  useEffect(() => {
+    if (selectedHosts === null && hosts.length > 0) {
+      setSelectedHosts(new Set(hosts))
+    }
+  }, [hosts, selectedHosts])
 
-  const visibleHosts = hosts.filter(h => selectedHosts.has(h))
+  const visibleHosts = hosts.filter(h => selectedHosts?.has(h))
 
   const toggleHost = (host: string) => {
     setSelectedHosts(prev => {
-      const next = new Set(prev)
+      const next = new Set(prev ?? [])
       if (next.has(host)) next.delete(host)
       else next.add(host)
       return next
@@ -82,7 +84,7 @@ export default function TrendsPage() {
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">표시 호스트</span>
         <div className="flex gap-1.5 flex-wrap">
           {hosts.map((h, i) => {
-            const active = selectedHosts.has(h)
+            const active = selectedHosts?.has(h) ?? false
             return (
               <button
                 key={h}
