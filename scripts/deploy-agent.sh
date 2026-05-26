@@ -63,15 +63,23 @@ for HOST in $HOSTS; do
         continue
     fi
 
-    # sudo로 교체 + 재시작 (비번 입력 필요할 수 있음)
-    echo "  ${CYN}→ sudo 재시작 (비번 입력 필요할 수 있음)${RST}"
-    if ssh -t "$HOST" 'sudo systemctl stop owlmon-agent && \
-                       sudo cp /tmp/owlmon-agent-new /opt/owlmon/owlmon-agent && \
-                       sudo chmod +x /opt/owlmon/owlmon-agent && \
-                       sudo chown owlmon-agent:owlmon-agent /opt/owlmon/owlmon-agent && \
-                       sudo systemctl start owlmon-agent && \
+    # root 접속이면 sudo 생략, 일반 사용자면 sudo + 비번
+    REMOTE_USER=$(ssh -o BatchMode=yes "$HOST" 'whoami' 2>/dev/null)
+    if [ "$REMOTE_USER" = "root" ]; then
+        SUDO=""
+        echo "  ${CYN}→ root 접속 — sudo 없이 재시작${RST}"
+    else
+        SUDO="sudo"
+        echo "  ${CYN}→ $REMOTE_USER 접속 — sudo 비번 입력 필요${RST}"
+    fi
+
+    if ssh -t "$HOST" "$SUDO systemctl stop owlmon-agent && \
+                       $SUDO cp /tmp/owlmon-agent-new /opt/owlmon/owlmon-agent && \
+                       $SUDO chmod +x /opt/owlmon/owlmon-agent && \
+                       $SUDO chown owlmon-agent:owlmon-agent /opt/owlmon/owlmon-agent && \
+                       $SUDO systemctl start owlmon-agent && \
                        sleep 1 && \
-                       systemctl is-active owlmon-agent'; then
+                       systemctl is-active owlmon-agent"; then
         echo "  ${GRN}✅ $HOST — 재시작 성공${RST}"
         SUCCESS+=("$HOST")
     else
