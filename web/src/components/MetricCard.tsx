@@ -166,20 +166,7 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
         </div>
       </div>
 
-      {/* Progress bar — 시각적 비율 */}
-      {value !== null && (
-        <div className="mb-4">
-          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{
-                width: `${Math.min(value, 100)}%`,
-                background: cfg.color,
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* progress bar 제거 — gauge ring과 중복 정보 (UX: show one thing well) */}
 
       {/* Disk Prediction / Anomaly Details */}
       {(diskPrediction || hasAnomaly) && (
