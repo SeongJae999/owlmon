@@ -22,12 +22,14 @@ import {
   Search,
   ListChecks,
   BarChart3,
+  TrendingUp,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
 
 const NAV_ITEMS = [
   { id: 'overview', path: '/', icon: LayoutGrid, label: '전체 현황', section: 'monitor' },
+  { id: 'trends', path: '/trends', icon: TrendingUp, label: '자원 추이', section: 'monitor' },
   // 호스트 상세는 Overview 카드 클릭으로만 진입 — 사이드바에서 제거
   { id: 'snmp', path: '/snmp', icon: Network, label: '네트워크 장비', section: 'monitor' },
   { id: 'ssl', path: '/ssl', icon: ShieldCheck, label: 'SSL 인증서', section: 'monitor' },

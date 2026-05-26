@@ -17,6 +17,7 @@ import LogViewer from './components/LogViewer'
 import MonthlyReportModal from './components/MonthlyReport'
 import RulesPage from './pages/RulesPage'
 import RuleStatsPage from './pages/RuleStatsPage'
+import TrendsPage from './pages/TrendsPage'
 
 export default function App() {
   const authenticated = isLoggedIn()
@@ -29,6 +30,7 @@ export default function App() {
     <Routes>
       <Route element={<DashboardLayout />}>
         <Route path="/" element={<OverviewPage />} />
+        <Route path="/trends" element={<TrendsPage />} />
         <Route path="/detail" element={<HostDetailPage />} />
         <Route path="/snmp" element={<SNMPDashboard />} />
         <Route path="/ssl" element={<SSLDashboard />} />

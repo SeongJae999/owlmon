@@ -41,6 +41,45 @@ export async function queryRange(
   }))
 }
 
+// 호스트 N대의 메트릭 시계열을 한 번에 가져옴 (자원 추이 페이지용)
+// 결과: [{ time: "00:00", will: 7.2, willdev: 26.1, ... }, ...]
+export async function queryRangeMultiHost(
+  metricExpr: string,            // 예: system_cpu_usage_percent
+  hosts: string[],
+  minutes = 1440,
+): Promise<Array<Record<string, any>>> {
+  const end = Math.floor(Date.now() / 1000)
+  const start = end - minutes * 60
+  const step = Math.max(60, Math.floor((minutes * 60) / 300))
+
+  const promql = `max by (host_name) (${metricExpr})`
+  const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query_range`, {
+    params: { query: promql, start, end, step: `${step}s` },
+  })
+  const series = res.data?.data?.result ?? []
+  if (series.length === 0) return []
+
+  // 시간 키 통합 — 모든 시리즈가 같은 step이지만 시작점 살짝 다를 수 있어 첫 시리즈 기준
+  const tsKeys = series[0].values.map(([ts]: [number, string]) => ts)
+  const showSec = minutes < 60
+  return tsKeys.map((ts: number) => {
+    const row: Record<string, any> = {
+      ts,
+      time: new Date(ts * 1000).toLocaleString('ko-KR', {
+        month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+        ...(showSec ? { second: '2-digit' } : {}),
+      }),
+    }
+    series.forEach((s: any) => {
+      const host = s.metric?.host_name
+      if (!host || !hosts.includes(host)) return
+      const point = s.values.find(([t]: [number, string]) => t === ts)
+      if (point) row[host] = parseFloat(parseFloat(point[1]).toFixed(1))
+    })
+    return row
+  })
+}
+
 // 연결된 호스트 목록 조회 — instant query로 진짜 활성 시리즈만 가져옴.
 // labelValues API는 retention 안 chunk가 걸쳐있기만 해도 반환해서 stale 호스트가 잡힘.
 // instant query는 lookback delta(5분) 안에 데이터 있는 시리즈만 반환 → 정확.
