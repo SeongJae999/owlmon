@@ -171,7 +171,7 @@ function MetricTrendCard({
   }[metric.color]
 
   return (
-    <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm p-5">
+    <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm p-3 sm:p-5">
       <div className="flex items-center gap-3 mb-4">
         <div className={cn("p-2 rounded-lg", iconColor)}>
           <Icon size={18} />
@@ -188,7 +188,7 @@ function MetricTrendCard({
         <div className="h-64 flex items-center justify-center text-slate-500 text-sm">데이터 없음</div>
       ) : (
         <>
-          <div className="h-64 -mx-2">
+          <div className="h-56 sm:h-64 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 5, right: 15, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />

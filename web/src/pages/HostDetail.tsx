@@ -101,7 +101,7 @@ export default function HostDetailPage() {
   const hostAnomalies = anomalyData?.anomalies.filter(a => a.host === hostName) || []
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* Top Navigation & Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div className="flex items-center gap-4 min-w-0">
@@ -172,7 +172,7 @@ export default function HostDetailPage() {
             전체 호스트 비교 / 7일·30일 추이 →
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
           <MetricCard
             title="CPU"
             value={metrics?.cpu ?? null}

@@ -114,11 +114,11 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
         </div>
       </div>
 
-      {/* Current Value Block — gauge ring + 숫자 + 남은 용량 */}
-      <div className="flex items-center gap-4 mb-3">
-        {/* Gauge ring — 반원 차트 */}
+      {/* Current Value Block — gauge ring + 숫자 + 남은 용량 (모바일: 세로, 데스크탑: 가로) */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-3">
+        {/* Gauge ring — 반원 차트 (모바일에서도 잘 보이게 크기 유지) */}
         {value !== null && (
-          <div className="relative w-20 h-20 shrink-0">
+          <div className="relative w-20 h-20 shrink-0 self-center sm:self-auto">
             <ResponsiveContainer width="100%" height="100%">
               <RadialBarChart
                 innerRadius="70%"
