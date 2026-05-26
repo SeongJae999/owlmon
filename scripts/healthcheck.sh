@@ -260,7 +260,46 @@ if [ -n "$disk_pct" ]; then
 fi
 
 # ───────────────────────────────────────────────────────────────
-section "12. 라벨 데이터 (Phase 2 학습용 시드)"
+section "12. DB 백업 시각 (cron 정상 동작?)"
+# 백업 디렉토리 후보 (사용자 환경 따라 다를 수 있어 여러 곳 시도)
+BACKUP_CANDIDATES=("$HOME/owlmon-backups" "/home/owlmon/owlmon-backups" "/var/backups/owlmon")
+backup_dir=""
+for d in "${BACKUP_CANDIDATES[@]}"; do
+    if [ -d "$d" ]; then
+        backup_dir="$d"
+        break
+    fi
+done
+
+if [ -z "$backup_dir" ]; then
+    echo "  ${YEL}ℹ️${RST}  백업 디렉토리 없음 (scripts/backup-postgres.sh 미실행?)"
+else
+    latest=$(ls -t "$backup_dir"/owlmon-*.sql.gz 2>/dev/null | head -1)
+    if [ -z "$latest" ]; then
+        warn "백업 파일 없음 — $backup_dir"
+    else
+        # mtime을 epoch로 (Linux는 stat -c, macOS는 stat -f)
+        if mtime=$(stat -c %Y "$latest" 2>/dev/null); then :
+        else mtime=$(stat -f %m "$latest")
+        fi
+        now=$(date +%s)
+        age_hour=$(( (now - mtime) / 3600 ))
+        count=$(ls "$backup_dir"/owlmon-*.sql.gz 2>/dev/null | wc -l | tr -d ' ')
+        total_size=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
+        latest_size=$(du -h "$latest" 2>/dev/null | awk '{print $1}')
+
+        if [ "$age_hour" -lt 26 ]; then
+            ok "최근 백업: ${age_hour}h 전 ($latest_size, 총 ${count}개/$total_size)"
+        elif [ "$age_hour" -lt 50 ]; then
+            warn "최근 백업이 ${age_hour}h 전 — daily cron 1회 빠진 듯 ($count개)"
+        else
+            fail "최근 백업이 ${age_hour}h 전 — cron 동작 점검 필요 ($count개)"
+        fi
+    fi
+fi
+
+# ───────────────────────────────────────────────────────────────
+section "13. 라벨 데이터 (Phase 2 학습용 시드)"
 annotation_count=$(psql_val "SELECT COUNT(*) FROM log_annotations")
 annotation_with_problem=$(psql_val "SELECT COUNT(*) FROM log_annotations WHERE problem IS NOT NULL AND length(problem) > 5")
 echo "  라벨 총: ${annotation_count}건 (문제 기재: ${annotation_with_problem}건)"
