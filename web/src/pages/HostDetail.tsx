@@ -209,36 +209,28 @@ export default function HostDetailPage() {
         </div>
       </div>
 
-      {/* 보조 정보: 호스트 스펙 + 서비스 체크 (collapsible — 디폴트 접힘) */}
-      <details className="group bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-        <summary className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-slate-800/40 transition-colors list-none">
-          <div className="flex items-center gap-2.5">
-            <div className="w-1 h-5 bg-violet-500 rounded-full" />
-            <h2 className="text-sm font-bold text-slate-200">장비 정보</h2>
-            <span className="text-[11px] font-medium text-slate-500">
-              하드웨어 스펙 {serviceChecks.length > 0 && `· 서비스 체크 ${serviceChecks.length}`}
-            </span>
-          </div>
-          <span className="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
-        </summary>
-        <div className="px-5 pb-5 space-y-4">
-          <HostSpecCard host={hostName} />
-          {serviceChecks.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {serviceChecks.map((check) => (
-                <ServiceCheckCard
-                  key={check.name}
-                  name={check.name}
-                  type={check.type}
-                  target={check.target}
-                  status={check.status}
-                  latencyMs={check.latencyMs}
-                />
-              ))}
-            </div>
-          )}
+      {/* 장비 정보 */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-1 h-5 bg-violet-500 rounded-full" />
+          <h2 className="text-base font-bold text-slate-100">장비 정보</h2>
         </div>
-      </details>
+        <HostSpecCard host={hostName} />
+        {serviceChecks.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {serviceChecks.map((check) => (
+              <ServiceCheckCard
+                key={check.name}
+                name={check.name}
+                type={check.type}
+                target={check.target}
+                status={check.status}
+                latencyMs={check.latencyMs}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

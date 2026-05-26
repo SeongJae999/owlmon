@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Cpu, MemoryStick, HardDrive, Network, Box, ChevronDown } from 'lucide-react'
+import { Cpu, MemoryStick, HardDrive, Network, Box } from 'lucide-react'
 import {
   getHostSpec,
   formatBytes,
   formatVirtualization,
-  shortCPU,
   type DiskInfo,
   type NetworkInfo,
 } from '../api/specs'
@@ -16,16 +14,14 @@ interface Props {
 }
 
 /**
- * 호스트 스펙 — 핵심 4 stat + 보조 텍스트 + 부가 collapsible
+ * 호스트 스펙 — 핵심 4 stat + 보조 텍스트 + 디스크/네트워크 인라인
  *
  * UX 위계:
- *   🥇 핵심 (즉시): CPU 코어 / RAM / 디스크 총량 / OS
- *   🥈 보조 (텍스트): CPU 모델 전체, 커널 버전, 가상화
- *   🥉 부가 (펼침): 디스크 마운트별, 네트워크 인터페이스
+ *   🥇 핵심: CPU 코어 / RAM / 디스크 총량 / OS
+ *   🥈 보조: CPU 모델 전체, 커널 버전, 가상화
+ *   🥉 상세: 디스크 마운트별, 네트워크 인터페이스 (인라인)
  */
 export default function HostSpecCard({ host }: Props) {
-  const [showAdvanced, setShowAdvanced] = useState(false)
-
   const { data: spec, isLoading, error } = useQuery({
     queryKey: ['spec', host],
     queryFn: () => getHostSpec(host),
@@ -86,21 +82,8 @@ export default function HostSpecCard({ host }: Props) {
         </div>
       </div>
 
-      {/* 🥉 부가 정보 — 디스크/네트워크 (collapsible, 의미 있을 때만 펼침) */}
+      {/* 🥉 디스크/네트워크 인라인 */}
       {(hasDisks || hasNetworks) && (
-        <button
-          onClick={() => setShowAdvanced(v => !v)}
-          className="w-full border-t border-slate-800 px-4 py-2 flex items-center justify-between text-[11px] font-semibold text-slate-500 hover:bg-slate-800/30 transition-colors"
-        >
-          <span>
-            디스크 {hasDisks && `${spec.disks!.length}개`}
-            {hasDisks && hasNetworks && ' · '}
-            {hasNetworks && `네트워크 ${spec.networks!.length}개`}
-          </span>
-          <ChevronDown size={12} className={cn("transition-transform", showAdvanced && "rotate-180")} />
-        </button>
-      )}
-      {showAdvanced && (
         <div className="border-t border-slate-800 px-4 py-3 space-y-3 text-sm">
           {hasDisks && (
             <div>
