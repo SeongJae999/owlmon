@@ -73,13 +73,34 @@ for HOST in $HOSTS; do
         echo "  ${CYN}→ $REMOTE_USER 접속 — sudo 비번 입력 필요${RST}"
     fi
 
-    if ssh -t "$HOST" "$SUDO systemctl stop owlmon-agent && \
-                       $SUDO cp /tmp/owlmon-agent-new /opt/owlmon/owlmon-agent && \
-                       $SUDO chmod +x /opt/owlmon/owlmon-agent && \
-                       $SUDO chown owlmon-agent:owlmon-agent /opt/owlmon/owlmon-agent && \
-                       $SUDO systemctl start owlmon-agent && \
-                       sleep 1 && \
-                       systemctl is-active owlmon-agent"; then
+    # 한 번의 ssh 세션에서:
+    #   1) 바이너리 교체
+    #   2) config.yaml에 self_update 섹션 없으면 추가 (다음부턴 비번 0번)
+    #   3) chown/chmod
+    #   4) 재시작
+    REMOTE_SCRIPT='
+        set -e
+        '"$SUDO"' systemctl stop owlmon-agent
+        '"$SUDO"' cp /tmp/owlmon-agent-new /opt/owlmon/owlmon-agent
+        '"$SUDO"' chmod +x /opt/owlmon/owlmon-agent
+        '"$SUDO"' chown owlmon-agent:owlmon-agent /opt/owlmon/owlmon-agent
+        if ! grep -q "^self_update:" /opt/owlmon/config.yaml 2>/dev/null; then
+            '"$SUDO"' bash -c "cat >> /opt/owlmon/config.yaml <<YAML
+
+# 자가 업데이트 (망분리 환경 자동 배포) — 6h마다 OWLmon 서버 체크 + sha256 검증 후 교체
+self_update:
+  enabled: true
+  check_interval: 6h
+YAML"
+            echo \"  ☑ config.yaml에 self_update 섹션 추가됨\"
+        else
+            echo \"  ☑ self_update 이미 활성\"
+        fi
+        '"$SUDO"' systemctl start owlmon-agent
+        sleep 1
+        systemctl is-active owlmon-agent
+    '
+    if ssh -t "$HOST" "$REMOTE_SCRIPT"; then
         echo "  ${GRN}✅ $HOST — 재시작 성공${RST}"
         SUCCESS+=("$HOST")
     else
