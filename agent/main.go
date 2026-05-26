@@ -12,6 +12,7 @@ import (
 	"github.com/seongJae/owlmon/agent/config"
 	"github.com/seongJae/owlmon/agent/exporter"
 	"github.com/seongJae/owlmon/agent/logtail"
+	"github.com/seongJae/owlmon/agent/selfupdate"
 	"github.com/seongJae/owlmon/agent/service"
 	"github.com/seongJae/owlmon/agent/snmp"
 	"github.com/seongJae/owlmon/agent/specs"
@@ -157,8 +158,24 @@ func startAgent() func() {
 		}
 	}
 
+	// Self-update — opt-in (config.self_update.enabled: true 일 때만)
+	if cfg.SelfUpdate.Enabled {
+		serverURL := cfg.Logs.ServerURL
+		if serverURL == "" {
+			serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
+		}
+		selfupdate.Start(ctx, selfupdate.Config{
+			Enabled:       true,
+			ServerURL:     serverURL,
+			CheckInterval: cfg.SelfUpdate.CheckInterval,
+			BinaryPath:    cfg.SelfUpdate.BinaryPath,
+			AgentKey:      cfg.Logs.AgentKey,
+		})
+	}
+
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)
-	log.Printf("수집 주기: %s | 서비스 체크: %d개 | SNMP 장비: %d개", collectInterval, len(cfg.Checks), len(cfg.SNMP.Devices))
+	log.Printf("수집 주기: %s | 서비스 체크: %d개 | SNMP 장비: %d개 | self-update: %v",
+		collectInterval, len(cfg.Checks), len(cfg.SNMP.Devices), cfg.SelfUpdate.Enabled)
 
 	// 스펙 1회 수집/전송 (백그라운드 — 실패해도 메트릭 송신엔 영향 없음)
 	go sendSpecsOnce(ctx, cfg)

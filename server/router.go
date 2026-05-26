@@ -43,6 +43,11 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Use(auth.JWTMiddleware(jwtSecret))
 		r.Handle("/api/v1/*", proxyHandler)
 
+		// Agent self-update — 바이너리 호스팅 (운영자가 /app/data/agents에 업로드)
+		agentUpdateHandler := handler.NewAgentUpdateHandler("/app/data/agents")
+		r.Get("/api/agent/latest", agentUpdateHandler.GetLatest)
+		r.Get("/api/agent/binary", agentUpdateHandler.GetBinary)
+
 		// Alert
 		r.Get("/api/alert/config", alertHandler.GetConfig)
 		r.Post("/api/alert/config", alertHandler.SetConfig)

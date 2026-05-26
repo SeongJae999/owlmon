@@ -12,8 +12,17 @@ import (
 type Config struct {
 	OTLPEndpoint string        `yaml:"otlp_endpoint"` // OTel Collector 주소
 	Checks       []CheckConfig `yaml:"checks"`        // 서비스 체크 목록
-	Logs         LogConfig     `yaml:"logs"`          // 로그 수집 설정
-	SNMP         SNMPConfig    `yaml:"snmp"`          // SNMP 프록시 폴링 (망분리 환경에서 OWLmon 서버 대신 폴링)
+	Logs         LogConfig        `yaml:"logs"`          // 로그 수집 설정
+	SNMP         SNMPConfig       `yaml:"snmp"`          // SNMP 프록시 폴링 (망분리 환경에서 OWLmon 서버 대신 폴링)
+	SelfUpdate   SelfUpdateConfig `yaml:"self_update"`   // agent 자가 업데이트
+}
+
+// SelfUpdateConfig는 agent 자가 업데이트 설정입니다.
+// 망분리 환경에서 운영자가 일일이 sudo 명령 안 쳐도 되도록 — OWLmon 서버에서 자동 받음.
+type SelfUpdateConfig struct {
+	Enabled       bool          `yaml:"enabled"`        // 기본 false (opt-in)
+	CheckInterval time.Duration `yaml:"check_interval"` // 기본 6h
+	BinaryPath    string        `yaml:"binary_path"`    // 기본 /opt/owlmon/owlmon-agent
 }
 
 // SNMPConfig는 에이전트가 사내 SNMP 장비를 대신 폴링하는 설정입니다.
