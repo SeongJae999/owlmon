@@ -40,10 +40,10 @@ function InstanceCard({
   return (
     <div className={cn(
       "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
-      isError ? "border-rose-500/30 ring-1 ring-rose-50" : "border-slate-800"
+      isError ? "border-rose-500/30 ring-1 ring-rose-500/20" : "border-slate-800"
     )}>
       {/* Background Icon */}
-      <Database size={80} className="absolute -right-4 -bottom-4 text-slate-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      <Database size={80} className="absolute -right-4 -bottom-4 text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-6">
@@ -67,20 +67,20 @@ function InstanceCard({
         <div className="flex items-center gap-1 shrink-0">
           <span className={cn(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight",
-            isError ? "bg-rose-500/100/15 text-rose-300" : m ? "bg-emerald-500/100/15 text-emerald-300" : "bg-slate-800 text-slate-500"
+            isError ? "bg-rose-500/15 text-rose-300" : m ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-500"
           )}>
             {isError ? 'Error' : m ? 'Online' : 'Pending'}
           </span>
           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={onCheck} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="즉시 점검"><RefreshCcw size={14} /></button>
             <button onClick={onShowQueries} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="슬로우 쿼리"><Zap size={14} /></button>
-            <button onClick={onDelete} className="p-1 rounded-md text-slate-400 hover:bg-rose-500/100/10 hover:text-rose-500 transition-all" title="삭제"><Trash2 size={14} /></button>
+            <button onClick={onDelete} className="p-1 rounded-md text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-all" title="삭제"><Trash2 size={14} /></button>
           </div>
         </div>
       </div>
 
       {isError ? (
-        <div className="bg-rose-500/100/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-800 text-xs font-bold">
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-300 text-xs font-bold">
           <AlertTriangle size={16} className="shrink-0" />
           <p>{m!.error}</p>
         </div>
@@ -104,7 +104,7 @@ function InstanceCard({
               <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div className={cn(
                   "h-full transition-all duration-500",
-                  connRatio >= 80 ? "bg-rose-500/100" : connRatio >= 60 ? "bg-amber-500/100" : "bg-emerald-500/100"
+                  connRatio >= 80 ? "bg-rose-500" : connRatio >= 60 ? "bg-amber-500" : "bg-emerald-500"
                 )} style={{ width: `${Math.min(connRatio, 100)}%` }} />
               </div>
             </div>
@@ -119,14 +119,14 @@ function InstanceCard({
               <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div className={cn(
                   "h-full transition-all duration-500",
-                  cacheHitPct >= 95 ? "bg-emerald-500/100" : cacheHitPct >= 90 ? "bg-amber-500/100" : "bg-rose-500/100"
+                  cacheHitPct >= 95 ? "bg-emerald-500" : cacheHitPct >= 90 ? "bg-amber-500" : "bg-rose-500"
                 )} style={{ width: `${Math.min(cacheHitPct, 100)}%` }} />
               </div>
             </div>
           </div>
 
           {/* Details */}
-          <div className="space-y-2 py-3 border-y border-slate-50">
+          <div className="space-y-2 py-3 border-y border-slate-800">
             <div className="flex items-center justify-between text-[11px] font-bold">
               <span className="text-slate-400 uppercase tracking-widest">Database Size</span>
               <span className="text-slate-400">{formatBytes(m.db_size_bytes)}</span>
@@ -190,7 +190,7 @@ function AddInstanceForm({ onAdd }: { onAdd: () => void }) {
         <FormField label="점검 주기 (초)" type="number" value={form.poll_interval_sec} onChange={(v: string) => setForm({...form, poll_interval_sec: Number(v)})} />
       </div>
 
-      <div className="bg-amber-500/100/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
+      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
         <Zap size={18} className="text-amber-400 mt-0.5 shrink-0" />
         <div className="space-y-1">
           <p className="text-xs font-bold text-amber-900 italic">성능 분석 권장 설정</p>

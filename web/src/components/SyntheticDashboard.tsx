@@ -31,17 +31,17 @@ function MonitorCard({
   return (
     <div className={cn(
       "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
-      !hasChecked ? "border-slate-800" : isUp ? "border-slate-800" : "border-rose-500/30 ring-1 ring-rose-50"
+      !hasChecked ? "border-slate-800" : isUp ? "border-slate-800" : "border-rose-500/30 ring-1 ring-rose-500/20"
     )}>
       {/* Background Icon */}
-      <Globe size={80} className="absolute -right-4 -bottom-4 text-slate-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      <Globe size={80} className="absolute -right-4 -bottom-4 text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-6">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className={cn(
             "p-2 rounded-lg bg-slate-800 text-slate-400 group-hover:text-indigo-400 transition-colors shrink-0",
-            isUp && hasChecked && "text-emerald-500 bg-emerald-500/100/10"
+            isUp && hasChecked && "text-emerald-500 bg-emerald-500/10"
           )}>
             <Globe size={18} />
           </div>
@@ -59,7 +59,7 @@ function MonitorCard({
         <div className="flex items-center gap-1 shrink-0">
           <span className={cn(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight",
-            !hasChecked ? "bg-slate-800 text-slate-500" : isUp ? "bg-emerald-500/100/15 text-emerald-300" : "bg-rose-500/100/15 text-rose-300"
+            !hasChecked ? "bg-slate-800 text-slate-500" : isUp ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
           )}>
             {!hasChecked ? <Clock size={10} /> : isUp ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
             {!hasChecked ? '대기' : isUp ? '정상' : '실패'}
@@ -67,7 +67,7 @@ function MonitorCard({
           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={onCheck} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="즉시 체크"><RefreshCcw size={14} /></button>
             <button onClick={onShowHistory} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="히스토리"><History size={14} /></button>
-            <button onClick={onDelete} className="p-1 rounded-md text-slate-400 hover:bg-rose-500/100/10 hover:text-rose-500 transition-all" title="삭제"><Trash2 size={14} /></button>
+            <button onClick={onDelete} className="p-1 rounded-md text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-all" title="삭제"><Trash2 size={14} /></button>
           </div>
         </div>
       </div>
@@ -85,13 +85,13 @@ function MonitorCard({
         </div>
 
         {latest?.error && (
-          <div className="bg-rose-500/100/10 border border-rose-500/20 rounded-lg p-2.5 text-[11px] font-bold text-rose-300 leading-tight">
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-2.5 text-[11px] font-bold text-rose-300 leading-tight">
             {latest.error}
           </div>
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 py-3 border-y border-slate-50">
+        <div className="grid grid-cols-2 gap-3 py-3 border-y border-slate-800">
           <div className="space-y-0.5">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">가용성 (24h)</span>
             <div className={cn(
@@ -257,7 +257,7 @@ function HistoryModal({ monitorId, name, onClose }: { monitorId: number; name: s
                       <td className="bg-slate-800 group-hover:bg-slate-800/80 px-4 py-2.5">
                         <span className={cn(
                           "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
-                          r.success ? "bg-emerald-500/100/15 text-emerald-300" : "bg-rose-500/100/15 text-rose-300"
+                          r.success ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
                         )}>
                           {r.success ? 'Success' : 'Failure'}
                         </span>

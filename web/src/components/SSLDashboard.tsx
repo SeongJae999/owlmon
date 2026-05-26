@@ -9,10 +9,10 @@ import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
 
 const STATUS_CONFIG: Record<string, { bg: string, text: string, label: string, icon: any }> = {
-  ok: { bg: 'bg-emerald-500/100/15', text: 'text-emerald-300', label: '정상', icon: CheckCircle2 },
-  warning: { bg: 'bg-amber-500/100/15', text: 'text-amber-300', label: '만료 임박', icon: AlertTriangle },
-  critical: { bg: 'bg-rose-500/100/15', text: 'text-rose-300', label: '만료 임박', icon: ShieldAlert },
-  expired: { bg: 'bg-rose-500/100/15', text: 'text-rose-300', label: '만료됨', icon: ShieldAlert },
+  ok: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', label: '정상', icon: CheckCircle2 },
+  warning: { bg: 'bg-amber-500/15', text: 'text-amber-300', label: '만료 임박', icon: AlertTriangle },
+  critical: { bg: 'bg-rose-500/15', text: 'text-rose-300', label: '만료 임박', icon: ShieldAlert },
+  expired: { bg: 'bg-rose-500/15', text: 'text-rose-300', label: '만료됨', icon: ShieldAlert },
   error: { bg: 'bg-slate-800', text: 'text-slate-400', label: '연결 실패', icon: Info },
 }
 
@@ -22,18 +22,18 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
   return (
     <div className={cn(
       "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
-      cert.status === 'expired' || cert.status === 'critical' ? "border-rose-500/30 ring-1 ring-rose-50" : 
+      cert.status === 'expired' || cert.status === 'critical' ? "border-rose-500/30 ring-1 ring-rose-500/20" : 
       cert.status === 'warning' ? "border-amber-500/30 ring-1 ring-amber-50" : "border-slate-800"
     )}>
       {/* Background Icon */}
-      <ShieldCheck size={80} className="absolute -right-4 -bottom-4 text-slate-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      <ShieldCheck size={80} className="absolute -right-4 -bottom-4 text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className={cn(
             "p-2 rounded-lg bg-slate-800 text-slate-400 group-hover:text-indigo-400 transition-colors",
-            cert.status === 'ok' && "text-emerald-500 bg-emerald-500/100/10"
+            cert.status === 'ok' && "text-emerald-500 bg-emerald-500/10"
           )}>
             <Globe size={18} />
           </div>
@@ -52,7 +52,7 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
           </span>
           {onDelete && (
             <button 
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/100/10 transition-all"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
               onClick={onDelete}
             >
               <Trash2 size={16} />
@@ -92,7 +92,7 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
       )}
 
       {cert.checked_at && (
-        <div className="mt-4 pt-3 border-t border-slate-50 flex justify-end">
+        <div className="mt-4 pt-3 border-t border-slate-800 flex justify-end">
           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
             Checked: {new Date(cert.checked_at).toLocaleTimeString('ko-KR')}
           </div>

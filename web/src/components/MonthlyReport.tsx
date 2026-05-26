@@ -17,9 +17,9 @@ function ProgressBar({ value, colorClass }: { value: number; colorClass: string 
 }
 
 function metricColorClass(value: number, warn: number, crit: number): string {
-  if (value >= crit) return 'bg-rose-500/100'
-  if (value >= warn) return 'bg-amber-500/100'
-  return 'bg-emerald-500/100'
+  if (value >= crit) return 'bg-rose-500'
+  if (value >= warn) return 'bg-amber-500'
+  return 'bg-emerald-500'
 }
 
 function HostCard({ h }: { h: HostReport }) {
@@ -42,7 +42,7 @@ function HostCard({ h }: { h: HostReport }) {
           </div>
           <ProgressBar 
             value={h.uptime_pct} 
-            colorClass={h.uptime_pct >= 99 ? 'bg-emerald-500/100' : h.uptime_pct >= 95 ? 'bg-amber-500/100' : 'bg-rose-500/100'} 
+            colorClass={h.uptime_pct >= 99 ? 'bg-emerald-500' : h.uptime_pct >= 95 ? 'bg-amber-500' : 'bg-rose-500'} 
           />
         </div>
 

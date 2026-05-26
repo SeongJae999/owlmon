@@ -75,9 +75,9 @@ export default function AssetManagement() {
   const warrantyStatus = (expires: string) => {
     if (!expires) return null
     const days = Math.ceil((new Date(expires).getTime() - Date.now()) / 86400000)
-    if (days < 0) return { label: '만료됨', bg: 'bg-rose-500/100/15', text: 'text-rose-300' }
-    if (days <= 30) return { label: `D-${days}`, bg: 'bg-amber-500/100/15', text: 'text-amber-300' }
-    return { label: '보증 중', bg: 'bg-emerald-500/100/15', text: 'text-emerald-300' }
+    if (days < 0) return { label: '만료됨', bg: 'bg-rose-500/15', text: 'text-rose-300' }
+    if (days <= 30) return { label: `D-${days}`, bg: 'bg-amber-500/15', text: 'text-amber-300' }
+    return { label: '보증 중', bg: 'bg-emerald-500/15', text: 'text-emerald-300' }
   }
 
   return (
@@ -223,7 +223,7 @@ export default function AssetManagement() {
                             <Edit2 size={16} />
                           </button>
                           <button 
-                            className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/100/10 hover:text-rose-400 rounded-lg transition-all"
+                            className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all"
                             onClick={() => handleRemove(a.id)}
                             title="정보 삭제"
                           >

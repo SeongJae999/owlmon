@@ -4,8 +4,8 @@ import { History, AlertCircle, AlertTriangle, Info, Server, RefreshCcw, Bell } f
 import { cn } from '../utils/cn'
 
 const SEVERITY_CONFIG: Record<string, { bg: string, text: string, icon: any }> = {
-  critical: { bg: 'bg-rose-500/100/15', text: 'text-rose-300', icon: AlertCircle },
-  warning: { bg: 'bg-amber-500/100/15', text: 'text-amber-300', icon: AlertTriangle },
+  critical: { bg: 'bg-rose-500/15', text: 'text-rose-300', icon: AlertCircle },
+  warning: { bg: 'bg-amber-500/15', text: 'text-amber-300', icon: AlertTriangle },
   info: { bg: 'bg-blue-500/15', text: 'text-blue-300', icon: Info },
 }
 

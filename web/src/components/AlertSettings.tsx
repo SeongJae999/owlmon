@@ -39,7 +39,7 @@ export default function AlertSettings({ onSave }: Props) {
   )
 
   if (loadError) return (
-    <div className="bg-rose-500/100/10 border border-rose-500/20 rounded-xl p-6 text-center text-rose-300">
+    <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-6 text-center text-rose-300">
       <AlertTriangle size={32} className="mx-auto mb-3 opacity-50" />
       <p className="font-bold">설정을 불러오지 못했습니다.</p>
     </div>
