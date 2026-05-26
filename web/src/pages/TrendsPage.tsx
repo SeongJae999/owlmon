@@ -106,20 +106,12 @@ export default function TrendsPage() {
             )
           })}
         </div>
-        <div className="ml-auto flex gap-1">
-          <button
-            onClick={() => setSelectedHosts(new Set(hosts))}
-            className="text-[11px] font-semibold text-slate-400 hover:text-slate-200 px-2 py-0.5"
-          >
-            전체
-          </button>
-          <button
-            onClick={() => setSelectedHosts(new Set())}
-            className="text-[11px] font-semibold text-slate-400 hover:text-slate-200 px-2 py-0.5"
-          >
-            전부 해제
-          </button>
-        </div>
+        <button
+          onClick={() => setSelectedHosts(new Set(hosts))}
+          className="ml-auto px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 transition-colors"
+        >
+          전체 선택
+        </button>
       </div>
 
       {METRICS.map(metric => (
