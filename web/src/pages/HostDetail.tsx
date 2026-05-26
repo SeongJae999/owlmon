@@ -114,9 +114,18 @@ export default function HostDetailPage() {
 
       {/* Metric Cards Grid */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-1 h-5 bg-indigo-500 rounded-full" />
-          <h2 className="text-base font-bold text-slate-100">리소스 사용률</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-1 h-5 bg-indigo-500 rounded-full" />
+            <h2 className="text-base font-bold text-slate-100">리소스 사용률</h2>
+            <span className="text-[11px] font-semibold text-slate-500">24시간 추이</span>
+          </div>
+          <Link
+            to="/trends"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            전체 호스트 비교 / 7일·30일 추이 →
+          </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <MetricCard

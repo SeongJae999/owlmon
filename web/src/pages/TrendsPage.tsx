@@ -30,12 +30,29 @@ const HOST_COLORS = ['#60a5fa', '#a78bfa', '#f59e0b', '#34d399', '#f472b6', '#fb
 
 export default function TrendsPage() {
   const [rangeIdx, setRangeIdx] = useState(0) // 기본 24h
+  const [selectedHosts, setSelectedHosts] = useState<Set<string>>(new Set())
 
   const { data: hosts = [] } = useQuery({
     queryKey: ['hosts'],
     queryFn: fetchHosts,
     refetchInterval: 60_000,
   })
+
+  // 호스트 목록 처음 로드되면 전부 선택
+  if (hosts.length > 0 && selectedHosts.size === 0) {
+    setSelectedHosts(new Set(hosts))
+  }
+
+  const visibleHosts = hosts.filter(h => selectedHosts.has(h))
+
+  const toggleHost = (host: string) => {
+    setSelectedHosts(prev => {
+      const next = new Set(prev)
+      if (next.has(host)) next.delete(host)
+      else next.add(host)
+      return next
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -60,11 +77,55 @@ export default function TrendsPage() {
         </div>
       </PageToolbar>
 
+      {/* 호스트 필터 (1대 단독 분석 ↔ 전체 비교 자유 전환) */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3 flex items-center gap-2 flex-wrap">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">표시 호스트</span>
+        <div className="flex gap-1.5 flex-wrap">
+          {hosts.map((h, i) => {
+            const active = selectedHosts.has(h)
+            return (
+              <button
+                key={h}
+                onClick={() => toggleHost(h)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-colors",
+                  active
+                    ? "bg-slate-800 text-slate-100 border-slate-700"
+                    : "bg-transparent text-slate-500 border-slate-800 hover:border-slate-700"
+                )}
+                title={active ? "클릭하면 숨김" : "클릭하면 표시"}
+              >
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: active ? HOST_COLORS[i % HOST_COLORS.length] : '#475569' }}
+                />
+                {h}
+              </button>
+            )
+          })}
+        </div>
+        <div className="ml-auto flex gap-1">
+          <button
+            onClick={() => setSelectedHosts(new Set(hosts))}
+            className="text-[11px] font-semibold text-slate-400 hover:text-slate-200 px-2 py-0.5"
+          >
+            전체
+          </button>
+          <button
+            onClick={() => setSelectedHosts(new Set())}
+            className="text-[11px] font-semibold text-slate-400 hover:text-slate-200 px-2 py-0.5"
+          >
+            전부 해제
+          </button>
+        </div>
+      </div>
+
       {METRICS.map(metric => (
         <MetricTrendCard
           key={metric.key}
           metric={metric}
-          hosts={hosts}
+          hosts={visibleHosts}
+          allHosts={hosts}
           minutes={RANGES[rangeIdx].minutes}
         />
       ))}
@@ -73,17 +134,19 @@ export default function TrendsPage() {
 }
 
 function MetricTrendCard({
-  metric, hosts, minutes,
+  metric, hosts, allHosts, minutes,
 }: {
   metric: typeof METRICS[number]
-  hosts: string[]
+  hosts: string[]      // 현재 선택된(표시할) 호스트
+  allHosts: string[]   // 전체 호스트 (색 인덱스 안정성 위해)
   minutes: number
 }) {
+  // 데이터는 전체 호스트 가져오고 (캐시 효율) 표시만 필터
   const { data = [], isLoading } = useQuery({
-    queryKey: ['trend', metric.key, minutes, hosts.join(',')],
-    queryFn: () => queryRangeMultiHost(metric.expr, hosts, minutes),
+    queryKey: ['trend', metric.key, minutes, allHosts.join(',')],
+    queryFn: () => queryRangeMultiHost(metric.expr, allHosts, minutes),
     refetchInterval: 60_000,
-    enabled: hosts.length > 0,
+    enabled: allHosts.length > 0,
   })
 
   // 호스트별 최신값 + 시간 윈도우 내 max
@@ -136,28 +199,34 @@ function MetricTrendCard({
                   labelStyle={{ color: '#cbd5e1' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
-                {hosts.map((h, i) => (
-                  <Line
-                    key={h}
-                    type="monotone"
-                    dataKey={h}
-                    stroke={HOST_COLORS[i % HOST_COLORS.length]}
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
-                    connectNulls
-                  />
-                ))}
+                {hosts.map((h) => {
+                  // 색 인덱스는 allHosts 기준 — 호스트 토글해도 색 고정
+                  const colorIdx = allHosts.indexOf(h)
+                  return (
+                    <Line
+                      key={h}
+                      type="monotone"
+                      dataKey={h}
+                      stroke={HOST_COLORS[colorIdx % HOST_COLORS.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      isAnimationActive={false}
+                      connectNulls
+                    />
+                  )
+                })}
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           {/* 호스트별 요약 */}
           <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
-            {summary.map((s, i) => (
+            {summary.map((s) => {
+              const colorIdx = allHosts.indexOf(s.host)
+              return (
               <div key={s.host} className="bg-slate-800/50 rounded-lg p-2.5 border border-slate-800">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="w-2 h-2 rounded-full" style={{ background: HOST_COLORS[i % HOST_COLORS.length] }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: HOST_COLORS[colorIdx % HOST_COLORS.length] }} />
                   <span className="text-[11px] font-bold text-slate-300 truncate">{s.host}</span>
                 </div>
                 <div className="grid grid-cols-3 gap-1 text-[10px] text-slate-400">
@@ -183,7 +252,8 @@ function MetricTrendCard({
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </>
       )}
