@@ -77,7 +77,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			if appCtx.SNMPPoller == nil {
 				appCtx.SNMPPoller = snmppkg.NewPoller()
 			}
-			snmpHandler := handler.NewSNMPHandler(appCtx.SNMPDeviceStore, appCtx.SNMPPoller)
+			snmpHandler := handler.NewSNMPHandler(appCtx.SNMPDeviceStore, appCtx.SNMPPoller, prometheusURL)
 			r.Get("/api/snmp/devices", snmpHandler.ListDevices)
 			r.Post("/api/snmp/devices", snmpHandler.AddDevice)
 			r.Put("/api/snmp/devices/{id}", snmpHandler.UpdateDevice)

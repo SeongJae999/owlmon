@@ -8,17 +8,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/seongJae/owlmon/server/db"
+	"github.com/seongJae/owlmon/server/prom"
 	"github.com/seongJae/owlmon/server/snmp"
 )
 
 // SNMPHandler는 SNMP 장비 관리 API를 처리합니다.
 type SNMPHandler struct {
-	store  *db.SNMPDeviceStore
-	poller *snmp.Poller
+	store         *db.SNMPDeviceStore
+	poller        *snmp.Poller
+	prometheusURL string
 }
 
-func NewSNMPHandler(store *db.SNMPDeviceStore, poller *snmp.Poller) *SNMPHandler {
-	return &SNMPHandler{store: store, poller: poller}
+func NewSNMPHandler(store *db.SNMPDeviceStore, poller *snmp.Poller, prometheusURL string) *SNMPHandler {
+	return &SNMPHandler{store: store, poller: poller, prometheusURL: prometheusURL}
 }
 
 // ListDevices GET /api/snmp/devices
@@ -123,9 +125,66 @@ func (h *SNMPHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetStatus GET /api/snmp/status — 모든 장비의 현재 상태 반환
+// GetStatus GET /api/snmp/status — Prometheus 기반 통합 스냅샷
+//
+// 데이터 소스 — server 직접 폴링이든 agent SNMP 프록시든 모두 Prometheus(snmp_*)에 적재.
+// 이 핸들러는 거기서 통합해서 반환 → 망분리 환경에서도 같은 UI로 동작.
+//
+// 기존 응답 구조와 호환 — 클라이언트 SNMPDashboard.tsx의 DeviceStatus 형식.
 func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	statuses := h.poller.Statuses()
+	devices, _ := h.store.List(context.Background())
+
+	// 응답 — 클라이언트가 사용하는 DeviceStatus 형식과 호환
+	type ifStat struct {
+		Index   int     `json:"Index"`
+		Name    string  `json:"Name"`
+		OperUp  bool    `json:"OperUp"`
+		InBytes uint64  `json:"InBytes"`
+		OutBytes uint64 `json:"OutBytes"`
+		InBps   float64 `json:"InBps"`
+		OutBps  float64 `json:"OutBps"`
+	}
+	type devStat struct {
+		Device      snmp.Device `json:"Device"`
+		Up          bool        `json:"Up"`
+		UptimeSec   float64     `json:"UptimeSec"`
+		Interfaces  []ifStat    `json:"Interfaces,omitempty"`
+		CollectedAt string      `json:"CollectedAt"`
+		LastError   string      `json:"LastError,omitempty"`
+		ResponseMs  int64       `json:"ResponseMs,omitempty"`
+		SysDescr    string      `json:"SysDescr,omitempty"`
+	}
+
+	out := make([]devStat, 0, len(devices))
+	now := r.Context().Value("now")
+	_ = now
+	for _, d := range devices {
+		snap, _ := prom.SNMPStatusForDevice(h.prometheusURL, d.Name)
+		ds := devStat{
+			Device:      d,
+			CollectedAt: "now",
+		}
+		if snap != nil {
+			ds.Up = snap.Up
+			ds.UptimeSec = snap.UptimeSec
+			ds.ResponseMs = snap.ResponseMs
+			ds.SysDescr = snap.SysDescr
+			for _, ifc := range snap.Interfaces {
+				ds.Interfaces = append(ds.Interfaces, ifStat{
+					Index: ifc.Index, Name: ifc.Name, OperUp: ifc.OperUp,
+					InBps: ifc.InBps, OutBps: ifc.OutBps,
+				})
+			}
+		}
+		// Prometheus에 데이터 없으면 — server 직접 폴링 결과(메모리)도 함께 확인
+		if !ds.Up {
+			if memStatus := h.poller.Status(d.ID); memStatus != nil && memStatus.LastError != "" {
+				ds.LastError = memStatus.LastError
+			}
+		}
+		out = append(out, ds)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(statuses)
+	json.NewEncoder(w).Encode(out)
 }
