@@ -8,6 +8,7 @@ import {
   useAlertStatus, 
   useAnomalyData 
 } from '../hooks/useMonitoring'
+import axios from 'axios'
 import { getAlertConfig } from '../api/alert'
 import { useQuery } from '@tanstack/react-query'
 import { queryRange } from '../api/prometheus'
@@ -59,10 +60,10 @@ export default function HostDetailPage() {
   })
 
   // 절대값 (메모리/디스크 GB 표시용) — Prometheus instant query
+  // axios 사용해야 JWT 인터셉터로 인증 헤더 자동 첨부 (fetch는 수동 첨부 필요)
   const promQuery = async (q: string): Promise<number | null> => {
-    const r = await fetch(`/api/v1/query?query=${encodeURIComponent(q)}`)
-    const j = await r.json()
-    const v = j?.data?.result?.[0]?.value?.[1]
+    const res = await axios.get('/api/v1/query', { params: { query: q } })
+    const v = res.data?.data?.result?.[0]?.value?.[1]
     return v ? parseFloat(v) : null
   }
   const { data: memUsedBytes } = useQuery({
