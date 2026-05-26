@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/seongJae/owlmon/server/alert"
+	"github.com/seongJae/owlmon/server/prom"
 )
 
 // HostReport는 단일 호스트의 월간 통계입니다.
@@ -78,7 +79,8 @@ func (r *Reporter) Generate(year int, month time.Month) (*MonthlyReport, error) 
 	days := int(end.Sub(start).Hours()/24) + 1
 	duration := fmt.Sprintf("%dd", days)
 
-	hosts, err := r.labelValues("host_name")
+	// 공통 헬퍼 — 활성 호스트만 (stale 호스트가 보고서에 0%/0%/0% 가동률로 들어가는 문제 방지)
+	hosts, err := prom.ActiveHosts(r.prometheusURL)
 	if err != nil {
 		return nil, fmt.Errorf("호스트 목록 조회 실패: %w", err)
 	}
@@ -210,18 +212,3 @@ func (r *Reporter) instantQuery(promql string, at time.Time) (float64, error) {
 	return strconv.ParseFloat(valStr, 64)
 }
 
-func (r *Reporter) labelValues(label string) ([]string, error) {
-	resp, err := http.Get(r.prometheusURL + "/api/v1/label/" + label + "/values")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Data []string `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
-}

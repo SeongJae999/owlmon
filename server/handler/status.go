@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seongJae/owlmon/server/alert"
+	"github.com/seongJae/owlmon/server/prom"
 )
 
 // ActiveAlert는 현재 임계값을 초과 중인 알림 항목입니다.
@@ -261,17 +262,10 @@ func (h *StatusHandler) query(promql string) ([]promResult, error) {
 }
 
 func (h *StatusHandler) labelValues(label string) ([]string, error) {
-	// host_name은 활성 시리즈만 반환 — labelValues API는 retention 기간 내 모든 라벨 반환해서
-	// stale 호스트(꺼진 에이전트, 일회성 프록시 노드 등)가 호스트 목록에 계속 보이는 문제 해결
+	// host_name은 공통 헬퍼로 — 같은 패턴이 checker.go, reporter.go에도 있어서 공통화함
 	if label == "host_name" {
-		results, err := h.query("count(system_cpu_usage_percent) by (host_name)")
+		hosts, err := prom.ActiveHosts(h.prometheusURL)
 		if err == nil {
-			hosts := make([]string, 0, len(results))
-			for _, r := range results {
-				if name := r.metric["host_name"]; name != "" {
-					hosts = append(hosts, name)
-				}
-			}
 			return hosts, nil
 		}
 		// instant query 실패 시 기본 labelValues로 폴백
