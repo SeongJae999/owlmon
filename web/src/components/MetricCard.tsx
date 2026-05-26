@@ -28,6 +28,8 @@ interface Props {
   // 절대값 표시 (예: "12.3 / 16.0 GB") — 둘 다 있으면 표시
   usedBytes?: number | null
   totalBytes?: number | null
+  // 절대값 없을 때 표시할 힌트 (예: "agent 업데이트 후 표시")
+  absoluteHint?: string
 }
 
 // 사람 친화적 용량 포맷 (TB/GB/MB)
@@ -78,7 +80,7 @@ const statusConfig = {
   },
 }
 
-export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes }: Props) {
+export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes, absoluteHint }: Props) {
   const status = getStatus(value, warning, critical)
   const hasAnomaly = anomaly != null
   const cfg = statusConfig[status]
@@ -160,6 +162,8 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
                 남은 용량: {formatBytes(Math.max(0, totalBytes - usedBytes))}
               </div>
             </>
+          ) : absoluteHint ? (
+            <div className="text-[11px] text-slate-500 mt-1.5 italic">{absoluteHint}</div>
           ) : (
             <div className="text-[11px] text-slate-500 mt-1.5">실시간 사용률</div>
           )}
@@ -207,9 +211,10 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <defs>
+              {/* 차트 stroke/fill 색을 severity 색에 맞춤 — gauge ring과 일관성 */}
               <linearGradient id={`grad-${title}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity={0.15} />
-                <stop offset="100%" stopColor={color} stopOpacity={0} />
+                <stop offset="0%" stopColor={cfg.color} stopOpacity={0.18} />
+                <stop offset="100%" stopColor={cfg.color} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis dataKey="time" hide />
@@ -230,12 +235,12 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
             {hasAnomaly && (
               <ReferenceLine y={anomaly.mean} stroke="#a855f7" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
             )}
-            <Area 
-              type="monotone" 
-              dataKey="value" 
-              stroke={color} 
-              fill={`url(#grad-${title})`} 
-              strokeWidth={3} 
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={cfg.color}
+              fill={`url(#grad-${title})`}
+              strokeWidth={3}
               dot={false}
               animationDuration={1500}
               animationEasing="ease-in-out"

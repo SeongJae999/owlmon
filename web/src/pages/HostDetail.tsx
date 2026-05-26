@@ -117,7 +117,16 @@ export default function HostDetailPage() {
               )} />
               <span className="text-xs font-medium text-slate-400 shrink-0">{isOffline ? '연결 끊김' : '정상 동작'}</span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">호스트 상세</p>
+            {/* 호스트 스펙 인라인 (CPU/RAM 한 줄) — 별도 카드 대신 헤더에 압축 */}
+            {hostSpec ? (
+              <p className="text-xs text-slate-500 mt-0.5">
+                {hostSpec.cpu_cores}코어
+                {hostSpec.cpu_model && <> · {hostSpec.cpu_model.replace(/\s+CPU\s+/i, ' ').replace(/@.*$/, '').trim()}</>}
+                {hostSpec.memory_total_bytes && <> · RAM {(hostSpec.memory_total_bytes / 1024 / 1024 / 1024).toFixed(0)}GB</>}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 mt-0.5">호스트 상세</p>
+            )}
           </div>
         </div>
 
@@ -195,40 +204,41 @@ export default function HostDetailPage() {
             diskPrediction={anomalyData?.disk_predictions.find(p => p.host === hostName)}
             usedBytes={diskAbsolute?.used}
             totalBytes={diskAbsolute?.total}
+            absoluteHint="agent 업데이트 후 표시"
           />
         </div>
       </div>
 
-      {/* Hardware/OS Spec Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-1 h-5 bg-violet-500 rounded-full" />
-          <h2 className="text-base font-bold text-slate-100">호스트 스펙</h2>
-        </div>
-        <HostSpecCard host={hostName} />
-      </div>
-
-      {/* Service Checks Section */}
-      {serviceChecks.length > 0 && (
-        <div className="space-y-4">
+      {/* 보조 정보: 호스트 스펙 + 서비스 체크 (collapsible — 디폴트 접힘) */}
+      <details className="group bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+        <summary className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-slate-800/40 transition-colors list-none">
           <div className="flex items-center gap-2.5">
-            <div className="w-1 h-5 bg-indigo-500 rounded-full" />
-            <h2 className="text-base font-bold text-slate-800">서비스 체크</h2>
+            <div className="w-1 h-5 bg-violet-500 rounded-full" />
+            <h2 className="text-sm font-bold text-slate-200">상세 정보</h2>
+            <span className="text-[11px] font-medium text-slate-500">
+              호스트 스펙 + 서비스 체크 {serviceChecks.length > 0 && `(${serviceChecks.length})`}
+            </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {serviceChecks.map((check) => (
-              <ServiceCheckCard
-                key={check.name}
-                name={check.name}
-                type={check.type}
-                target={check.target}
-                status={check.status}
-                latencyMs={check.latencyMs}
-              />
-            ))}
-          </div>
+          <span className="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        <div className="px-5 pb-5 space-y-4">
+          <HostSpecCard host={hostName} />
+          {serviceChecks.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {serviceChecks.map((check) => (
+                <ServiceCheckCard
+                  key={check.name}
+                  name={check.name}
+                  type={check.type}
+                  target={check.target}
+                  status={check.status}
+                  latencyMs={check.latencyMs}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </details>
     </div>
   )
 }
