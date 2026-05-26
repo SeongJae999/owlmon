@@ -82,9 +82,9 @@ export default function HostSpecCard({ host }: Props) {
         </div>
       </div>
 
-      {/* 🥉 디스크/네트워크 인라인 */}
+      {/* 🥉 디스크/네트워크 — 가로 2열 (좁은 화면은 세로) */}
       {(hasDisks || hasNetworks) && (
-        <div className="border-t border-slate-800 px-4 py-3 space-y-3 text-sm">
+        <div className="border-t border-slate-800 px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
           {hasDisks && (
             <div>
               <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
