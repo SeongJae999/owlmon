@@ -15,7 +15,9 @@
 set -uo pipefail
 
 # 기본 호스트 (SSH config alias 사용)
-HOSTS="${HOSTS:-willdev willkomo will hi-solution}"
+# 주의: SSH alias 이름은 OWLmon host_name과 다를 수 있음
+# 예: OWLmon에서 "will"로 표시되는 호스트 = SSH alias "will-server" (172.30.1.81)
+HOSTS="${HOSTS:-willdev willkomo will-server hi-solution}"
 AGENT_DIR="${AGENT_DIR:-/Users/skane/mango/owlmon/agent}"
 BUILD_OUT="/tmp/owlmon-agent-linux-amd64"
 
