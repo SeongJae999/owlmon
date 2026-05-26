@@ -141,7 +141,11 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
           {hosts.map((host) => {
             const status = hostStatuses[host]
             const metrics = hostMetrics[host]
-            const alertCount = activeAlerts.filter(a => a.host === host && !a.acked).length
+            // severity별 분리 — warning만 있을 때 빨간색으로 잘못 표시되는 버그 fix
+            const hostAlerts = activeAlerts.filter(a => a.host === host && !a.acked)
+            const criticalAlertCount = hostAlerts.filter(a => a.severity === 'critical').length
+            const warningAlertCount = hostAlerts.filter(a => a.severity === 'warning').length
+            const alertCount = hostAlerts.length
             const isOffline = status === 'offline'
             const uptime = uptimes[host]
             const inMaintenance = maintenanceSet.has(host)
@@ -151,8 +155,10 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
             const cpu = metrics?.cpu ?? 0
             const mem = metrics?.memory ?? 0
             const dsk = metrics?.disk ?? 0
-            const hasCritical = cpu >= 90 || mem >= 95 || dsk >= 90
-            const hasWarning  = !hasCritical && (cpu >= 70 || mem >= 80 || dsk >= 85)
+            const metricCritical = cpu >= 90 || mem >= 95 || dsk >= 90
+            const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= 85)
+            const hasCritical = criticalAlertCount > 0 || metricCritical
+            const hasWarning  = !hasCritical && (warningAlertCount > 0 || metricWarning)
 
             return (
               <div
@@ -161,7 +167,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                   "group bg-slate-900 rounded-xl border p-4 transition-all duration-200 flex flex-col h-full cursor-pointer",
                   inMaintenance
                     ? "border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60"
-                    : (alertCount > 0 || hasCritical)
+                    : hasCritical
                       ? "border-rose-500/50 hover:border-rose-500/80 hover:bg-rose-500/[0.05] animate-alert-pulse shadow-[0_0_0_1px_rgba(244,63,94,0.25)] ring-1 ring-rose-500/20"
                       : hasWarning
                         ? "border-amber-500/40 hover:border-amber-500/70 hover:bg-amber-500/[0.03]"
@@ -181,7 +187,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                       "w-2 h-2 rounded-full shrink-0 mt-1.5",
                       inMaintenance ? "bg-purple-400"
                         : isOffline ? "bg-rose-500"
-                        : (alertCount > 0 || hasCritical) ? "bg-rose-400"
+                        : hasCritical ? "bg-rose-400"
                         : hasWarning ? "bg-amber-400"
                         : "bg-emerald-400"
                     )} />
@@ -190,7 +196,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                       <span className="text-xs font-medium text-slate-500 mt-0.5 block">
                         {isOffline ? '연결 끊김'
                           : inMaintenance ? '점검 중'
-                          : (alertCount > 0 || hasCritical) ? '경고 (위험)'
+                          : hasCritical ? '경고 (위험)'
                           : hasWarning ? '주의'
                           : '정상 동작'}
                       </span>
