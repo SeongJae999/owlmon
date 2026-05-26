@@ -163,6 +163,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
             return (
               <div
                 key={host}
+                onClick={() => onSelect(host)}
                 className={cn(
                   "group bg-slate-900 rounded-xl border p-4 transition-all duration-200 flex flex-col h-full cursor-pointer",
                   inMaintenance
@@ -179,8 +180,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                 {/* Card Header */}
                 <div className="flex items-start justify-between gap-2 mb-4">
                   <div
-                    className="flex items-start gap-2 cursor-pointer flex-1 min-w-0"
-                    onClick={() => onSelect(host)}
+                    className="flex items-start gap-2 flex-1 min-w-0"
                     title={host}
                   >
                     <div className={cn(
@@ -227,10 +227,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                 })()}
 
                 {/* Metrics Section — 항상 표시 (오프라인이면 placeholder) */}
-                <div
-                  className="space-y-2.5 mb-4 cursor-pointer flex-1"
-                  onClick={() => onSelect(host)}
-                >
+                <div className="space-y-2.5 mb-4 flex-1">
                   <MetricBar label="CPU" value={metrics?.cpu ?? null} warning={70} critical={90} />
                   <MetricBar label="메모리" value={metrics?.memory ?? null} warning={80} critical={95} />
                   <MetricBar label="디스크" value={metrics?.disk ?? null} warning={85} critical={90} />
@@ -252,7 +249,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
 
                   <div className="flex gap-1 shrink-0">
                     <button
-                      onClick={() => onToggleMaintenance(host, !inMaintenance)}
+                      onClick={(e) => { e.stopPropagation(); onToggleMaintenance(host, !inMaintenance) }}
                       className={cn(
                         "p-1.5 rounded-md transition-colors border",
                         inMaintenance
@@ -264,7 +261,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                       <Wrench size={14} />
                     </button>
                     <button
-                      onClick={() => onSelect(host)}
+                      onClick={(e) => { e.stopPropagation(); onSelect(host) }}
                       className="p-1.5 rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
                       title="상세 보기"
                     >
