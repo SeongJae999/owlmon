@@ -124,7 +124,7 @@ func SNMPStatusForDevice(prometheusURL, deviceName string) (*SNMPSnapshot, error
 			}
 		}
 	}
-	if r, err := query(prometheusURL, `rate(snmp_switch_if_in_bytes`+devSel+`[2m])`); err == nil {
+	if r, err := query(prometheusURL, `rate(snmp_switch_if_in_bytes_total`+devSel+`[2m])`); err == nil {
 		for _, x := range r.Data.Result {
 			idx, _ := strconv.Atoi(x.Metric["if_index"])
 			if s, ok := ifsByIndex[idx]; ok {
@@ -132,7 +132,7 @@ func SNMPStatusForDevice(prometheusURL, deviceName string) (*SNMPSnapshot, error
 			}
 		}
 	}
-	if r, err := query(prometheusURL, `rate(snmp_switch_if_out_bytes`+devSel+`[2m])`); err == nil {
+	if r, err := query(prometheusURL, `rate(snmp_switch_if_out_bytes_total`+devSel+`[2m])`); err == nil {
 		for _, x := range r.Data.Result {
 			idx, _ := strconv.Atoi(x.Metric["if_index"])
 			if s, ok := ifsByIndex[idx]; ok {
