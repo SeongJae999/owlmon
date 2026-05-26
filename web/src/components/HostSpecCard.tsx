@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, Cpu, MemoryStick, HardDrive, Network, Server, Box } from 'lucide-react'
+import { Cpu, MemoryStick, HardDrive, Network, Server, Box } from 'lucide-react'
 import {
   getHostSpec,
   formatBytes,
@@ -20,7 +19,6 @@ interface Props {
  * 호스트 스펙은 자주 보는 정보가 아니라 평소엔 압축, 필요 시만 펼침.
  */
 export default function HostSpecCard({ host }: Props) {
-  const [expanded, setExpanded] = useState(false)
 
   const { data: spec, isLoading, error } = useQuery({
     queryKey: ['spec', host],
@@ -66,29 +64,17 @@ export default function HostSpecCard({ host }: Props) {
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/50 overflow-hidden">
-      {/* 한 줄 요약 + 토글 — 평소엔 이것만 보임 */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-900/80 transition-colors text-left"
-      >
+      {/* 한 줄 요약 — 외부 collapsible 안에 들어가므로 자체 toggle 제거 (이중 펼치기 UX 안티패턴) */}
+      <div className="w-full flex items-center gap-3 px-4 py-3 text-left">
         <Server size={16} className="text-violet-400 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="text-sm text-slate-200 font-medium truncate">{oneLineSummary}</div>
           <div className="text-xs text-slate-500 mt-0.5 truncate">{subLine}</div>
         </div>
-        <span className="text-xs text-slate-500 shrink-0 mr-1">
-          {expanded ? '접기' : '더보기'}
-        </span>
-        {expanded ? (
-          <ChevronUp size={16} className="text-slate-500 shrink-0" />
-        ) : (
-          <ChevronDown size={16} className="text-slate-500 shrink-0" />
-        )}
-      </button>
+      </div>
 
-      {/* 펼쳤을 때만 디테일 */}
-      {expanded && (
-        <div className="border-t border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 p-4">
+      {/* 디테일 — 항상 표시 (외부 collapsible로 토글) */}
+      <div className="border-t border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 p-4">
           <DetailRow icon={<Cpu size={14} />} label="CPU 모델">
             <div className="text-slate-300 text-sm">{spec.cpu_model || '—'}</div>
             <div className="text-xs text-slate-500 mt-0.5">
@@ -134,8 +120,7 @@ export default function HostSpecCard({ host }: Props) {
           <div className="md:col-span-2 text-[11px] text-slate-600 pt-2 border-t border-slate-800/60">
             마지막 갱신: {new Date(spec.updated_at).toLocaleString('ko-KR')}
           </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
