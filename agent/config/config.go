@@ -12,7 +12,25 @@ import (
 type Config struct {
 	OTLPEndpoint string        `yaml:"otlp_endpoint"` // OTel Collector 주소
 	Checks       []CheckConfig `yaml:"checks"`        // 서비스 체크 목록
-	Logs         LogConfig     `yaml:"logs"`           // 로그 수집 설정
+	Logs         LogConfig     `yaml:"logs"`          // 로그 수집 설정
+	SNMP         SNMPConfig    `yaml:"snmp"`          // SNMP 프록시 폴링 (망분리 환경에서 OWLmon 서버 대신 폴링)
+}
+
+// SNMPConfig는 에이전트가 사내 SNMP 장비를 대신 폴링하는 설정입니다.
+// 학교/공공기관 망분리 환경에서 OWLmon 서버가 직접 SNMP 못 닿을 때 사용.
+type SNMPConfig struct {
+	Enabled      bool          `yaml:"enabled"`
+	PollInterval time.Duration `yaml:"poll_interval"` // 기본 30초
+	Devices      []SNMPDevice  `yaml:"devices"`
+}
+
+// SNMPDevice는 폴링 대상 장비 1대 설정입니다.
+type SNMPDevice struct {
+	Name      string `yaml:"name"`      // 장비 식별 이름 (메트릭 라벨)
+	IP        string `yaml:"ip"`        // 대상 IP
+	Community string `yaml:"community"` // SNMP community (기본 public)
+	Port      int    `yaml:"port"`      // UDP 포트 (기본 161)
+	Type      string `yaml:"type"`      // "printer" / "switch" / "generic"
 }
 
 // LogConfig는 로그 수집 설정입니다.
@@ -66,6 +84,21 @@ func Load(path string) (*Config, error) {
 	for i := range cfg.Checks {
 		if cfg.Checks[i].Interval == 0 {
 			cfg.Checks[i].Interval = 60 * time.Second
+		}
+	}
+	// SNMP 기본값
+	if cfg.SNMP.PollInterval == 0 {
+		cfg.SNMP.PollInterval = 30 * time.Second
+	}
+	for i := range cfg.SNMP.Devices {
+		if cfg.SNMP.Devices[i].Community == "" {
+			cfg.SNMP.Devices[i].Community = "public"
+		}
+		if cfg.SNMP.Devices[i].Port == 0 {
+			cfg.SNMP.Devices[i].Port = 161
+		}
+		if cfg.SNMP.Devices[i].Type == "" {
+			cfg.SNMP.Devices[i].Type = "generic"
 		}
 	}
 

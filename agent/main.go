@@ -13,6 +13,7 @@ import (
 	"github.com/seongJae/owlmon/agent/exporter"
 	"github.com/seongJae/owlmon/agent/logtail"
 	"github.com/seongJae/owlmon/agent/service"
+	"github.com/seongJae/owlmon/agent/snmp"
 	"github.com/seongJae/owlmon/agent/specs"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -136,8 +137,28 @@ func startAgent() func() {
 		}
 	}
 
+	// SNMP 프록시 폴링 (망분리 환경에서 사내 SNMP 장비를 에이전트가 대신 폴링)
+	if cfg.SNMP.Enabled && len(cfg.SNMP.Devices) > 0 {
+		devices := make([]snmp.Device, len(cfg.SNMP.Devices))
+		for i, d := range cfg.SNMP.Devices {
+			devices[i] = snmp.Device{
+				Name:      d.Name,
+				IP:        d.IP,
+				Community: d.Community,
+				Port:      d.Port,
+				Type:      d.Type,
+			}
+		}
+		poller := snmp.NewPoller(devices)
+		if err := snmp.RegisterMetrics(meter, poller); err != nil {
+			log.Printf("SNMP 메트릭 등록 실패: %v", err)
+		} else {
+			poller.Start(cfg.SNMP.PollInterval)
+		}
+	}
+
 	log.Printf("owlmon-agent 시작 (호스트: %s, endpoint: %s)", hostname, endpoint)
-	log.Printf("수집 주기: %s | 서비스 체크: %d개", collectInterval, len(cfg.Checks))
+	log.Printf("수집 주기: %s | 서비스 체크: %d개 | SNMP 장비: %d개", collectInterval, len(cfg.Checks), len(cfg.SNMP.Devices))
 
 	// 스펙 1회 수집/전송 (백그라운드 — 실패해도 메트릭 송신엔 영향 없음)
 	go sendSpecsOnce(ctx, cfg)
