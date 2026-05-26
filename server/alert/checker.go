@@ -159,6 +159,7 @@ func (c *Checker) check() {
 	c.checkMetric("CPU", "max(system_cpu_usage_percent) by (host_name)", cfg.CPUThreshold, 0)
 	c.checkMetric("메모리", "max(system_memory_usage_percent) by (host_name)", cfg.MemThreshold, 0)
 	c.checkDisk(cfg.DiskWarn, cfg.DiskCrit)
+	c.checkRapidGrowth()
 	c.checkServerDown()
 	c.checkServiceFailures()
 	c.feedAnomalyDetector()
@@ -255,6 +256,55 @@ func (c *Checker) checkServerDown() {
 				subject := fmt.Sprintf("✅ %s 서버 연결 복구", host)
 				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 복구되었습니다.", host)
 				c.sendAlert(host, "down", "info", subject, body)
+			}
+		}
+	}
+}
+
+// checkRapidGrowth는 디스크/메모리가 단기간에 급변하는 경우를 알립니다.
+// 단순 임계치(예: 디스크 85%)만 보면 "갑자기 50% → 86% 점프"를 못 감지 →
+// 사후 알람만 가능. delta()로 1시간 변화량을 추적해 사전 감지.
+func (c *Checker) checkRapidGrowth() {
+	type growthCheck struct {
+		name     string
+		promql   string
+		warnΔ    float64 // 임계 증가량 (%포인트)
+		critΔ    float64
+		category string
+	}
+	checks := []growthCheck{
+		{"디스크", `delta(system_disk_usage_percent[1h])`, 5, 15, "rapid_disk"},
+		{"메모리", `delta(system_memory_usage_percent[1h])`, 10, 25, "rapid_memory"},
+	}
+	for _, ck := range checks {
+		results, err := c.query(ck.promql)
+		if err != nil {
+			continue
+		}
+		for _, r := range results {
+			host := r.metric["host_name"]
+			if host == "" {
+				continue
+			}
+			if c.state.IsInMaintenance(host) {
+				continue
+			}
+			growth := r.value
+			var severity string
+			switch {
+			case growth >= ck.critΔ:
+				severity = "critical"
+			case growth >= ck.warnΔ:
+				severity = "warning"
+			default:
+				continue
+			}
+			key := fmt.Sprintf("%s:%s", ck.category, host)
+			if c.state.ShouldAlert(key) {
+				subject := fmt.Sprintf("📈 %s — %s 1시간 급증 (+%.1f%%p)", host, ck.name, growth)
+				body := fmt.Sprintf("호스트: %s\n메트릭: %s\n1시간 전 대비 변화: +%.1f%%포인트\n\n갑작스러운 자원 사용 증가 — 빈번한 import/덤프/로그 폭증 등 의심.",
+					host, ck.name, growth)
+				c.sendAlert(host, ck.category, severity, subject, body)
 			}
 		}
 	}

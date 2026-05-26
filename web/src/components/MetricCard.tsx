@@ -141,8 +141,8 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
         </div>
       )}
 
-      {/* Chart Container */}
-      <div className="h-28 w-full -mx-2">
+      {/* Chart Container — recharts SVG가 클릭 시 브라우저 기본 focus outline 표시되는 거 제거 */}
+      <div className="h-28 w-full -mx-2 outline-none [&_*]:outline-none [&_svg]:focus:outline-none">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <defs>

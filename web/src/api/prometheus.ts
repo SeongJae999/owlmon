@@ -13,21 +13,30 @@ async function query(promql: string): Promise<number | null> {
 }
 
 // Prometheus range query (시계열)
+// minutes: 시간 범위 — 기본 24시간 (1일치 추이 표시)
+// step:    데이터 포인트 간격 — minutes에 따라 자동 (포인트 ~300개 유지)
 export async function queryRange(
   promql: string,
-  minutes = 30
+  minutes = 1440
 ): Promise<{ time: string; value: number }[]> {
   const end = Math.floor(Date.now() / 1000)
   const start = end - minutes * 60
+  // step 자동 — 포인트가 너무 많으면 (24h × 30s = 2880개) 렌더링 느려져서
+  // ~300개 유지 위해 동적 계산
+  const step = Math.max(30, Math.floor((minutes * 60) / 300))
 
   const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query_range`, {
-    params: { query: promql, start, end, step: '30s' },
+    params: { query: promql, start, end, step: `${step}s` },
   })
   const result = res.data?.data?.result
   if (!result || result.length === 0) return []
 
+  // 24h 범위면 시:분 외에 날짜도 hover에 도움 — 일단 시:분만 표시
+  const showHour = minutes >= 60
   return result[0].values.map(([ts, val]: [number, string]) => ({
-    time: new Date(ts * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+    time: showHour
+      ? new Date(ts * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+      : new Date(ts * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     value: parseFloat(parseFloat(val).toFixed(1)),
   }))
 }
