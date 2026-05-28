@@ -1,7 +1,6 @@
-import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ActiveAlert } from '../api/alert'
-import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Activity, Zap, Cpu } from 'lucide-react'
+import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Zap, Cpu } from 'lucide-react'
 import { cn } from '../utils/cn'
 import { listHostSpecs, shortCPU, formatBytes, type HostSpec } from '../api/specs'
 

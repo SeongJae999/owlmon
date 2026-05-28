@@ -1,4 +1,3 @@
-import React from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { AlertTriangle, TrendingUp, Info } from 'lucide-react'
 import { cn } from '../utils/cn'

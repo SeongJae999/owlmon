@@ -1,12 +1,10 @@
-import React from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { 
-  useHosts, 
-  useAllHostStatuses, 
-  useHostMetrics, 
-  useServiceChecks, 
-  useAlertStatus, 
-  useAnomalyData 
+import {
+  useHosts,
+  useAllHostStatuses,
+  useHostMetrics,
+  useServiceChecks,
+  useAnomalyData
 } from '../hooks/useMonitoring'
 import { getAlertConfig } from '../api/alert'
 import { useQuery } from '@tanstack/react-query'
@@ -14,7 +12,7 @@ import { queryRange } from '../api/prometheus'
 import MetricCard from '../components/MetricCard'
 import ServiceCheckCard from '../components/ServiceCheckCard'
 import HostSpecCard from '../components/HostSpecCard'
-import { ChevronLeft, Server, Activity, ShieldAlert, Zap, ArrowLeft } from 'lucide-react'
+import { ChevronLeft, Server, ShieldAlert, ArrowLeft } from 'lucide-react'
 import { cn } from '../utils/cn'
 
 export default function HostDetailPage() {
@@ -25,7 +23,6 @@ export default function HostDetailPage() {
   const { data: hostStatuses = {} } = useAllHostStatuses(hosts)
   const { data: metrics } = useHostMetrics(hostName)
   const { data: serviceChecks = [] } = useServiceChecks(hostName)
-  const { data: activeAlerts = [] } = useAlertStatus()
   const { data: anomalyData } = useAnomalyData()
   const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
 

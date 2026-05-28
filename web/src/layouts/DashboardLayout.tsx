@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import { logout } from '../api/auth'
 import { useAlertStatus } from '../hooks/useMonitoring'
