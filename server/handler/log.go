@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -231,6 +232,116 @@ func (h *LogHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+// Histogram GET /api/logs/histogram — 시간대별 로그 분포 (검색 필터와 동일 파라미터 + interval)
+func (h *LogHandler) Histogram(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	params := db.LogSearchParams{
+		Host:   q.Get("host"),
+		Source: q.Get("source"),
+		Level:  q.Get("level"),
+		Query:  q.Get("query"),
+	}
+	if v := q.Get("rule_id"); v != "" {
+		params.RuleID, _ = strconv.ParseInt(v, 10, 64)
+	}
+	if from := q.Get("from"); from != "" {
+		if t, err := time.Parse(time.RFC3339, from); err == nil {
+			params.From = t
+		}
+	}
+	if to := q.Get("to"); to != "" {
+		if t, err := time.Parse(time.RFC3339, to); err == nil {
+			params.To = t
+		}
+	}
+	bucketSec, _ := strconv.Atoi(q.Get("bucket_sec"))
+	if bucketSec <= 0 {
+		// 범위에서 자동 결정
+		if !params.From.IsZero() && !params.To.IsZero() {
+			rangeSec := int(params.To.Sub(params.From).Seconds())
+			switch {
+			case rangeSec <= 2*3600:
+				bucketSec = 60 // 1분
+			case rangeSec <= 24*3600:
+				bucketSec = 300 // 5분
+			case rangeSec <= 7*24*3600:
+				bucketSec = 3600 // 1시간
+			default:
+				bucketSec = 86400 // 1일
+			}
+		} else {
+			bucketSec = 3600
+		}
+	}
+	buckets, err := h.store.Histogram(r.Context(), params, bucketSec)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"buckets":    buckets,
+		"bucket_sec": bucketSec,
+	})
+}
+
+// Export GET /api/logs/export?format=csv|json — 검색 결과 다운로드 (최대 10,000건)
+func (h *LogHandler) Export(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	params := db.LogSearchParams{
+		Host:   q.Get("host"),
+		Source: q.Get("source"),
+		Level:  q.Get("level"),
+		Query:  q.Get("query"),
+		Limit:  10000,
+	}
+	if v := q.Get("rule_id"); v != "" {
+		params.RuleID, _ = strconv.ParseInt(v, 10, 64)
+	}
+	if from := q.Get("from"); from != "" {
+		if t, err := time.Parse(time.RFC3339, from); err == nil {
+			params.From = t
+		}
+	}
+	if to := q.Get("to"); to != "" {
+		if t, err := time.Parse(time.RFC3339, to); err == nil {
+			params.To = t
+		}
+	}
+	result, err := h.store.Search(r.Context(), params)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	format := q.Get("format")
+	filename := fmt.Sprintf("owlmon-logs-%s", time.Now().Format("20060102-150405"))
+
+	if format == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.json\"", filename))
+		json.NewEncoder(w).Encode(result.Records)
+		return
+	}
+	// CSV 기본
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.csv\"", filename))
+	// UTF-8 BOM (엑셀 한글 깨짐 방지)
+	w.Write([]byte{0xEF, 0xBB, 0xBF})
+	cw := csv.NewWriter(w)
+	defer cw.Flush()
+	cw.Write([]string{"timestamp", "host", "source", "level", "line"})
+	for _, rec := range result.Records {
+		cw.Write([]string{
+			rec.Timestamp.Format(time.RFC3339),
+			rec.Host,
+			rec.Source,
+			rec.Level,
+			rec.Line,
+		})
+	}
 }
 
 // Sources GET /api/logs/sources — 사용 가능한 로그 소스 목록
