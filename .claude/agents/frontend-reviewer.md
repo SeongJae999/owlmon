@@ -6,7 +6,7 @@ description: |
   실제 코드 변경은 하지 않음 — 검토 + 권장만 (Edit/Write 도구 없음).
   영업 시연 / 릴리즈 전 / UI 큰 변경 후 호출.
 tools: Read, Grep, Glob, Bash, WebFetch
-model: sonnet
+model: opus
 ---
 
 # OWLmon Frontend Reviewer
