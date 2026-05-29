@@ -4,6 +4,7 @@ import type { ActiveAlert } from '../api/alert'
 import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Activity, Zap, Cpu } from 'lucide-react'
 import { cn } from '../utils/cn'
 import { listHostSpecs, shortCPU, formatBytes, type HostSpec } from '../api/specs'
+import { getAlertConfig } from '../api/alert'
 
 interface HostMetrics {
   cpu: number | null
@@ -92,6 +93,12 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
   })
   const specByHost = new Map<string, HostSpec>(specs.map((s) => [s.host_name, s]))
 
+  // 디스크 임계치는 알림 설정과 동일하게 — 관리자가 임계치를 바꾸면 오버뷰 색상도 따라감
+  // (queryKey ['alertConfig']는 다른 화면과 캐시 공유 → 추가 요청 거의 없음)
+  const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
+  const diskWarn = alertCfg?.disk_warn ?? 85
+  const diskCrit = alertCfg?.disk_crit ?? 90
+
   const counts = hosts.reduce(
     (acc, host) => {
       if (maintenanceSet.has(host)) { acc.maintenance++; return acc }
@@ -104,8 +111,8 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
       const cpu = m?.cpu ?? 0
       const mem = m?.memory ?? 0
       const dsk = m?.disk ?? 0
-      const metricCritical = cpu >= 90 || mem >= 95 || dsk >= 90
-      const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= 85)
+      const metricCritical = cpu >= 90 || mem >= 95 || dsk >= diskCrit
+      const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= diskWarn)
 
       if (offline || hasCritical || metricCritical) acc.fault++
       else if (hasWarning || metricWarning) acc.warning++
@@ -155,8 +162,8 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
             const cpu = metrics?.cpu ?? 0
             const mem = metrics?.memory ?? 0
             const dsk = metrics?.disk ?? 0
-            const metricCritical = cpu >= 90 || mem >= 95 || dsk >= 90
-            const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= 85)
+            const metricCritical = cpu >= 90 || mem >= 95 || dsk >= diskCrit
+            const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= diskWarn)
             const hasCritical = criticalAlertCount > 0 || metricCritical
             const hasWarning  = !hasCritical && (warningAlertCount > 0 || metricWarning)
 
@@ -230,7 +237,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                 <div className="space-y-2.5 mb-4 flex-1">
                   <MetricBar label="CPU" value={metrics?.cpu ?? null} warning={70} critical={90} />
                   <MetricBar label="메모리" value={metrics?.memory ?? null} warning={80} critical={95} />
-                  <MetricBar label="디스크" value={metrics?.disk ?? null} warning={85} critical={90} />
+                  <MetricBar label="디스크" value={metrics?.disk ?? null} warning={diskWarn} critical={diskCrit} />
                 </div>
 
                 {/* Footer */}

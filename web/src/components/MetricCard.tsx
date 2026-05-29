@@ -30,6 +30,8 @@ interface Props {
   totalBytes?: number | null
   // 절대값 없을 때 표시할 힌트 (예: "agent 업데이트 후 표시")
   absoluteHint?: string
+  // 절대값/힌트가 없을 때 기본 "실시간 사용률" 대신 표시할 부제
+  subtitle?: string
 }
 
 // 사람 친화적 용량 포맷 (TB/GB/MB)
@@ -80,7 +82,7 @@ const statusConfig = {
   },
 }
 
-export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes, absoluteHint }: Props) {
+export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes, absoluteHint, subtitle }: Props) {
   const status = getStatus(value, warning, critical)
   const hasAnomaly = anomaly != null
   const cfg = statusConfig[status]
@@ -165,7 +167,7 @@ export default function MetricCard({ title, value, unit = '%', data, color, warn
           ) : absoluteHint ? (
             <div className="text-[11px] text-slate-500 mt-1.5 italic">{absoluteHint}</div>
           ) : (
-            <div className="text-[11px] text-slate-500 mt-1.5">실시간 사용률</div>
+            <div className="text-[11px] text-slate-500 mt-1.5">{subtitle ?? '실시간 사용률'}</div>
           )}
         </div>
       </div>
