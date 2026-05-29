@@ -60,6 +60,12 @@ func CheckCert(domain string, port int) CertInfo {
 	info.NotAfter = cert.NotAfter
 	info.DaysLeft = int(math.Floor(time.Until(cert.NotAfter).Hours() / 24))
 
+	// 학교/공공기관 결재·구매 lead time 고려한 단계화
+	//   ≤ 0일:  expired   (만료됨)
+	//   ≤ 7일:  critical  (긴급 갱신)
+	//   ≤ 30일: warning   (갱신 임박)
+	//   ≤ 60일: notice    (갱신 준비 — 결재 시작 시점)
+	//   > 60일: ok        (정상)
 	switch {
 	case info.DaysLeft <= 0:
 		info.Status = "expired"
@@ -67,6 +73,8 @@ func CheckCert(domain string, port int) CertInfo {
 		info.Status = "critical"
 	case info.DaysLeft <= 30:
 		info.Status = "warning"
+	case info.DaysLeft <= 60:
+		info.Status = "notice"
 	default:
 		info.Status = "ok"
 	}

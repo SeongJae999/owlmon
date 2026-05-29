@@ -3,6 +3,7 @@ package dpm
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -86,9 +87,11 @@ func CollectPostgres(ctx context.Context, inst Instance, password string, topN i
 		 ORDER BY mean_exec_time DESC
 		 LIMIT $1`, topN)
 	if err != nil {
-		// pg_stat_statements 미설치는 치명적 오류 아님
-		if result.Metrics.Error == "" {
-			result.Metrics.Error = fmt.Sprintf("pg_stat_statements 미사용 가능: %v", err)
+		// pg_stat_statements 미설치는 치명적 오류 아님 — Notice로 표시 (Error 아님)
+		if strings.Contains(err.Error(), "does not exist") {
+			result.Metrics.Notice = "pg_stat_statements_missing"
+		} else {
+			result.Metrics.Notice = fmt.Sprintf("슬로우 쿼리 수집 불가: %v", err)
 		}
 		return result
 	}

@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Globe, CheckCircle2, XCircle, Clock, Trash2, History, RefreshCcw, ExternalLink, Plus, X, Save, Activity, ShieldCheck } from 'lucide-react'
 import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
+import ConfirmDialog from './ConfirmDialog'
 
 function formatLatency(ms: number): string {
   if (ms < 1000) return `${ms}ms`
@@ -284,6 +285,7 @@ export default function SyntheticDashboard() {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [historyTarget, setHistoryTarget] = useState<{ id: number; name: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
   const { data: items = [], isLoading, refetch } = useQuery({
     queryKey: ['syntheticStatus'],
@@ -303,9 +305,8 @@ export default function SyntheticDashboard() {
     }
   })
 
-  const handleDelete = (id: number) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return
-    deleteMutation.mutate(id)
+  const handleDelete = (id: number, name: string) => {
+    setDeleteTarget({ id, name })
   }
 
   return (
@@ -354,7 +355,7 @@ export default function SyntheticDashboard() {
             <MonitorCard
               key={item.monitor.id}
               item={item}
-              onDelete={() => handleDelete(item.monitor.id)}
+              onDelete={() => handleDelete(item.monitor.id, item.monitor.name)}
               onCheck={() => checkMutation.mutate(item.monitor.id)}
               onShowHistory={() => setHistoryTarget({ id: item.monitor.id, name: item.monitor.name })}
             />
@@ -369,6 +370,17 @@ export default function SyntheticDashboard() {
           onClose={() => setHistoryTarget(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="모니터 삭제"
+        message={`'${deleteTarget?.name}' 모니터를 삭제하시겠습니까? 수집된 히스토리도 함께 삭제됩니다.`}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

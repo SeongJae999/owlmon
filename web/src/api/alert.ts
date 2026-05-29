@@ -42,9 +42,42 @@ export interface AlertRecord {
   body: string
 }
 
-export async function getAlertHistory(limit = 100): Promise<AlertRecord[]> {
-  const res = await axios.get('/api/alert/history', { params: { limit } })
+export interface AlertHistoryFilter {
+  from?: string
+  to?: string
+  severity?: string
+  host?: string
+  limit?: number
+}
+
+export async function getAlertHistory(filter: AlertHistoryFilter = {}): Promise<AlertRecord[]> {
+  const params: Record<string, any> = { limit: filter.limit ?? 500 }
+  if (filter.from) params.from = filter.from
+  if (filter.to) params.to = filter.to
+  if (filter.severity) params.severity = filter.severity
+  if (filter.host) params.host = filter.host
+  const res = await axios.get('/api/alert/history', { params })
   return res.data
+}
+
+export async function downloadAlertHistory(filter: AlertHistoryFilter, format: 'csv' | 'json'): Promise<void> {
+  const params: Record<string, any> = { format }
+  if (filter.from) params.from = filter.from
+  if (filter.to) params.to = filter.to
+  if (filter.severity) params.severity = filter.severity
+  if (filter.host) params.host = filter.host
+  const res = await axios.get('/api/alert/history/export', { params, responseType: 'blob' })
+  const cd = res.headers['content-disposition'] || ''
+  const match = cd.match(/filename="?([^"]+)"?/)
+  const filename = match ? match[1] : `owlmon-alerts.${format}`
+  const url = URL.createObjectURL(res.data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 export interface ActiveAlert {

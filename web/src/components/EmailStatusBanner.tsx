@@ -45,28 +45,48 @@ export default function EmailStatusBanner() {
     setDismissed(true)
   }
 
+  const smtpIssue = !data.smtp_configured
+  const recipientIssue = (data.recipients_count ?? 0) === 0
+
   return (
     <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex items-start gap-3">
       <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 space-y-1.5">
         <div className="text-sm font-semibold text-blue-200">
-          알람이 DB에는 기록되지만 이메일로는 발송되지 않습니다
+          알림이 DB에 기록되지만 이메일로는 발송되지 않습니다
         </div>
-        <div className="mt-1 text-xs text-blue-300/80 leading-relaxed">
-          {data.issues.join(' · ')}
-        </div>
-        <div className="mt-1.5 text-[11px] text-blue-300/60">
-          일부러 사용 안 하시는 경우 우측 ✕ 로 7일간 숨길 수 있습니다 (카카오톡/슬랙 등 다른 채널 도입 시 자연스럽게 채널 상태 표시로 전환 예정).
+        {smtpIssue && (
+          <div className="text-xs text-blue-300/90 leading-relaxed">
+            · <strong>SMTP 서버 미설정</strong> — 서버 관리자가 <code className="bg-slate-800 px-1 rounded text-[10px]">docker-compose .env</code>에 <code className="bg-slate-800 px-1 rounded text-[10px]">SMTP_HOST/PORT/USERNAME/PASSWORD</code> 설정 후 서버 재시작 필요
+          </div>
+        )}
+        {!smtpIssue && recipientIssue && (
+          <div className="text-xs text-blue-300/90 leading-relaxed">
+            · <strong>알림 수신자 미등록</strong> — 알림 설정에서 이메일 추가
+          </div>
+        )}
+        <div className="text-[11px] text-blue-300/60">
+          일부러 사용 안 하시는 경우(카톡/슬랙 등 다른 채널 또는 DB만 활용) 우측 X로 7일간 숨김.
         </div>
       </div>
       <div className="shrink-0 flex items-center gap-1">
-        <Link
-          to="/settings"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-200 text-xs font-semibold transition-colors border border-blue-500/30"
-        >
-          <Settings size={12} />
-          설정
-        </Link>
+        {!smtpIssue && recipientIssue && (
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-200 text-xs font-semibold transition-colors border border-blue-500/30"
+          >
+            <Settings size={12} />
+            수신자 추가
+          </Link>
+        )}
+        {smtpIssue && (
+          <Link
+            to="/support#requirements"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-200 text-xs font-semibold transition-colors border border-blue-500/30"
+          >
+            설치 가이드
+          </Link>
+        )}
         <button
           onClick={handleDismiss}
           className="p-1.5 rounded-lg text-blue-300/60 hover:text-blue-200 hover:bg-blue-500/10 transition-colors"

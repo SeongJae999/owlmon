@@ -84,7 +84,7 @@ export default function AnnotateModal({ log, onClose }: Props) {
           <div className="flex items-center gap-3 text-slate-200">
             <div className="p-2 bg-slate-900 rounded-xl shadow-sm"><Tag size={18} className="text-indigo-400" /></div>
             <div>
-              <h3 className="font-bold text-base leading-tight">로그 라벨링</h3>
+              <h3 className="font-bold text-base leading-tight">로그 메모</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                 Log #{log.id} · {new Date(log.timestamp).toLocaleString('ko-KR')}
               </p>
@@ -167,20 +167,20 @@ export default function AnnotateModal({ log, onClose }: Props) {
                 className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm shadow-indigo-500/20 flex items-center gap-2"
               >
                 {saveMutation.isPending && <Loader2 size={14} className="animate-spin" />}
-                라벨 저장
+                메모 저장
               </button>
             </div>
           </div>
 
-          {/* 기존 라벨 목록 */}
+          {/* 기존 메모 목록 */}
           <div className="pt-4 border-t border-slate-800">
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-              이 로그의 기존 라벨 ({existing.length})
+              이 로그의 기존 메모 ({existing.length})
             </h4>
             {existingLoading ? (
               <div className="text-xs text-slate-500 py-3">불러오는 중...</div>
             ) : existing.length === 0 ? (
-              <div className="text-xs text-slate-500 py-3 italic">아직 부여된 라벨이 없습니다.</div>
+              <div className="text-xs text-slate-500 py-3 italic">아직 남긴 메모가 없습니다.</div>
             ) : (
               <ul className="space-y-2">
                 {existing.map((a: LogAnnotation) => (
@@ -197,7 +197,7 @@ export default function AnnotateModal({ log, onClose }: Props) {
                         onClick={() => deleteMutation.mutate(a.id)}
                         disabled={deleteMutation.isPending}
                         className="text-slate-500 hover:text-rose-400 transition-colors p-1 rounded"
-                        title="라벨 삭제"
+                        title="메모 삭제"
                       >
                         <Trash2 size={13} />
                       </button>

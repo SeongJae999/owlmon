@@ -38,10 +38,12 @@ export default function LoginPage({ onLogin }: Props) {
           <div className="p-8 sm:p-12">
             {/* Logo & Header */}
             <div className="flex flex-col items-center text-center mb-10">
-              <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-indigo-500/30 mb-4 rotate-3 hover:rotate-0 transition-transform duration-300">
-                O
-              </div>
-              <h1 className="text-2xl font-bold text-slate-100 mb-1">OWLmon</h1>
+              <img
+                src="/favicon.svg"
+                alt="Willkomo OWLmon"
+                className="w-14 h-14 mb-4 shadow-xl shadow-indigo-500/30 rounded-2xl hover:scale-105 hover:shadow-indigo-500/50 transition-all duration-300"
+              />
+              <h1 className="text-2xl font-bold text-slate-100 mb-1">Willkomo</h1>
               <p className="text-sm font-medium text-slate-400">통합 모니터링</p>
             </div>
 

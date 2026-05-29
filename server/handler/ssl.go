@@ -76,6 +76,28 @@ func (h *SSLHandler) AddDomain(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(domain)
 }
 
+// UpdateDomain PATCH /api/ssl/domains/{id} — 메모만 수정
+func (h *SSLHandler) UpdateDomain(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "잘못된 ID", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		Memo string `json:"memo"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "잘못된 요청", http.StatusBadRequest)
+		return
+	}
+	if err := h.store.UpdateMemo(context.Background(), id, req.Memo); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // DeleteDomain DELETE /api/ssl/domains/{id}
 func (h *SSLHandler) DeleteDomain(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")

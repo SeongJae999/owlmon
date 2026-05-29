@@ -29,6 +29,10 @@ export async function addSSLDomain(d: { domain: string; port: number; memo: stri
   return res.data
 }
 
+export async function updateSSLDomain(id: number, memo: string): Promise<void> {
+  await axios.patch(`/api/ssl/domains/${id}`, { memo })
+}
+
 export async function deleteSSLDomain(id: number): Promise<void> {
   await axios.delete(`/api/ssl/domains/${id}`)
 }

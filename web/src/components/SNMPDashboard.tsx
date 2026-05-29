@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Network, ArrowDown, ArrowUp, Clock, Trash2, Plus, X, Save, AlertTriangle, RefreshCcw, Pencil } from 'lucide-react'
 import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
+import ConfirmDialog from './ConfirmDialog'
 
 function formatBps(bps: number): string {
   if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
@@ -208,6 +209,7 @@ export default function SNMPDashboard() {
   const [form, setForm] = useState({ Name: '', IP: '', Community: 'public', Port: 161 })
   const [editing, setEditing] = useState<SNMPDevice | null>(null)
   const [fastRefresh, setFastRefresh] = useState(false) // 등록 직후 짧은 갱신 모드
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
   const { data: devices = [], isLoading: devicesLoading } = useQuery({
     queryKey: ['snmpDevices'],
@@ -259,9 +261,8 @@ export default function SNMPDashboard() {
     addMutation.mutate(form)
   }
 
-  const handleDelete = (id: number) => {
-    if (!confirm('이 장치를 삭제하시겠습니까?')) return
-    deleteMutation.mutate(id)
+  const handleDelete = (id: number, name: string) => {
+    setDeleteTarget({ id, name })
   }
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -387,7 +388,7 @@ export default function SNMPDashboard() {
               <DeviceCard
                 key={dev.ID}
                 status={status}
-                onDelete={() => handleDelete(dev.ID)}
+                onDelete={() => handleDelete(dev.ID, dev.Name)}
                 onEdit={() => setEditing(dev)}
               />
             )
@@ -465,6 +466,17 @@ export default function SNMPDashboard() {
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="SNMP 장치 삭제"
+        message={`'${deleteTarget?.name}' 장치를 삭제하시겠습니까?`}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

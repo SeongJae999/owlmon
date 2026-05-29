@@ -3,6 +3,7 @@ import { fetchAssets, upsertAsset, deleteAsset, type Asset } from '../api/asset'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Server, MapPin, Calendar, Edit2, Trash2, Plus, X, Save, RefreshCcw, Info } from 'lucide-react'
 import { cn } from '../utils/cn'
+import ConfirmDialog from './ConfirmDialog'
 
 const emptyForm = (): Omit<Asset, 'id' | 'updated_at'> => ({
   host_name: '',
@@ -18,6 +19,7 @@ export default function AssetManagement() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Omit<Asset, 'id' | 'updated_at'> | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
   const { data: assets = [], isLoading } = useQuery({
     queryKey: ['assets'],
@@ -67,9 +69,8 @@ export default function AssetManagement() {
     saveMutation.mutate(editing)
   }
 
-  const handleRemove = (id: number) => {
-    if (!confirm('이 자산 정보를 삭제하시겠습니까?')) return
-    deleteMutation.mutate(id)
+  const handleRemove = (id: number, name: string) => {
+    setDeleteTarget({ id, name })
   }
 
   const warrantyStatus = (expires: string) => {
@@ -85,7 +86,7 @@ export default function AssetManagement() {
       {/* Page Actions */}
       <div className="flex justify-between items-center bg-slate-900 p-4 rounded-3xl border border-slate-800 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-500/100/10 text-indigo-400 rounded-lg">
+          <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
             <Server size={20} />
           </div>
           <div>
@@ -224,7 +225,7 @@ export default function AssetManagement() {
                           </button>
                           <button 
                             className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all"
-                            onClick={() => handleRemove(a.id)}
+                            onClick={() => handleRemove(a.id, a.host_name)}
                             title="정보 삭제"
                           >
                             <Trash2 size={16} />
@@ -239,6 +240,17 @@ export default function AssetManagement() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="자산 정보 삭제"
+        message={`'${deleteTarget?.name}' 자산 정보를 삭제하시겠습니까?`}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
