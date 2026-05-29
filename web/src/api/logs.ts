@@ -49,6 +49,40 @@ export async function getLogSources(): Promise<LogSource[]> {
   return res.data
 }
 
+// 시간대별 로그 분포 (검색 필터와 동일 파라미터 + 자동 버킷 크기)
+export interface LogHistogramBucket {
+  ts: string
+  count: number
+  error_count: number
+}
+export interface LogHistogramResult {
+  buckets: LogHistogramBucket[]
+  bucket_sec: number
+}
+export async function getLogHistogram(params: LogSearchParams): Promise<LogHistogramResult> {
+  const res = await axios.get('/api/logs/histogram', { params })
+  return res.data
+}
+
+// 로그 다운로드 (CSV/JSON) — axios로 JWT 자동 첨부, blob으로 브라우저 저장
+export async function downloadLogs(params: LogSearchParams, format: 'csv' | 'json'): Promise<void> {
+  const res = await axios.get('/api/logs/export', {
+    params: { ...params, format },
+    responseType: 'blob',
+  })
+  const cd = res.headers['content-disposition'] || ''
+  const match = cd.match(/filename="?([^"]+)"?/)
+  const filename = match ? match[1] : `owlmon-logs.${format}`
+  const url = URL.createObjectURL(res.data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 // 라벨링 (운영자가 부여한 원인/조치 메모) ----------------------------------
 
 export type AnnotationCategory = 'root_cause' | 'action_taken' | 'false_positive'

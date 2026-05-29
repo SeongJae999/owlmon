@@ -1,13 +1,28 @@
 import { useState, useMemo } from 'react'
-import { searchLogs, getLogSources, type LogSearchParams, type LogRecord, type MatchedRule } from '../api/logs'
+import {
+  searchLogs, getLogSources, getLogHistogram, downloadLogs,
+  type LogSearchParams, type LogRecord, type MatchedRule,
+} from '../api/logs'
 import { listRules, severityLabel } from '../api/rules'
 import { useQuery } from '@tanstack/react-query'
 import {
   Search, RefreshCcw, Server, ChevronLeft, ChevronRight, Info, AlertCircle,
   Tag, ListChecks, ChevronDown, ChevronRight as ChevronRightSmall, Layers,
+  Clock, Download, Sparkles, X,
 } from 'lucide-react'
+import { getLLMStatus, explainLog, type ExplainResult } from '../api/llm'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { cn } from '../utils/cn'
 import AnnotateModal from './AnnotateModal'
+
+// 시간 범위 프리셋
+const RANGE_PRESETS = [
+  { label: '15분', minutes: 15 },
+  { label: '1시간', minutes: 60 },
+  { label: '24시간', minutes: 24 * 60 },
+  { label: '7일', minutes: 7 * 24 * 60 },
+  { label: '30일', minutes: 30 * 24 * 60 },
+] as const
 
 const LEVEL_CONFIG: Record<string, { bg: string, text: string, ring: string }> = {
   ERROR:   { bg: 'bg-rose-500/15',  text: 'text-rose-300',  ring: 'ring-rose-500/30' },
@@ -83,7 +98,42 @@ export default function LogViewer() {
   const [groupMode, setGroupMode] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selectedLog, setSelectedLog] = useState<LogRecord | null>(null)
+  const [explainLine, setExplainLine] = useState<string | null>(null)
+  const [explainResult, setExplainResult] = useState<ExplainResult | null>(null)
+  const [explainLoading, setExplainLoading] = useState(false)
+  const [explainError, setExplainError] = useState<string | null>(null)
+
+  // LLM 활성 여부 — 비활성이면 AI 버튼 숨김
+  const { data: llmStatus } = useQuery({
+    queryKey: ['llmStatus'],
+    queryFn: getLLMStatus,
+    staleTime: 5 * 60_000,
+  })
+
+  const handleExplain = async (line: string) => {
+    setExplainLine(line)
+    setExplainResult(null)
+    setExplainError(null)
+    setExplainLoading(true)
+    try {
+      const result = await explainLog(line)
+      setExplainResult(result)
+    } catch (e: any) {
+      setExplainError(e?.response?.data?.toString?.() || e?.message || 'AI 설명 실패')
+    } finally {
+      setExplainLoading(false)
+    }
+  }
+  const [rangeMinutes, setRangeMinutes] = useState<number>(24 * 60) // 디폴트 24시간
+  const [downloading, setDownloading] = useState(false)
   const limit = 50
+
+  // 시간 범위 → from/to ISO 문자열은 매 쿼리 시점에 새로 계산 (자동새로고침에서도 최신 보장)
+  const buildTimeWindow = () => {
+    const now = new Date()
+    const from = new Date(now.getTime() - rangeMinutes * 60_000)
+    return { fromISO: from.toISOString(), toISO: now.toISOString() }
+  }
 
   const { data: sources = [] } = useQuery({
     queryKey: ['logSources'],
@@ -96,19 +146,42 @@ export default function LogViewer() {
     staleTime: 60_000,
   })
 
+  const buildParams = (): LogSearchParams => {
+    const { fromISO, toISO } = buildTimeWindow()
+    const p: LogSearchParams = { from: fromISO, to: toISO }
+    if (host) p.host = host
+    if (source) p.source = source
+    if (level) p.level = level
+    if (queryText) p.query = queryText
+    if (ruleID) p.rule_id = ruleID
+    return p
+  }
+
+  // queryKey에는 rangeMinutes만 — 자동 새로고침은 refetchInterval로 갱신
   const { data: logData, isLoading, refetch } = useQuery({
-    queryKey: ['logs', host, source, level, ruleID, queryText, page],
-    queryFn: () => {
-      const params: LogSearchParams = { limit, offset: page * limit }
-      if (host) params.host = host
-      if (source) params.source = source
-      if (level) params.level = level
-      if (queryText) params.query = queryText
-      if (ruleID) params.rule_id = ruleID
-      return searchLogs(params)
-    },
+    queryKey: ['logs', host, source, level, ruleID, queryText, page, rangeMinutes],
+    queryFn: () => searchLogs({ ...buildParams(), limit, offset: page * limit }),
     refetchInterval: autoRefresh ? refreshSec * 1000 : false,
   })
+
+  const { data: histogram } = useQuery({
+    queryKey: ['logsHistogram', host, source, level, ruleID, queryText, rangeMinutes],
+    queryFn: () => getLogHistogram(buildParams()),
+    refetchInterval: autoRefresh ? refreshSec * 1000 : false,
+    staleTime: 30_000,
+  })
+
+  const handleDownload = async (format: 'csv' | 'json') => {
+    setDownloading(true)
+    try {
+      await downloadLogs(buildParams(), format)
+    } catch (e) {
+      console.error(e)
+      alert('다운로드 실패')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const records = logData?.records || []
   const total = logData?.total || 0
@@ -232,6 +305,48 @@ export default function LogViewer() {
           </button>
         </div>
 
+        {/* 시간 범위 + 다운로드 */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800">
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+            <Clock size={11} /> 시간 범위
+          </span>
+          <div className="flex gap-1 bg-slate-800 rounded-lg p-0.5">
+            {RANGE_PRESETS.map(r => (
+              <button
+                key={r.label}
+                onClick={() => { setRangeMinutes(r.minutes); setPage(0) }}
+                className={cn(
+                  "px-2.5 py-1 rounded text-[11px] font-bold transition-colors",
+                  rangeMinutes === r.minutes ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-auto flex gap-1.5">
+            <button
+              onClick={() => handleDownload('csv')}
+              disabled={downloading || total === 0}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
+              title="CSV 다운로드 (최대 1만건)"
+            >
+              {downloading ? <RefreshCcw size={11} className="animate-spin" /> : <Download size={11} />}
+              CSV
+            </button>
+            <button
+              onClick={() => handleDownload('json')}
+              disabled={downloading || total === 0}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
+              title="JSON 다운로드 (최대 1만건)"
+            >
+              {downloading ? <RefreshCcw size={11} className="animate-spin" /> : <Download size={11} />}
+              JSON
+            </button>
+          </div>
+        </div>
+
         {/* Row 2: 활성 필터 칩 (있을 때만) */}
         {activeFilters.length > 0 && (
           <div className="flex flex-wrap gap-1.5 items-center">
@@ -305,6 +420,52 @@ export default function LogViewer() {
           </div>
         </div>
       </div>
+
+      {/* ─── Histogram ─────────────────────────────── */}
+      {histogram && histogram.buckets.length > 0 && (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Layers size={11} /> 시간대별 분포
+            </span>
+            <span className="text-[10px] text-slate-500 font-mono">
+              {histogram.bucket_sec >= 86400 ? `${histogram.bucket_sec / 86400}일`
+                : histogram.bucket_sec >= 3600 ? `${histogram.bucket_sec / 3600}시간`
+                : `${histogram.bucket_sec / 60}분`} 단위
+            </span>
+          </div>
+          <div className="h-24">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={histogram.buckets} margin={{ top: 2, right: 4, left: -28, bottom: 0 }}>
+                <XAxis
+                  dataKey="ts"
+                  stroke="#64748b"
+                  fontSize={9}
+                  tickFormatter={(t) => {
+                    const d = new Date(t)
+                    if (histogram.bucket_sec >= 86400) return d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+                    if (histogram.bucket_sec >= 3600) return d.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', hour12: false })
+                    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+                  }}
+                  interval="preserveStartEnd"
+                  minTickGap={40}
+                />
+                <YAxis stroke="#64748b" fontSize={9} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', fontSize: '11px' }}
+                  labelFormatter={(t) => new Date(t).toLocaleString('ko-KR')}
+                  formatter={(value: number, name: string) => [value, name === 'count' ? '전체' : 'ERROR/WARN']}
+                />
+                <Bar dataKey="count" fill="#6366f1">
+                  {histogram.buckets.map((b, i) => (
+                    <Cell key={i} fill={b.error_count > 0 ? '#f43f5e' : '#6366f1'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* ─── Log Content ─────────────────────────────────── */}
       <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
@@ -396,15 +557,27 @@ export default function LogViewer() {
                       {g.line}
                     </code>
 
-                    {/* 라벨 버튼 */}
-                    <button
-                      onClick={() => setSelectedLog(g.records[g.records.length - 1])}
-                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
-                      title="이 로그에 원인/조치 라벨 부여"
-                    >
-                      <Tag size={10} />
-                      라벨
-                    </button>
+                    {/* 액션 버튼 그룹 — hover 시 표시 */}
+                    <div className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center gap-1 mt-0.5">
+                      {llmStatus?.enabled && (
+                        <button
+                          onClick={() => handleExplain(g.line)}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30"
+                          title="AI가 이 로그를 한국어로 설명"
+                        >
+                          <Sparkles size={10} />
+                          AI 설명
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelectedLog(g.records[g.records.length - 1])}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
+                        title="이 로그에 원인/조치 메모 남기기"
+                      >
+                        <Tag size={10} />
+                        메모
+                      </button>
+                    </div>
                   </div>
 
                   {/* 모바일 메타 (md 미만) */}
@@ -454,7 +627,7 @@ export default function LogViewer() {
                           <button
                             onClick={() => setSelectedLog(r)}
                             className="text-indigo-400 hover:text-indigo-300 underline-offset-2 hover:underline shrink-0"
-                            title="이 인스턴스 라벨링"
+                            title="이 인스턴스에 메모 남기기"
                           >
                             #{r.id}
                           </button>
@@ -505,14 +678,26 @@ export default function LogViewer() {
                     >
                       {r.line}
                     </code>
-                    <button
-                      onClick={() => setSelectedLog(r)}
-                      className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 mt-0.5"
-                      title="이 로그에 원인/조치 라벨 부여"
-                    >
-                      <Tag size={10} />
-                      라벨
-                    </button>
+                    <div className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center gap-1 mt-0.5">
+                      {llmStatus?.enabled && (
+                        <button
+                          onClick={() => handleExplain(r.line)}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30"
+                          title="AI가 이 로그를 한국어로 설명"
+                        >
+                          <Sparkles size={10} />
+                          AI 설명
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelectedLog(r)}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
+                        title="이 로그에 원인/조치 메모 남기기"
+                      >
+                        <Tag size={10} />
+                        메모
+                      </button>
+                    </div>
                   </div>
                   <div className="md:hidden px-3 pb-1.5 -mt-1 ml-[68px] text-[11px] text-slate-500 flex items-center gap-1.5">
                     <Server size={10} className="opacity-50 shrink-0" />
@@ -558,6 +743,63 @@ export default function LogViewer() {
             log={selectedLog}
             onClose={() => setSelectedLog(null)}
           />
+        )}
+
+        {/* AI 설명 Modal */}
+        {explainLine !== null && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setExplainLine(null)}
+          >
+            <div
+              className="bg-slate-900 border border-violet-500/30 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-5 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-violet-500/15 text-violet-300">
+                    <Sparkles size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100">AI 로그 설명</h3>
+                    <p className="text-[11px] text-slate-500">{llmStatus?.provider ?? 'LLM'}{explainResult?.cached && ' · 캐시'}{explainResult?.masked && ' · PII 마스킹됨'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setExplainLine(null)} className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="px-5 py-3 border-b border-slate-800 bg-slate-950/50">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">대상 로그</div>
+                <code className="text-xs text-slate-300 font-mono break-words whitespace-pre-wrap">{explainLine}</code>
+              </div>
+
+              <div className="p-5">
+                {explainLoading && (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <RefreshCcw size={14} className="animate-spin" />
+                    AI가 로그를 분석 중...
+                  </div>
+                )}
+                {explainError && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-sm text-rose-300">
+                    <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                    <span>{explainError}</span>
+                  </div>
+                )}
+                {explainResult && (
+                  <pre className="text-sm text-slate-200 whitespace-pre-wrap break-words font-sans leading-relaxed">
+                    {explainResult.explanation}
+                  </pre>
+                )}
+              </div>
+
+              <div className="p-3 bg-slate-800/30 border-t border-slate-800 text-[10px] text-slate-500">
+                AI 답변은 참고용입니다. 구체 조치 전 검증 권장.
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Pagination */}

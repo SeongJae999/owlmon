@@ -265,6 +265,96 @@ func (s *LogStore) GetByID(ctx context.Context, id int64) (*LogRecord, error) {
 	return &r, nil
 }
 
+// HistogramBucket은 시간대별 로그 카운트 버킷입니다.
+type HistogramBucket struct {
+	TS         time.Time `json:"ts"`
+	Count      int       `json:"count"`
+	ErrorCount int       `json:"error_count"` // ERROR/FATAL/WARN 등 심각도 높은 것
+}
+
+// Histogram은 검색 조건에 매칭되는 로그를 시간 버킷으로 집계합니다.
+// bucketSec: 버킷 크기(초). 60/300/3600/86400 권장.
+func (s *LogStore) Histogram(ctx context.Context, p LogSearchParams, bucketSec int) ([]HistogramBucket, error) {
+	if bucketSec <= 0 {
+		bucketSec = 3600
+	}
+
+	var where []string
+	var args []interface{}
+	argN := 1
+
+	if p.Host != "" {
+		where = append(where, fmt.Sprintf("host=$%d", argN))
+		args = append(args, p.Host)
+		argN++
+	}
+	if p.Source != "" {
+		where = append(where, fmt.Sprintf("source=$%d", argN))
+		args = append(args, p.Source)
+		argN++
+	}
+	if p.Level != "" {
+		where = append(where, fmt.Sprintf("level=$%d", argN))
+		args = append(args, p.Level)
+		argN++
+	}
+	if p.Query != "" {
+		where = append(where, fmt.Sprintf("line ILIKE $%d", argN))
+		args = append(args, "%"+p.Query+"%")
+		argN++
+	}
+	if !p.From.IsZero() {
+		where = append(where, fmt.Sprintf("timestamp>=$%d", argN))
+		args = append(args, p.From)
+		argN++
+	}
+	if !p.To.IsZero() {
+		where = append(where, fmt.Sprintf("timestamp<=$%d", argN))
+		args = append(args, p.To)
+		argN++
+	}
+	if p.RuleID > 0 {
+		where = append(where, fmt.Sprintf("id IN (SELECT log_id FROM log_rule_matches WHERE rule_id=$%d)", argN))
+		args = append(args, p.RuleID)
+		argN++
+	}
+
+	whereClause := ""
+	if len(where) > 0 {
+		whereClause = "WHERE " + strings.Join(where, " AND ")
+	}
+
+	q := fmt.Sprintf(`
+		SELECT
+		  to_timestamp(floor(extract(epoch FROM timestamp) / %d) * %d) AS bucket,
+		  COUNT(*) AS cnt,
+		  COUNT(*) FILTER (WHERE UPPER(level) IN ('ERROR','FATAL','WARN','WARNING')) AS err_cnt
+		FROM logs
+		%s
+		GROUP BY bucket
+		ORDER BY bucket ASC
+	`, bucketSec, bucketSec, whereClause)
+
+	rows, err := s.pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []HistogramBucket
+	for rows.Next() {
+		var b HistogramBucket
+		if err := rows.Scan(&b.TS, &b.Count, &b.ErrorCount); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	if out == nil {
+		out = []HistogramBucket{}
+	}
+	return out, nil
+}
+
 // Cleanup은 retentionDays보다 오래된 로그를 삭제합니다.
 func (s *LogStore) Cleanup(ctx context.Context, retentionDays int) (int64, error) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
