@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	cryptorand "crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seongJae/owlmon/server/alert"
+	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/dpm"
 	"github.com/seongJae/owlmon/server/report"
@@ -31,7 +34,10 @@ type AppContext struct {
 	LogStore           *db.LogStore
 	LogAnnotationStore *db.LogAnnotationStore
 	SyntheticStore     *db.SyntheticStore
+	SyntheticChecker   *synthetic.Checker
 	DPMStore           *db.DPMStore
+	DPMPoller          *dpm.Poller
+	AuditStore         *audit.Store
 	AgentStore         *db.AgentStore
 	SpecsStore         *db.SpecsStore
 	RulesEngine        *rules.Engine
@@ -65,6 +71,7 @@ func InitDB() *AppContext {
 			appCtx.AgentStore = db.NewAgentStore(pool)
 			appCtx.SpecsStore = db.NewSpecsStore(pool)
 			appCtx.LogRuleMatchStore = db.NewLogRuleMatchStore(pool)
+			appCtx.AuditStore = audit.NewStore(pool)
 			// 룰 엔진 초기화 + 첫 로드
 			engine := rules.NewEngine(pool)
 			if err := engine.Reload(context.Background()); err != nil {
@@ -108,25 +115,44 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 		syntheticChecker := synthetic.NewChecker(appCtx.SyntheticStore, appCtx.SyntheticStore)
 		syntheticChecker.SetAlertCallbacks(
 			func(m synthetic.Monitor, r synthetic.Result, n int) {
-				subject := fmt.Sprintf("🚨 [Synthetic] %s 다운 (%d회 연속 실패)", m.Name, n)
+				subject := fmt.Sprintf("[심각] [Synthetic] %s 다운 (%d회 연속 실패)", m.Name, n)
 				body := fmt.Sprintf("모니터: %s\nURL: %s\n오류: %s\n응답시간: %dms\n시각: %s",
 					m.Name, m.URL, r.Error, r.ResponseTimeMs, r.CheckedAt.Format(time.RFC3339))
 				checker.SendAlert(m.Name, "synthetic", "critical", subject, body)
 			},
 			func(m synthetic.Monitor, r synthetic.Result) {
-				subject := fmt.Sprintf("✅ [Synthetic] %s 복구", m.Name)
+				subject := fmt.Sprintf("[복구] [Synthetic] %s 복구", m.Name)
 				body := fmt.Sprintf("모니터: %s\nURL: %s\n응답시간: %dms\n시각: %s",
 					m.Name, m.URL, r.ResponseTimeMs, r.CheckedAt.Format(time.RFC3339))
 				checker.SendAlert(m.Name, "synthetic", "info", subject, body)
 			},
 		)
 		syntheticChecker.Start(context.Background())
+		appCtx.SyntheticChecker = syntheticChecker
 		log.Println("Synthetic 모니터링 시작")
 	}
 
 	// 4. DPM (DB Performance Monitoring)
 	if appCtx.DPMStore != nil {
 		masterKey := getEnv("OWLMON_DPM_KEY", "")
+		// 키 미설정 시 자동 생성 + 디스크 영속화 (JWT secret 패턴과 동일)
+		if masterKey == "" {
+			dataDir := getEnv("OWLMON_DATA_DIR", "data")
+			_ = os.MkdirAll(dataDir, 0700)
+			keyFile := filepath.Join(dataDir, ".dpm.key")
+			if b, err := os.ReadFile(keyFile); err == nil {
+				masterKey = string(b)
+				log.Println("🔑 Persistent DPM key loaded from file")
+			} else {
+				// 32바이트 임의 키 생성
+				rb := make([]byte, 32)
+				if _, err := cryptorand.Read(rb); err == nil {
+					masterKey = hex.EncodeToString(rb)
+					_ = os.WriteFile(keyFile, []byte(masterKey), 0600)
+					log.Println("✨ New DPM key generated and saved")
+				}
+			}
+		}
 		if masterKey != "" {
 			dpmCipher, err := dpm.NewCipher(masterKey)
 			if err == nil {
@@ -135,7 +161,10 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 					checker.SendAlert(inst.Name, "dpm", severity, subject, body)
 				})
 				dpmPoller.Start(context.Background())
+				appCtx.DPMPoller = dpmPoller
 				log.Println("DPM 폴러 시작")
+			} else {
+				log.Printf("DPM cipher 생성 실패: %v", err)
 			}
 		}
 	}

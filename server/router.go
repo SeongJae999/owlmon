@@ -4,8 +4,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/seongJae/owlmon/server/alert"
+	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/auth"
 	"github.com/seongJae/owlmon/server/handler"
+	"github.com/seongJae/owlmon/server/llm"
+	"github.com/seongJae/owlmon/server/report"
 	snmppkg "github.com/seongJae/owlmon/server/snmp"
 )
 
@@ -15,12 +18,14 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret)
+	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret, appCtx.AuditStore)
 	proxyHandler, _ := handler.NewProxyHandler(prometheusURL)
 	alertHandler := handler.NewAlertHandler(appCtx.ConfigStore, checker, appCtx.EmailConfig)
 	statusHandler := handler.NewStatusHandler(prometheusURL, appCtx.ConfigStore, checker, appCtx.DBPool)
 	anomalyHandler := handler.NewAnomalyHandler(checker.Detector, checker.Predictor)
 	agentHandler := handler.NewAgentHandler(appCtx.AgentStore)
+	reportHandler := handler.NewReportHandler(report.NewReporter(prometheusURL, appCtx.EmailConfig, appCtx.ConfigStore))
+	llmHandler := handler.NewLLMHandler(llm.NewProvider(), appCtx.HistoryStore)
 
 	r.Post("/api/auth/login", authHandler.Login)
 	r.Get("/api/health", statusHandler.HealthCheck)
@@ -41,6 +46,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTMiddleware(jwtSecret))
+		r.Use(audit.Middleware(appCtx.AuditStore))
 		r.Handle("/api/v1/*", proxyHandler)
 
 		// Agent self-update — 바이너리 호스팅 (운영자가 /app/data/agents에 업로드)
@@ -59,6 +65,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		if appCtx.HistoryStore != nil {
 			historyHandler := handler.NewHistoryHandler(appCtx.HistoryStore)
 			r.Get("/api/alert/history", historyHandler.List)
+			r.Get("/api/alert/history/export", historyHandler.Export)
 		}
 
 		// Maintenance
@@ -95,6 +102,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			sslHandler := handler.NewSSLHandler(appCtx.SSLDomainStore, checker.SSLChecker)
 			r.Get("/api/ssl/domains", sslHandler.ListDomains)
 			r.Post("/api/ssl/domains", sslHandler.AddDomain)
+			r.Patch("/api/ssl/domains/{id}", sslHandler.UpdateDomain)
 			r.Delete("/api/ssl/domains/{id}", sslHandler.DeleteDomain)
 			r.Get("/api/ssl/status", sslHandler.GetStatus)
 			r.Post("/api/ssl/check", sslHandler.TriggerCheck)
@@ -104,6 +112,8 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		if appCtx.LogStore != nil {
 			logHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, getEnv("OWLMON_AGENT_KEY", ""), appCtx.RulesEngine, appCtx.LogRuleMatchStore, checker.SendAlert)
 			r.Get("/api/logs", logHandler.Search)
+			r.Get("/api/logs/histogram", logHandler.Histogram)
+			r.Get("/api/logs/export", logHandler.Export)
 			r.Get("/api/logs/sources", logHandler.Sources)
 			r.Get("/api/logs/annotations", logHandler.ListAnnotations)
 			r.Delete("/api/logs/annotations/{id}", logHandler.DeleteAnnotation)
@@ -112,12 +122,27 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			r.Post("/api/logs/{id}/annotate", logHandler.Annotate)
 		}
 
+		// DPM
+		if appCtx.DPMStore != nil && appCtx.DPMPoller != nil {
+			dpmHandler := handler.NewDPMHandler(appCtx.DPMStore, appCtx.DPMPoller)
+			r.Get("/api/dpm/instances", dpmHandler.ListInstances)
+			r.Post("/api/dpm/instances", dpmHandler.AddInstance)
+			r.Delete("/api/dpm/instances/{id}", dpmHandler.DeleteInstance)
+			r.Get("/api/dpm/status", dpmHandler.GetStatus)
+			r.Get("/api/dpm/instances/{id}/queries", dpmHandler.GetQueries)
+			r.Get("/api/dpm/instances/{id}/metrics", dpmHandler.GetMetricsHistory)
+			r.Post("/api/dpm/instances/{id}/check", dpmHandler.TriggerCheck)
+		}
+
 		// Synthetic
-		if appCtx.SyntheticStore != nil {
-			synthHandler := handler.NewSyntheticHandler(appCtx.SyntheticStore, nil) // Checker is global
+		if appCtx.SyntheticStore != nil && appCtx.SyntheticChecker != nil {
+			synthHandler := handler.NewSyntheticHandler(appCtx.SyntheticStore, appCtx.SyntheticChecker)
 			r.Get("/api/synthetic/monitors", synthHandler.ListMonitors)
 			r.Post("/api/synthetic/monitors", synthHandler.AddMonitor)
+			r.Put("/api/synthetic/monitors/{id}", synthHandler.UpdateMonitor)
 			r.Delete("/api/synthetic/monitors/{id}", synthHandler.DeleteMonitor)
+			r.Get("/api/synthetic/monitors/{id}/history", synthHandler.GetHistory)
+			r.Post("/api/synthetic/monitors/{id}/check", synthHandler.TriggerCheck)
 			r.Get("/api/synthetic/status", synthHandler.GetStatus)
 		}
 
@@ -125,6 +150,20 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Get("/api/agents", agentHandler.List)
 		r.Post("/api/agents/{id}/status", agentHandler.UpdateStatus)
 		r.Delete("/api/agents/{id}", agentHandler.Delete)
+
+		// 월간 보고서
+		r.Get("/api/report/preview", reportHandler.Preview)
+		r.Post("/api/report/send", reportHandler.Send)
+
+		// LLM (로그 설명 + 알림 요약)
+		r.Get("/api/llm/status", llmHandler.Status)
+		r.Post("/api/llm/explain", llmHandler.ExplainLog)
+		r.Post("/api/llm/summary", llmHandler.SummarizeAlerts)
+
+		// 감사 로그 (ISMS-P 변경 추적)
+		auditHandler := handler.NewAuditHandler(appCtx.AuditStore)
+		r.Get("/api/audit", auditHandler.List)
+		r.Get("/api/audit/export", auditHandler.Export)
 
 		// Log Rules (Admin) — CRUD + 통계
 		if appCtx.DBPool != nil && appCtx.RulesEngine != nil {

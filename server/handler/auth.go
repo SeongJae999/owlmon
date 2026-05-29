@@ -3,7 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/auth"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -12,10 +14,16 @@ type AuthHandler struct {
 	username     string
 	passwordHash string // bcrypt 해시
 	jwtSecret    string
+	auditStore   *audit.Store
 }
 
-func NewAuthHandler(username, passwordHash, jwtSecret string) *AuthHandler {
-	return &AuthHandler{username: username, passwordHash: passwordHash, jwtSecret: jwtSecret}
+func NewAuthHandler(username, passwordHash, jwtSecret string, auditStore *audit.Store) *AuthHandler {
+	return &AuthHandler{
+		username:     username,
+		passwordHash: passwordHash,
+		jwtSecret:    jwtSecret,
+		auditStore:   auditStore,
+	}
 }
 
 type loginRequest struct {
@@ -27,6 +35,24 @@ type loginResponse struct {
 	Token string `json:"token"`
 }
 
+// extractIP — proxy header 또는 RemoteAddr.
+func extractIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if i := strings.Index(xff, ","); i > 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return xri
+	}
+	addr := r.RemoteAddr
+	if i := strings.LastIndex(addr, ":"); i > 0 {
+		return addr[:i]
+	}
+	return addr
+}
+
 // Login은 아이디/비밀번호를 확인하고 JWT를 발급합니다.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
@@ -35,14 +61,33 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ip := extractIP(r)
+	ua := r.UserAgent()
+
 	// 아이디 확인
 	if req.Username != h.username {
+		h.auditStore.Save(r.Context(), audit.Entry{
+			Actor:     req.Username,
+			IP:        ip,
+			UserAgent: ua,
+			Action:    "auth.login",
+			Result:    "failure",
+			Details:   map[string]any{"reason": "unknown_user"},
+		})
 		http.Error(w, "아이디 또는 비밀번호가 올바르지 않습니다", http.StatusUnauthorized)
 		return
 	}
 
 	// 비밀번호 확인 (bcrypt)
 	if err := bcrypt.CompareHashAndPassword([]byte(h.passwordHash), []byte(req.Password)); err != nil {
+		h.auditStore.Save(r.Context(), audit.Entry{
+			Actor:     req.Username,
+			IP:        ip,
+			UserAgent: ua,
+			Action:    "auth.login",
+			Result:    "failure",
+			Details:   map[string]any{"reason": "bad_password"},
+		})
 		http.Error(w, "아이디 또는 비밀번호가 올바르지 않습니다", http.StatusUnauthorized)
 		return
 	}
@@ -52,6 +97,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "토큰 생성 실패", http.StatusInternalServerError)
 		return
 	}
+
+	h.auditStore.Save(r.Context(), audit.Entry{
+		Actor:     req.Username,
+		IP:        ip,
+		UserAgent: ua,
+		Action:    "auth.login",
+		Result:    "success",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(loginResponse{Token: token})

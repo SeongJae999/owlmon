@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zabbix 소개</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --primary: #d40000;
+    --bg: #0f1419;
+    --slide-bg: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666;
+    --accent: #d40000;
+    --good: #2e7d32;
+    --warn: #ef6c00;
+    --border: #e0e0e0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .deck {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--slide-bg);
+    padding: 60px 80px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .slide.active {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 10;
+  }
+
+  .slide-header {
+    border-bottom: 3px solid var(--primary);
+    padding-bottom: 16px;
+    margin-bottom: 32px;
+  }
+
+  .slide-number {
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .slide-title {
+    font-size: 38px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .slide-subtitle {
+    font-size: 18px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    font-size: 18px;
+    line-height: 1.7;
+  }
+
+  /* Cover slide */
+  .cover {
+    background: linear-gradient(135deg, #d40000 0%, #7a0000 100%);
+    color: white;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .cover h1 {
+    font-size: 72px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+  }
+  .cover .tagline {
+    font-size: 24px;
+    opacity: 0.9;
+    margin-bottom: 48px;
+  }
+  .cover .meta {
+    font-size: 16px;
+    opacity: 0.7;
+    letter-spacing: 1px;
+  }
+
+  /* Typography */
+  ul { list-style: none; padding-left: 0; }
+  ul li {
+    padding: 8px 0 8px 28px;
+    position: relative;
+  }
+  ul li::before {
+    content: "▸";
+    color: var(--primary);
+    position: absolute;
+    left: 8px;
+    font-weight: bold;
+  }
+  ul li strong { color: var(--primary); }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 16px;
+  }
+  th {
+    background: var(--primary);
+    color: white;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:nth-child(even) td { background: #fafafa; }
+
+  /* Two column */
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .col-box {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 20px;
+    border-left: 4px solid var(--primary);
+  }
+  .col-box.good { border-left-color: var(--good); }
+  .col-box.warn { border-left-color: var(--warn); }
+  .col-box h3 {
+    font-size: 20px;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .col-box.good h3 { color: var(--good); }
+  .col-box.warn h3 { color: var(--warn); }
+
+  /* Mermaid container */
+  .mermaid {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    min-height: 400px;
+  }
+  .mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Stats/badges */
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .badge {
+    background: #f5f5f5;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+  }
+  .badge.primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  /* Footer / Navigation */
+  .nav {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 100;
+    background: rgba(255,255,255,0.9);
+    border-radius: 24px;
+    padding: 6px 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .nav button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+  }
+  .nav button:hover { background: #7a0000; }
+  .nav button:disabled { background: #ccc; cursor: not-allowed; }
+  .nav .counter {
+    font-size: 14px;
+    color: var(--text);
+    min-width: 50px;
+    text-align: center;
+  }
+
+  /* Feature grid */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .feature-card {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 16px;
+    border-top: 4px solid var(--primary);
+  }
+  .feature-card h4 {
+    color: var(--primary);
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  .feature-card ul li {
+    font-size: 13px;
+    padding: 4px 0 4px 16px;
+  }
+
+  /* TOC */
+  .toc {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .toc-item {
+    background: #fafafa;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .toc-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .toc-item .num {
+    color: var(--primary);
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .toc-item h4 { margin-top: 8px; font-size: 16px; }
+  .toc-item p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* Comparison table emphasis */
+  .compare-table th:first-child { background: #444; }
+  .compare-table tr:nth-child(2) td:nth-child(2) { background: #ffebee; font-weight: 600; }
+
+  /* Feature detail slide */
+  .feature-detail {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 32px;
+    flex: 1;
+  }
+  .feature-detail-left {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffebee 100%);
+    border-radius: 12px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  .feature-detail-left .icon {
+    font-size: 80px;
+    margin-bottom: 16px;
+  }
+  .feature-detail-left h3 {
+    font-size: 28px;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+  .feature-detail-left .desc {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .feature-detail-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .detail-section {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 16px 20px;
+    border-left: 4px solid var(--primary);
+  }
+  .detail-section h4 {
+    color: var(--primary);
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  .detail-section p, .detail-section li {
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .detail-section code {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: "SF Mono", Monaco, monospace;
+    font-size: 14px;
+  }
+  .code-block {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-family: "SF Mono", Monaco, monospace;
+    font-size: 14px;
+    margin: 8px 0;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- Slide 0: Cover -->
+  <section class="slide cover active">
+    <h1>Zabbix</h1>
+    <div class="tagline">통합 인프라 모니터링 플랫폼</div>
+    <div class="meta">Open Source Infrastructure Monitoring</div>
+  </section>
+
+  <!-- Slide 1: TOC -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">CONTENTS</div>
+      <div class="slide-title">목차</div>
+    </div>
+    <div class="slide-content">
+      <div class="toc">
+        <div class="toc-item" onclick="goTo(2)">
+          <div class="num">01</div>
+          <h4>Zabbix란?</h4>
+          <p>정의와 라이선스</p>
+        </div>
+        <div class="toc-item" onclick="goTo(3)">
+          <div class="num">02</div>
+          <h4>역사·시장 위치</h4>
+          <p>25년의 검증</p>
+        </div>
+        <div class="toc-item" onclick="goTo(4)">
+          <div class="num">03</div>
+          <h4>아키텍처</h4>
+          <p>구성요소와 데이터 흐름</p>
+        </div>
+        <div class="toc-item" onclick="goTo(5)">
+          <div class="num">04</div>
+          <h4>핵심 기능</h4>
+          <p>5가지 + 상세 5장</p>
+        </div>
+        <div class="toc-item" onclick="goTo(11)">
+          <div class="num">05</div>
+          <h4>강점·약점</h4>
+          <p>객관적 분석</p>
+        </div>
+        <div class="toc-item" onclick="goTo(12)">
+          <div class="num">06</div>
+          <h4>유사 도구 비교</h4>
+          <p>Prometheus / Nagios</p>
+        </div>
+        <div class="toc-item" onclick="goTo(13)">
+          <div class="num">07</div>
+          <h4>OSS Landscape</h4>
+          <p>전체 카테고리 정리</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 2: 정의 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">01 · DEFINITION</div>
+      <div class="slide-title">Zabbix란?</div>
+      <div class="slide-subtitle">통합 인프라 모니터링 플랫폼</div>
+    </div>
+    <div class="slide-content">
+      <ul>
+        <li>서버 · 네트워크 장비 · 애플리케이션을 <strong>단일 플랫폼</strong>으로 모니터링하는 오픈소스</li>
+        <li><strong>에이전트 방식 + 에이전트리스(SNMP/IPMI/JMX)</strong> 모두 지원</li>
+        <li><strong>메트릭 수집 + 임계치 알림 + 시각화 + 자동 발견</strong>을 하나의 제품에서 제공</li>
+        <li>라이선스: <strong>AGPL v3</strong> (Zabbix 7.0 LTS, 2024.06부터 / 이전은 GPL v2)</li>
+      </ul>
+
+      <div class="badges">
+        <span class="badge primary">Open Source</span>
+        <span class="badge">AGPL v3</span>
+        <span class="badge">All-in-One</span>
+        <span class="badge">Agent + Agentless</span>
+        <span class="badge">Self-Hosted</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 3: 역사 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">02 · HISTORY</div>
+      <div class="slide-title">역사와 시장 위치</div>
+    </div>
+    <div class="slide-content">
+      <table>
+        <tr><th width="30%">항목</th><th>내용</th></tr>
+        <tr><td><strong>개발사</strong></td><td>Zabbix LLC (라트비아, 리가)</td></tr>
+        <tr><td><strong>창립자</strong></td><td>Alexei Vladishev</td></tr>
+        <tr><td><strong>첫 릴리스</strong></td><td>2001년 (25년 전)</td></tr>
+        <tr><td><strong>최신 LTS</strong></td><td>7.0 (2024.06) — AGPL v3 전환</td></tr>
+        <tr><td><strong>구현 언어</strong></td><td>서버: C / 웹: PHP / 에이전트: C, Go(v2)</td></tr>
+        <tr><td><strong>사용 규모</strong></td><td>전 세계 30만+ 설치</td></tr>
+        <tr><td><strong>대표 사용처</strong></td><td>NASA, Salesforce, Dell, T-Mobile, 국내 다수 SI</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- Slide 4: 아키텍처 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">03 · ARCHITECTURE</div>
+      <div class="slide-title">아키텍처</div>
+    </div>
+    <div class="slide-content">
+      <div class="mermaid">
+flowchart LR
+    subgraph 모니터링대상
+        A1[Linux/Windows<br/>서버]
+        A2[네트워크 장비<br/>스위치/방화벽]
+        A3[애플리케이션<br/>DB/WAS]
+    end
+
+    A1 -->|Zabbix Agent| S
+    A2 -->|SNMP v2c/v3| S
+    A3 -->|JMX/ODBC/HTTP| S
+
+    subgraph Zabbix코어
+        S[Zabbix Server<br/>C 데몬]
+        P[Zabbix Proxy<br/>중계서버]
+        S <--> DB[(PostgreSQL/<br/>MySQL/TimescaleDB)]
+    end
+
+    A1 -.->|원격지| P
+    P --> S
+
+    S --> W[Zabbix Web<br/>PHP/Nginx]
+    S --> N[알림<br/>Email/SMS/Webhook]
+    W --> U[운영자]
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5: 핵심 기능 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">04 · FEATURES</div>
+      <div class="slide-title">핵심 기능 5가지</div>
+    </div>
+    <div class="slide-content">
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h4>📊 Data Collection</h4>
+          <ul>
+            <li>Agent push/pull</li>
+            <li>SNMP polling</li>
+            <li>IPMI/JMX</li>
+            <li>Web Scenario</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h4>🚨 Triggers</h4>
+          <ul>
+            <li>임계치 기반</li>
+            <li>복합 조건</li>
+            <li>예측 함수</li>
+            <li>이력 기반</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h4>📋 Templates</h4>
+          <ul>
+            <li>재사용 단위</li>
+            <li>상속/오버라이드</li>
+            <li>공식 1000+</li>
+            <li>커뮤니티 풍부</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h4>🔍 Discovery</h4>
+          <ul>
+            <li>네트워크 스캔</li>
+            <li>LLD 동적 발견</li>
+            <li>Cloud 통합</li>
+            <li>Auto-registration</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h4>📈 Visualization</h4>
+          <ul>
+            <li>대시보드</li>
+            <li>맵/토폴로지</li>
+            <li>Grafana 연동</li>
+            <li>리포트</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5-1: Data Collection 상세 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">04.1 · DATA COLLECTION</div>
+      <div class="slide-title">데이터 수집</div>
+    </div>
+    <div class="slide-content">
+      <div class="feature-detail">
+        <div class="feature-detail-left">
+          <div class="icon">📊</div>
+          <h3>Data Collection</h3>
+          <div class="desc">
+            서버·네트워크·앱에서<br>
+            다양한 프로토콜로<br>
+            메트릭과 상태를 수집
+          </div>
+        </div>
+        <div class="feature-detail-right">
+          <div class="detail-section">
+            <h4>🔹 수집 방식</h4>
+            <ul>
+              <li><strong>Zabbix Agent</strong> — 호스트에 설치, Passive(서버→에이전트) / Active(에이전트→서버) 모드</li>
+              <li><strong>SNMP</strong> — v1/v2c/v3, 스위치·라우터·UPS·프린터 등</li>
+              <li><strong>IPMI</strong> — 하드웨어 센서 (전원·온도·팬)</li>
+              <li><strong>JMX</strong> — Java 애플리케이션 (Tomcat, WAS)</li>
+              <li><strong>HTTP/Web Scenario</strong> — REST API, 웹 페이지 응답시간</li>
+              <li><strong>ODBC</strong> — DB 직접 쿼리 (MySQL, Oracle 등)</li>
+            </ul>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 수집 주기</h4>
+            <p>아이템별로 개별 설정 — <code>1s</code> 부터 <code>1d</code> 까지 자유</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 데이터 타입</h4>
+            <p>Numeric (float/integer), Character, Log, Text</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5-2: Triggers 상세 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">04.2 · TRIGGERS</div>
+      <div class="slide-title">트리거 — 알림 조건 엔진</div>
+    </div>
+    <div class="slide-content">
+      <div class="feature-detail">
+        <div class="feature-detail-left">
+          <div class="icon">🚨</div>
+          <h3>Triggers</h3>
+          <div class="desc">
+            수집된 데이터에 표현식을 적용해<br>
+            이상 상태를 판단하고<br>
+            알림을 발생시키는 규칙
+          </div>
+        </div>
+        <div class="feature-detail-right">
+          <div class="detail-section">
+            <h4>🔹 기본 표현식</h4>
+            <div class="code-block">last(/Server/cpu.load) &gt; 5</div>
+            <p>호스트의 최근 CPU load가 5 초과 시 발동</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 시간 함수</h4>
+            <ul>
+              <li><code>avg(/host/key, 5m)</code> — 5분 평균</li>
+              <li><code>min/max(/host/key, 1h)</code> — 1시간 최소/최대</li>
+              <li><code>forecast(/host/key, 1h, 30m)</code> — 30분 후 예측</li>
+            </ul>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 복합 조건 + 심각도</h4>
+            <p>AND/OR 조합 + 6단계 심각도 (Information ~ Disaster)</p>
+            <p><strong>의존성:</strong> "스위치 다운" 트리거가 발동 중이면 그 아래 서버 트리거는 무시 → 알림 폭주 방지</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5-3: Templates 상세 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">04.3 · TEMPLATES</div>
+      <div class="slide-title">템플릿 — 모니터링 정책의 재사용 단위</div>
+    </div>
+    <div class="slide-content">
+      <div class="feature-detail">
+        <div class="feature-detail-left">
+          <div class="icon">📋</div>
+          <h3>Templates</h3>
+          <div class="desc">
+            Items + Triggers + Graphs +<br>
+            Discovery 룰을 묶은<br>
+            재사용 가능한 모니터링 패키지
+          </div>
+        </div>
+        <div class="feature-detail-right">
+          <div class="detail-section">
+            <h4>🔹 구조</h4>
+            <p>"Linux by Zabbix Agent" 템플릿 하나에 → CPU·메모리·디스크·네트워크 아이템 수십 개 + 임계치 트리거 + 그래프가 모두 포함</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 상속</h4>
+            <div class="code-block">Linux OS (기본)
+  └─ Linux Production (운영용 임계치 강화)
+       └─ web-server-01 (개별 호스트)</div>
+            <p>하위 호스트가 상위 정책을 자동 상속</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 공식 템플릿 1000+</h4>
+            <p>Linux, Windows, Cisco, MikroTik, MySQL, PostgreSQL, Redis, Nginx, Docker, Kubernetes, AWS, Azure 등 — 설치 직후 바로 사용</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5-4: Discovery 상세 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">04.4 · DISCOVERY</div>
+      <div class="slide-title">자동 발견 — 수동 등록 노가다 제거</div>
+    </div>
+    <div class="slide-content">
+      <div class="feature-detail">
+        <div class="feature-detail-left">
+          <div class="icon">🔍</div>
+          <h3>Discovery</h3>
+          <div class="desc">
+            새 장비·새 디스크·새 인터페이스를<br>
+            자동으로 발견하고<br>
+            모니터링 등록까지 자동화
+          </div>
+        </div>
+        <div class="feature-detail-right">
+          <div class="detail-section">
+            <h4>🔹 Network Discovery</h4>
+            <p>IP 범위(예: <code>192.168.1.1-254</code>)를 주기적으로 스캔 → ping/SNMP/포트 응답 기반으로 신규 호스트 자동 등록</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 LLD (Low-Level Discovery)</h4>
+            <p>호스트 내부의 <strong>동적 항목</strong>을 발견:</p>
+            <ul>
+              <li>디스크 파티션 (sda1, sda2, nvme0n1p1...)</li>
+              <li>네트워크 인터페이스 (eth0, ens33, wlan0...)</li>
+              <li>Docker 컨테이너, K8s Pod, DB 테이블 등</li>
+            </ul>
+            <p>→ 새 디스크 꽂으면 자동으로 모니터링 시작</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 Active Agent Auto-registration</h4>
+            <p>에이전트가 먼저 서버에 접속(능동) → 서버가 자동으로 호스트 등록 + 템플릿 적용. 대규모 서버 프로비저닝에 필수</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5-5: Visualization 상세 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">04.5 · VISUALIZATION</div>
+      <div class="slide-title">시각화 — 데이터를 그림으로</div>
+    </div>
+    <div class="slide-content">
+      <div class="feature-detail">
+        <div class="feature-detail-left">
+          <div class="icon">📈</div>
+          <h3>Visualization</h3>
+          <div class="desc">
+            수집한 메트릭을<br>
+            대시보드·맵·그래프로<br>
+            한눈에 파악
+          </div>
+        </div>
+        <div class="feature-detail-right">
+          <div class="detail-section">
+            <h4>🔹 Dashboards (7.0+ 강화)</h4>
+            <p>위젯 기반 드래그&드롭 — Graph, Problem, Top Hosts, Map, URL, SLA 등 30+ 위젯 조합 가능</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 Network Maps</h4>
+            <p>인프라 토폴로지를 그래픽으로 시각화 — 장비 아이콘 + 연결선 + 실시간 상태 색상</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 Graphs</h4>
+            <p>아이템 단위 시계열 그래프, 사용자 정의 그래프(여러 아이템 조합), 스택형/선형/원형 차트</p>
+          </div>
+          <div class="detail-section">
+            <h4>🔹 Grafana 연동</h4>
+            <p>Zabbix 공식 Grafana 플러그인 — 더 예쁜 대시보드가 필요하면 Grafana로 시각화만 분리</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 6: 강점/약점 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">05 · ANALYSIS</div>
+      <div class="slide-title">강점과 약점</div>
+    </div>
+    <div class="slide-content">
+      <div class="cols">
+        <div class="col-box good">
+          <h3>✅ 강점</h3>
+          <ul>
+            <li>올인원 — 별도 제품 조합 불요</li>
+            <li>풍부한 공식 템플릿 (1000+)</li>
+            <li>대규모 확장성 (Proxy 구조)</li>
+            <li>25년 검증된 안정성</li>
+            <li>무료 (AGPL v3)</li>
+            <li>강력한 알림 엔진</li>
+          </ul>
+        </div>
+        <div class="col-box warn">
+          <h3>⚠️ 약점</h3>
+          <ul>
+            <li>설치/설정 복잡 (며칠 단위)</li>
+            <li>UI 구식 (PHP 기반)</li>
+            <li>학습 곡선 가파름</li>
+            <li>한국어 자료 부족</li>
+            <li>클라우드 네이티브 약함</li>
+            <li>DB 부담 큼 (수만 host 시)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 7: 유사 도구 비교 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">06 · COMPARISON</div>
+      <div class="slide-title">유사 도구 비교</div>
+    </div>
+    <div class="slide-content">
+      <table class="compare-table">
+        <tr>
+          <th>항목</th>
+          <th style="background:#d40000;">Zabbix</th>
+          <th>Prometheus</th>
+          <th>Nagios</th>
+        </tr>
+        <tr>
+          <td><strong>방식</strong></td>
+          <td>올인원 (Push + Pull)</td>
+          <td>메트릭 전용 (Pull)</td>
+          <td>체크 전용 (Pull)</td>
+        </tr>
+        <tr>
+          <td><strong>UI</strong></td>
+          <td>내장 (PHP)</td>
+          <td>별도 (Grafana)</td>
+          <td>내장 (구식)</td>
+        </tr>
+        <tr>
+          <td><strong>알림</strong></td>
+          <td>내장 (강력)</td>
+          <td>별도 (Alertmanager)</td>
+          <td>내장 (플러그인)</td>
+        </tr>
+        <tr>
+          <td><strong>저장소</strong></td>
+          <td>PostgreSQL/MySQL</td>
+          <td>자체 TSDB</td>
+          <td>플랫 파일/DB</td>
+        </tr>
+        <tr>
+          <td><strong>SNMP</strong></td>
+          <td>네이티브 지원</td>
+          <td>Exporter 필요</td>
+          <td>플러그인</td>
+        </tr>
+        <tr>
+          <td><strong>K8s 친화</strong></td>
+          <td>보통</td>
+          <td>매우 우수</td>
+          <td>약함</td>
+        </tr>
+        <tr>
+          <td><strong>라이선스</strong></td>
+          <td>AGPL v3</td>
+          <td>Apache 2.0</td>
+          <td>GPL v2</td>
+        </tr>
+        <tr>
+          <td><strong>적합 환경</strong></td>
+          <td>온프레미스/하이브리드</td>
+          <td>클라우드 네이티브</td>
+          <td>레거시 인프라</td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- Slide: OSS 모니터링 도구 카테고리 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">07 · OSS LANDSCAPE</div>
+      <div class="slide-title">유사 오픈소스 도구 — 카테고리별 정리</div>
+    </div>
+    <div class="slide-content">
+      <div class="mermaid">
+mindmap
+  root((Open Source<br/>Monitoring))
+    전통형 Agent+Server
+      Zabbix
+      Nagios Core
+      Icinga 2
+      Checkmk Raw
+      OpenNMS
+    네트워크 특화 SNMP
+      LibreNMS
+      Observium CE
+      Cacti
+    클라우드 네이티브
+      Prometheus+Grafana
+      VictoriaMetrics
+    모던 옵저버빌리티
+      SigNoz
+      OpenTelemetry
+    경량 실시간형
+      Netdata
+      Glances
+      Munin
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide: OSS 도구 비교표 -->
+  <section class="slide">
+    <div class="slide-header">
+      <div class="slide-number">07 · OSS LANDSCAPE</div>
+      <div class="slide-title">유사 오픈소스 도구 — 상세 비교</div>
+    </div>
+    <div class="slide-content">
+      <table style="font-size: 13px;">
+        <tr>
+          <th>도구</th>
+          <th>카테고리</th>
+          <th>라이선스</th>
+          <th>강점</th>
+          <th>약점</th>
+        </tr>
+        <tr style="background:#ffebee;">
+          <td><strong>Zabbix</strong></td>
+          <td>전통형 (All-in-One)</td>
+          <td>AGPL v3 (7.0+)</td>
+          <td>올인원, SNMP/에이전트 통합</td>
+          <td>무거움, 설정 복잡</td>
+        </tr>
+        <tr>
+          <td><strong>Nagios Core</strong></td>
+          <td>전통형</td>
+          <td>GPL v2</td>
+          <td>최고령(1999), 플러그인 생태계</td>
+          <td>UI 구식, 텍스트 설정파일</td>
+        </tr>
+        <tr>
+          <td><strong>Icinga 2</strong></td>
+          <td>전통형</td>
+          <td>GPL v2</td>
+          <td>Nagios 모던화, REST API</td>
+          <td>학습 곡선</td>
+        </tr>
+        <tr>
+          <td><strong>Checkmk Raw</strong></td>
+          <td>전통형</td>
+          <td>GPL v2</td>
+          <td>자동 발견, UX 우수</td>
+          <td>Enterprise판이 본체</td>
+        </tr>
+        <tr>
+          <td><strong>OpenNMS</strong></td>
+          <td>전통형 (엔터프라이즈)</td>
+          <td>AGPL v3</td>
+          <td>통신사급, 대규모 처리</td>
+          <td>Java 무거움</td>
+        </tr>
+        <tr>
+          <td><strong>LibreNMS</strong></td>
+          <td>네트워크 특화</td>
+          <td>GPL v3</td>
+          <td>네트워크 자동 발견, PHP 가볍</td>
+          <td>서버 모니터링 약함</td>
+        </tr>
+        <tr>
+          <td><strong>Cacti</strong></td>
+          <td>네트워크 특화</td>
+          <td>GPL v2</td>
+          <td>RRDtool 기반 그래프</td>
+          <td>알림/현대성 부족</td>
+        </tr>
+        <tr>
+          <td><strong>Prometheus+Grafana</strong></td>
+          <td>클라우드 네이티브</td>
+          <td>Apache 2.0 / AGPL v3</td>
+          <td>K8s 표준, PromQL</td>
+          <td>통합 공수, 학습 필요</td>
+        </tr>
+        <tr>
+          <td><strong>VictoriaMetrics</strong></td>
+          <td>클라우드 네이티브</td>
+          <td>Apache 2.0</td>
+          <td>고성능 TSDB, Prom 호환</td>
+          <td>알림은 별도</td>
+        </tr>
+        <tr>
+          <td><strong>SigNoz</strong></td>
+          <td>모던 옵저버빌리티</td>
+          <td>MIT</td>
+          <td>OTel 네이티브, APM</td>
+          <td>신생, 안정성 검증중</td>
+        </tr>
+        <tr>
+          <td><strong>Netdata</strong></td>
+          <td>경량 실시간형</td>
+          <td>GPL v3</td>
+          <td>1초 실시간, 즉시 가치</td>
+          <td>중앙집중 약함</td>
+        </tr>
+        <tr>
+          <td><strong>Munin</strong></td>
+          <td>경량 실시간형</td>
+          <td>GPL v2</td>
+          <td>매우 단순</td>
+          <td>기능 한정</td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- Slide: Closing -->
+  <section class="slide cover">
+    <h1 style="font-size: 56px;">감사합니다</h1>
+    <div class="tagline">Q &amp; A</div>
+  </section>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav">
+  <button onclick="prev()" id="prevBtn">‹</button>
+  <span class="counter" id="counter">1 / 16</span>
+  <button onclick="next()" id="nextBtn">›</button>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    themeVariables: {
+      primaryColor: '#d40000',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#7a0000',
+      lineColor: '#666',
+      fontFamily: 'inherit',
+    }
+  });
+
+  const slides = document.querySelectorAll('.slide');
+  let current = 0;
+
+  function show(i) {
+    slides.forEach(s => s.classList.remove('active'));
+    slides[i].classList.add('active');
+    document.getElementById('counter').textContent = (i + 1) + ' / ' + slides.length;
+    document.getElementById('prevBtn').disabled = i === 0;
+    document.getElementById('nextBtn').disabled = i === slides.length - 1;
+    current = i;
+  }
+
+  function next() { if (current < slides.length - 1) show(current + 1); }
+  function prev() { if (current > 0) show(current - 1); }
+  function goTo(i) { show(i); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    if (e.key === 'Home') goTo(0);
+    if (e.key === 'End') goTo(slides.length - 1);
+  });
+
+  show(0);
+</script>
+
+</body>
+</html>
