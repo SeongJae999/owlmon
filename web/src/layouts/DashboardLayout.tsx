@@ -32,14 +32,13 @@ const NAV_ITEMS = [
   { id: 'trends', path: '/trends', icon: TrendingUp, label: '자원 추이', section: 'monitor' },
   // 호스트 상세는 Overview 카드 클릭으로만 진입 — 사이드바에서 제거
   { id: 'snmp', path: '/snmp', icon: Network, label: '네트워크 장비', section: 'monitor' },
-  { id: 'ssl', path: '/ssl', icon: ShieldCheck, label: 'SSL 인증서', section: 'monitor' },
-  { id: 'synthetic', path: '/synthetic', icon: Globe, label: '사이트 점검', section: 'monitor' },
+  { id: 'website', path: '/website', icon: Globe, label: '웹사이트 모니터링', section: 'monitor' },
   { id: 'dpm', path: '/dpm', icon: Database, label: 'DB 성능', section: 'monitor' },
   { id: 'logs', path: '/logs', icon: FileText, label: '로그 뷰어', section: 'monitor' },
   { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 룰', section: 'manage' },
-  { id: 'rules-stats', path: '/rules/stats', icon: BarChart3, label: '룰 매칭 통계', section: 'manage' },
   { id: 'alert-history', path: '/history', icon: History, label: '알림 히스토리', section: 'manage' },
   { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 설정', section: 'manage' },
+  { id: 'audit', path: '/audit', icon: ShieldCheck, label: '감사 로그', section: 'manage' },
   { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서', section: 'manage' },
   { id: 'assets', path: '/assets', icon: Server, label: '자산 관리', section: 'manage' },
 ]
@@ -76,7 +75,7 @@ export default function DashboardLayout() {
       >
         {/* Brand */}
         <div className="h-16 flex items-center px-5 gap-3 border-b border-slate-800/50">
-          <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shrink-0">W</div>
+          <img src="/favicon.svg" alt="Willkomo OWLmon" title="Willkomo · OWLmon" className="w-9 h-9 shrink-0 rounded-xl" />
           {!sidebarCollapsed && (
             <div className="overflow-hidden whitespace-nowrap">
               <p className="font-bold text-white text-lg">Willkomo</p>
@@ -176,22 +175,10 @@ export default function DashboardLayout() {
             >
               <Menu size={20} />
             </button>
-            <div className="hidden md:flex items-center relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-              <input
-                type="text"
-                placeholder="장비, 로그, 서비스 검색..."
-                className="bg-slate-800 border border-slate-700 focus:border-indigo-500/40 focus:ring-2 focus:ring-indigo-500/10 rounded-lg pl-9 pr-3 py-2 text-sm w-72 transition-all outline-none text-slate-200 placeholder:text-slate-500"
-              />
-            </div>
+            {/* 전역 검색 — 추후 구현 예정 (UI placeholder 제거됨) */}
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-lg text-xs font-semibold text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-              연결 정상
-            </div>
-
             <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg border border-slate-700">
               <button className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 rounded-md transition-colors relative" title="알림">
                 <Bell size={18} />
@@ -221,12 +208,11 @@ export default function DashboardLayout() {
           {/* Global Footer in Main Area */}
           <footer className="w-full mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 pb-8">
             <div className="flex items-center gap-2 text-slate-500">
-              <div className="w-5 h-5 bg-slate-800 rounded flex items-center justify-center text-xs font-bold">W</div>
-              <span className="text-xs font-medium">Willkomo v1.2</span>
+              <img src="/favicon.svg" alt="Willkomo OWLmon" className="w-5 h-5 rounded-md" />
+              <span className="text-xs font-medium">OWLmon v1.2</span>
             </div>
             <div className="flex gap-6">
-              <a href="#" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">문서</a>
-              <a href="#" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">지원</a>
+              <Link to="/support" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">지원</Link>
               <a href="https://github.com/SeongJae999/owlmon" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">GitHub</a>
             </div>
           </footer>

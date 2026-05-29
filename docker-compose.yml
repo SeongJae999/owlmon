@@ -96,6 +96,15 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
       - SMTP_FROM=${SMTP_FROM:-}
       - SMTP_TO=${SMTP_TO:-}
+      # LLM 통합 (옵션) — disabled / mock / openai / ollama
+      #   mock:   실제 LLM 없이 가짜 응답 (UI 테스트용)
+      #   openai: OPENAI_API_KEY 필요. 외부 API. 망분리 환경 불가
+      #   ollama: 자체 호스팅. OWLMON_OLLAMA_URL 지정. 망분리 환경 OK
+      - OWLMON_LLM_PROVIDER=${OWLMON_LLM_PROVIDER:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OWLMON_OPENAI_MODEL=${OWLMON_OPENAI_MODEL:-gpt-4o-mini}
+      - OWLMON_OLLAMA_URL=${OWLMON_OLLAMA_URL:-http://host.docker.internal:11434}
+      - OWLMON_OLLAMA_MODEL=${OWLMON_OLLAMA_MODEL:-qwen2.5:7b}
     volumes:
       - ./data/owlmon-server:/app/data   # JWT secret 등 영속화
     depends_on:
@@ -115,5 +124,94 @@ services:
       - "80:80"
     depends_on:
       - owlmon-server
+    restart: unless-stopped
+
+  # 일일 PostgreSQL 자동 백업 (매일 03:00 KST, 30일 rolling)
+  # 백업 파일: ./data/backups/owlmon-YYYYMMDD-HHMMSS.sql.gz
+  owlmon-backup:
+    image: postgres:16-alpine
+    container_name: owlmon-backup
+    environment:
+      - PGHOST=postgres
+      - PGUSER=owlmon
+      - PGDATABASE=owlmon
+      - PGPASSWORD=owlmon
+      - TZ=Asia/Seoul
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
+      # 백업 암호화 (KISA AES-256-CBC + PBKDF2 100000 iter)
+      # 미설정 시 컨테이너가 자동 생성 → /backups/.passphrase에 영속화 (chmod 600)
+      - OWLMON_BACKUP_PASSPHRASE=${OWLMON_BACKUP_PASSPHRASE:-}
+    volumes:
+      - ./data/backups:/backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        # openssl 설치 (postgres alpine에 없음)
+        if ! command -v openssl >/dev/null 2>&1; then
+          echo "[backup] openssl 설치 중..."
+          apk add --no-cache openssl >/dev/null 2>&1
+        fi
+        mkdir -p /backups
+        chmod 700 /backups
+        RETAIN=$${BACKUP_RETENTION_DAYS:-30}
+
+        # 패스프레이즈 영속화 (JWT secret 패턴과 동일)
+        PASS_FILE=/backups/.passphrase
+        if [ -n "$${OWLMON_BACKUP_PASSPHRASE:-}" ]; then
+          PASSPHRASE="$$OWLMON_BACKUP_PASSPHRASE"
+          echo "[backup] OWLMON_BACKUP_PASSPHRASE 환경변수 사용"
+        elif [ -s "$$PASS_FILE" ]; then
+          PASSPHRASE=$$(cat "$$PASS_FILE")
+          echo "[backup] /backups/.passphrase 영속화된 패스프레이즈 로드됨"
+        else
+          # 64자 random hex
+          PASSPHRASE=$$(openssl rand -hex 32)
+          echo "$$PASSPHRASE" > "$$PASS_FILE"
+          chmod 600 "$$PASS_FILE"
+          echo "[backup] 신규 패스프레이즈 생성 → /backups/.passphrase (chmod 600)"
+          echo "[backup] ⚠ 이 파일을 안전한 곳에 별도 백업하세요 — 분실 시 복원 불가"
+        fi
+
+        echo "[backup] OWLmon 일일 암호화 백업 시작 (매일 03:00 KST, $$RETAIN일 보관, AES-256-CBC)"
+        while true; do
+          NOW_H=$$(date +%H | sed 's/^0//;s/^$$/0/')
+          NOW_M=$$(date +%M | sed 's/^0//;s/^$$/0/')
+          NOW_S=$$(date +%S | sed 's/^0//;s/^$$/0/')
+          SECONDS_TODAY=$$(( NOW_H * 3600 + NOW_M * 60 + NOW_S ))
+          TARGET=10800
+          if [ "$$SECONDS_TODAY" -lt "$$TARGET" ]; then
+            SLEEP_SEC=$$(( TARGET - SECONDS_TODAY ))
+          else
+            SLEEP_SEC=$$(( 86400 + TARGET - SECONDS_TODAY ))
+          fi
+          H=$$(( SLEEP_SEC / 3600 )); M=$$(( (SLEEP_SEC % 3600) / 60 ))
+          echo "[backup] 다음 백업: $${H}시간 $${M}분 후"
+          sleep "$$SLEEP_SEC"
+          TS=$$(date +%Y%m%d-%H%M%S)
+          OUT="/backups/owlmon-$${TS}.sql.gz.enc"
+          echo "[backup] $$(date '+%Y-%m-%d %H:%M:%S') 암호화 백업 시작 → $$OUT"
+          if pg_dump --no-owner --no-acl | gzip -9 | openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -salt -pass "pass:$$PASSPHRASE" -out "$$OUT"; then
+            if [ -s "$$OUT" ]; then
+              SIZE=$$(du -h "$$OUT" | awk '{print $$1}')
+              echo "[backup] OK ($$SIZE, 암호화됨)"
+            else
+              echo "[backup] 실패 — 파일 비어있음, 삭제"
+              rm -f "$$OUT"
+            fi
+          else
+            echo "[backup] 실패 — pg_dump 또는 암호화 오류"
+            rm -f "$$OUT"
+          fi
+          # 보관 정책 — 신규 .enc + 기존 .gz 둘 다 정리
+          DELETED=$$(find /backups -type f \( -name 'owlmon-*.sql.gz' -o -name 'owlmon-*.sql.gz.enc' \) -mtime "+$$RETAIN" -print -delete 2>/dev/null | wc -l)
+          if [ "$$DELETED" -gt 0 ]; then
+            echo "[backup] $${RETAIN}일 초과 백업 $$DELETED개 삭제"
+          fi
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 

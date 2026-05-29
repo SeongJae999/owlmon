@@ -12,12 +12,15 @@ import SNMPDashboard from './components/SNMPDashboard'
 import AssetManagement from './components/AssetManagement'
 import SSLDashboard from './components/SSLDashboard'
 import SyntheticDashboard from './components/SyntheticDashboard'
+import WebsiteMonitoring from './components/WebsiteMonitoring'
 import DPMDashboard from './components/DPMDashboard'
 import LogViewer from './components/LogViewer'
 import MonthlyReportModal from './components/MonthlyReport'
 import RulesPage from './pages/RulesPage'
 import RuleStatsPage from './pages/RuleStatsPage'
 import TrendsPage from './pages/TrendsPage'
+import SupportPage from './pages/SupportPage'
+import AuditLogPage from './pages/AuditLogPage'
 
 export default function App() {
   const authenticated = isLoggedIn()
@@ -33,6 +36,8 @@ export default function App() {
         <Route path="/trends" element={<TrendsPage />} />
         <Route path="/detail" element={<HostDetailPage />} />
         <Route path="/snmp" element={<SNMPDashboard />} />
+        <Route path="/website" element={<WebsiteMonitoring />} />
+        {/* Legacy routes — 사이드바에서 제거됐지만 호환을 위해 유지 */}
         <Route path="/ssl" element={<SSLDashboard />} />
         <Route path="/synthetic" element={<SyntheticDashboard />} />
         <Route path="/dpm" element={<DPMDashboard />} />
@@ -43,6 +48,8 @@ export default function App() {
         <Route path="/settings" element={<AlertSettings />} />
         <Route path="/report" element={<MonthlyReportModal />} />
         <Route path="/assets" element={<AssetManagement />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/audit" element={<AuditLogPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
