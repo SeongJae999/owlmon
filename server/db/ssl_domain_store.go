@@ -58,6 +58,12 @@ func (s *SSLDomainStore) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// UpdateMemo는 도메인의 메모만 업데이트합니다. (도메인/포트는 식별자라 변경 불가)
+func (s *SSLDomainStore) UpdateMemo(ctx context.Context, id int64, memo string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE ssl_domains SET memo=$2 WHERE id=$1`, id, memo)
+	return err
+}
+
 // ListEntries는 alert.SSLDomainLister 인터페이스를 구현합니다.
 func (s *SSLDomainStore) ListEntries(ctx context.Context) ([]ssl.DomainEntry, error) {
 	domains, err := s.List(ctx)

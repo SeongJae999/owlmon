@@ -12,7 +12,8 @@ import PageToolbar from '../components/PageToolbar'
  * - 마지막 매칭 시각
  * - 가장 시끄러운 룰 / 매칭 0건 룰 식별
  */
-export default function RuleStatsPage() {
+// 룰 통계 콘텐츠 — RulesPage 탭에서도 재사용
+export function RuleStatsContent() {
   const { data: rules = [] } = useQuery({ queryKey: ['log-rules-all'], queryFn: listRules })
   const { data: stats = {} } = useQuery({
     queryKey: ['log-rules-stats-detailed'],
@@ -43,14 +44,8 @@ export default function RuleStatsPage() {
 
   return (
     <div className="space-y-6">
-      <PageToolbar
-        icon={BarChart3}
-        title="룰 매칭 통계"
-        description="어떤 룰이 시끄러운가, 어떤 룰이 한 번도 안 잡혔는가 — 운영자가 룰을 다듬는 도구"
-      />
-
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         <SummaryCard icon={Filter}        label="전체 룰"       value={summary.total} color="indigo" />
         <SummaryCard icon={CheckCircle2}  label="매칭된 룰"     value={summary.matched} color="emerald" suffix={`/ ${summary.total}`} />
         <SummaryCard icon={AlertTriangle} label="매칭 0건"      value={summary.silent} color="slate" />
@@ -71,7 +66,7 @@ export default function RuleStatsPage() {
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">24h</th>
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">7d</th>
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">30d</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">🚨 알림</th>
+                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">알림 발사</th>
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">마지막 매칭</th>
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">상태</th>
               </tr>
@@ -132,16 +127,16 @@ export default function RuleStatsPage() {
                       {!r.enabled ? (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700 text-slate-400">비활성</span>
                       ) : isSilent ? (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700/50 text-slate-500" title="30일간 한 번도 매칭 안 됨 — 시스템 한산하거나 패턴 점검 필요">
-                          🔇 조용
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700/50 text-slate-500" title="30일간 매칭 없음 — 시스템 조용(정상) 또는 패턴 검토">
+                          조용
                         </span>
                       ) : isNoisy ? (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-300" title="30일간 50회 이상 — 패턴이 너무 광범위하지 않은지 점검">
-                          🔊 시끄러움
+                          시끄러움
                         </span>
                       ) : (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-300">
-                          ✓ 정상
+                          정상
                         </span>
                       )}
                     </td>
@@ -163,6 +158,20 @@ export default function RuleStatsPage() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Legacy 페이지 wrapper — /rules/stats URL 호환
+export default function RuleStatsPage() {
+  return (
+    <div className="space-y-6">
+      <PageToolbar
+        icon={BarChart3}
+        title="룰 매칭 통계"
+        description="어떤 룰이 시끄러운가, 어떤 룰이 한 번도 안 잡혔는가 — 운영자가 룰을 다듬는 도구"
+      />
+      <RuleStatsContent />
     </div>
   )
 }

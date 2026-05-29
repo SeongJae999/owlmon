@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/rules"
 )
 
@@ -93,6 +95,9 @@ func (h *RulesHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	h.reloadEngine()
 
+	audit.Log(r.Context(), "rule.create", "rule", fmt.Sprintf("%d", req.ID),
+		map[string]any{"name": req.Name, "severity": req.Severity, "pattern": req.Pattern})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(req)
@@ -135,6 +140,8 @@ func (h *RulesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.reloadEngine()
+	audit.Log(r.Context(), "rule.update", "rule", fmt.Sprintf("%d", id),
+		map[string]any{"name": req.Name, "enabled": req.Enabled, "severity": req.Severity})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -152,6 +159,7 @@ func (h *RulesHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.reloadEngine()
+	audit.Log(r.Context(), "rule.toggle", "rule", fmt.Sprintf("%d", id), nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -168,6 +176,7 @@ func (h *RulesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.reloadEngine()
+	audit.Log(r.Context(), "rule.delete", "rule", fmt.Sprintf("%d", id), nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

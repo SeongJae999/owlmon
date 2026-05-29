@@ -4,16 +4,18 @@ import {
   type SSLCertStatus,
 } from '../api/ssl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck, Globe, Trash2, ShieldAlert, CheckCircle2, AlertTriangle, RefreshCcw, Plus, X, Info, Save } from 'lucide-react'
+import { ShieldCheck, Globe, Trash2, ShieldAlert, CheckCircle2, AlertTriangle, RefreshCcw, Plus, X, Info, Save, ExternalLink, Clock } from 'lucide-react'
 import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
+import ConfirmDialog from './ConfirmDialog'
 
 const STATUS_CONFIG: Record<string, { bg: string, text: string, label: string, icon: any }> = {
-  ok: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', label: '정상', icon: CheckCircle2 },
-  warning: { bg: 'bg-amber-500/15', text: 'text-amber-300', label: '만료 임박', icon: AlertTriangle },
-  critical: { bg: 'bg-rose-500/15', text: 'text-rose-300', label: '만료 임박', icon: ShieldAlert },
-  expired: { bg: 'bg-rose-500/15', text: 'text-rose-300', label: '만료됨', icon: ShieldAlert },
-  error: { bg: 'bg-slate-800', text: 'text-slate-400', label: '연결 실패', icon: Info },
+  ok:       { bg: 'bg-emerald-500/15', text: 'text-emerald-300', label: '정상',      icon: CheckCircle2 },
+  notice:   { bg: 'bg-sky-500/15',     text: 'text-sky-300',     label: '갱신 준비', icon: Clock },
+  warning:  { bg: 'bg-amber-500/15',   text: 'text-amber-300',   label: '갱신 임박', icon: AlertTriangle },
+  critical: { bg: 'bg-rose-500/15',    text: 'text-rose-300',    label: '긴급 갱신', icon: ShieldAlert },
+  expired:  { bg: 'bg-rose-500/15',    text: 'text-rose-300',    label: '만료됨',    icon: ShieldAlert },
+  error:    { bg: 'bg-slate-800',      text: 'text-slate-400',   label: '연결 실패', icon: Info },
 }
 
 function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; memo?: string }; onDelete?: () => void }) {
@@ -22,26 +24,38 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
   return (
     <div className={cn(
       "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all group relative overflow-hidden",
-      cert.status === 'expired' || cert.status === 'critical' ? "border-rose-500/30 ring-1 ring-rose-500/20" : 
-      cert.status === 'warning' ? "border-amber-500/30 ring-1 ring-amber-50" : "border-slate-800"
+      cert.status === 'expired' || cert.status === 'critical' ? "border-rose-500/30 ring-1 ring-rose-500/20" :
+      cert.status === 'warning' ? "border-amber-500/30 ring-1 ring-amber-500/20" :
+      cert.status === 'notice' ? "border-sky-500/30 ring-1 ring-sky-500/20" :
+      "border-slate-800"
     )}>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2 mb-6">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className={cn(
-            "p-2 rounded-lg bg-slate-800 text-slate-400 group-hover:text-indigo-400 transition-colors",
+            "p-2 rounded-lg bg-slate-800 text-slate-400 group-hover:text-indigo-400 transition-colors shrink-0",
             cert.status === 'ok' && "text-emerald-500 bg-emerald-500/10"
           )}>
             <Globe size={18} />
           </div>
-          <div>
-            <h4 className="font-bold text-slate-100 leading-tight">{cert.domain}</h4>
-            {cert.memo && <p className="text-[11px] text-slate-500 font-medium mt-0.5">{cert.memo}</p>}
+          <div className="min-w-0">
+            <a
+              href={`https://${cert.domain}${cert.port && cert.port !== 443 ? `:${cert.port}` : ''}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group/link inline-flex items-center gap-1 max-w-full font-bold text-slate-100 leading-tight hover:text-indigo-400 transition-colors"
+              title={`${cert.domain} 새 탭에서 열기`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="truncate">{cert.domain}</span>
+              <ExternalLink size={12} className="shrink-0 text-slate-500 group-hover/link:text-indigo-400 transition-colors" />
+            </a>
+            {cert.memo && <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate" title={cert.memo}>{cert.memo}</p>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <span className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight",
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight whitespace-nowrap",
             cfg.bg, cfg.text
           )}>
             <cfg.icon size={10} />
@@ -68,7 +82,10 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
           <div className="flex items-baseline gap-1">
             <span className={cn(
               "text-3xl font-bold tracking-tight",
-              cert.days_left <= 7 ? "text-rose-400" : cert.days_left <= 30 ? "text-amber-400" : "text-emerald-400"
+              cert.days_left <= 7 ? "text-rose-400"
+                : cert.days_left <= 30 ? "text-amber-400"
+                : cert.days_left <= 60 ? "text-sky-400"
+                : "text-emerald-400"
             )}>
               {cert.days_left}
             </span>
@@ -77,11 +94,11 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
 
           <div className="space-y-2">
             <div className="flex items-center justify-between text-[11px] font-bold">
-              <span className="text-slate-400 uppercase tracking-widest">Expiration</span>
+              <span className="text-slate-400 tracking-wide">만료일</span>
               <span className="text-slate-400 font-mono">{new Date(cert.not_after).toLocaleDateString('ko-KR')}</span>
             </div>
             <div className="flex items-center justify-between text-[11px] font-bold">
-              <span className="text-slate-400 uppercase tracking-widest">Issuer</span>
+              <span className="text-slate-400 tracking-wide" title="SSL 인증서를 발급한 인증기관 (CA)">발급기관</span>
               <span className="text-slate-400 truncate max-w-[140px] text-right" title={cert.issuer}>{cert.issuer}</span>
             </div>
           </div>
@@ -90,8 +107,8 @@ function CertCard({ cert, onDelete }: { cert: SSLCertStatus & { id?: number; mem
 
       {cert.checked_at && (
         <div className="mt-4 pt-3 border-t border-slate-800 flex justify-end">
-          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-            Checked: {new Date(cert.checked_at).toLocaleTimeString('ko-KR')}
+          <div className="text-[10px] font-bold text-slate-400 tracking-wide">
+            최근 확인: {new Date(cert.checked_at).toLocaleTimeString('ko-KR')}
           </div>
         </div>
       )}
@@ -103,6 +120,7 @@ export default function SSLDashboard() {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ domain: '', port: 443, memo: '' })
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; domain: string } | null>(null)
 
   const { data: domains = [], isLoading: domainsLoading } = useQuery({
     queryKey: ['sslDomains'],
@@ -114,20 +132,21 @@ export default function SSLDashboard() {
     queryFn: getSSLStatus,
   })
 
-  const addMutation = useMutation({
-    mutationFn: addSSLDomain,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sslDomains'] })
-      queryClient.invalidateQueries({ queryKey: ['sslStatus'] })
-      setShowAdd(false)
-      setForm({ domain: '', port: 443, memo: '' })
-    }
-  })
-
   const checkMutation = useMutation({
     mutationFn: triggerSSLCheck,
     onSuccess: (newStatus) => {
       queryClient.setQueryData(['sslStatus'], newStatus)
+    }
+  })
+
+  const addMutation = useMutation({
+    mutationFn: addSSLDomain,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sslDomains'] })
+      // 등록 직후 즉시 SSL 체크 트리거 — 6시간 주기 대기하지 않음
+      checkMutation.mutate()
+      setShowAdd(false)
+      setForm({ domain: '', port: 443, memo: '' })
     }
   })
 
@@ -139,15 +158,36 @@ export default function SSLDashboard() {
     }
   })
 
+  // URL 붙여넣기 정규화 — "https://example.com:8443/path" → domain "example.com", port 8443
+  const normalizeDomain = (raw: string): { domain: string; port?: number } => {
+    let s = raw.trim()
+    if (!s) return { domain: '' }
+    // 프로토콜 제거
+    s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+    // 경로/쿼리/프래그먼트 제거
+    s = s.split('/')[0].split('?')[0].split('#')[0]
+    // user:pass@host 제거
+    s = s.split('@').pop() || s
+    // 포트 추출
+    const m = s.match(/^([^:]+)(?::(\d+))?$/)
+    if (!m) return { domain: s }
+    const port = m[2] ? parseInt(m[2], 10) : undefined
+    return { domain: m[1], port }
+  }
+
+  const handleDomainChange = (raw: string) => {
+    const { domain, port } = normalizeDomain(raw)
+    setForm(prev => ({ ...prev, domain, port: port ?? prev.port }))
+  }
+
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.domain) return
     addMutation.mutate(form)
   }
 
-  const handleDelete = (id: number) => {
-    if (!confirm('이 도메인을 삭제하시겠습니까?')) return
-    deleteMutation.mutate(id)
+  const handleDelete = (id: number, domain: string) => {
+    setDeleteTarget({ id, domain })
   }
 
   const statusMap = new Map(statuses.map(s => [s.domain, s]))
@@ -180,16 +220,16 @@ export default function SSLDashboard() {
         <form onSubmit={handleAdd} className="bg-slate-900 rounded-3xl border border-indigo-500/30 p-6 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Domain Name</label>
+              <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">도메인 주소</label>
               <input
                 className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
-                placeholder="school.go.kr"
+                placeholder="예: school.go.kr"
                 value={form.domain}
-                onChange={e => setForm({...form, domain: e.target.value})}
+                onChange={e => handleDomainChange(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Port</label>
+              <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">포트</label>
               <input
                 className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
                 type="number"
@@ -199,23 +239,28 @@ export default function SSLDashboard() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Memo</label>
+              <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">메모</label>
               <input
                 className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
-                placeholder="메인 홈페이지"
+                placeholder="예: 메인 홈페이지"
                 value={form.memo}
                 onChange={e => setForm({...form, memo: e.target.value})}
               />
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={addMutation.isPending}
-              className="flex items-center gap-2 px-10 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+              className={cn(
+                "flex items-center gap-2 px-10 py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/20",
+                addMutation.isPending
+                  ? "bg-indigo-500 text-white cursor-wait ring-2 ring-indigo-400/50"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+              )}
             >
               {addMutation.isPending ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
-              도메인 등록하기
+              {addMutation.isPending ? '등록 중...' : '도메인 등록하기'}
             </button>
           </div>
         </form>
@@ -238,24 +283,45 @@ export default function SSLDashboard() {
           {domains.map(dom => {
             const cert = statusMap.get(dom.domain)
             if (!cert) return (
-              <div key={dom.id} className="bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-sm animate-pulse">
+              <div key={dom.id} className="bg-slate-900 rounded-3xl border border-indigo-500/30 ring-1 ring-indigo-500/20 p-5 shadow-premium relative overflow-hidden">
+                {/* 진행 중 임을 알리는 indigo glow */}
+                <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse" />
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-slate-800 rounded-lg w-8 h-8" />
-                  <div className="h-4 w-32 bg-slate-800 rounded" />
+                  <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-300">
+                    <RefreshCcw size={18} className="animate-spin" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-100 leading-tight truncate" title={dom.domain}>{dom.domain}</div>
+                    <div className="text-[11px] text-indigo-300 font-medium mt-0.5">SSL 인증서 확인 중…</div>
+                  </div>
                 </div>
-                <div className="h-3 w-48 bg-slate-800 rounded" />
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-2 w-3/4 bg-slate-700 rounded" />
+                  <div className="h-2 w-1/2 bg-slate-700 rounded" />
+                </div>
               </div>
             )
             return (
               <CertCard
                 key={dom.id}
                 cert={{ ...cert, id: dom.id, memo: dom.memo }}
-                onDelete={() => handleDelete(dom.id)}
+                onDelete={() => handleDelete(dom.id, dom.domain)}
               />
             )
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="도메인 삭제"
+        message={`'${deleteTarget?.domain}' 도메인을 삭제하시겠습니까? 모니터링이 즉시 중단됩니다.`}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

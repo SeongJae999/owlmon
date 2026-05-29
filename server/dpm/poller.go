@@ -154,7 +154,7 @@ func (p *Poller) evaluateAlerts(inst Instance, cur PollResult, prev PollResult, 
 	// 1) 연결 실패
 	if cur.Metrics.Error != "" && (!hadPrev || prev.Metrics.Error == "") {
 		p.onAlert(inst, "critical",
-			"🚨 [DPM] "+inst.Name+" DB 연결 실패",
+			"[심각] [DPM] "+inst.Name+" DB 연결 실패",
 			"인스턴스: "+inst.Name+"\n호스트: "+inst.Host+"\n오류: "+cur.Metrics.Error,
 		)
 		return
@@ -169,7 +169,7 @@ func (p *Poller) evaluateAlerts(inst Instance, cur PollResult, prev PollResult, 
 		ratio := float64(used) / float64(cur.Metrics.ConnectionsMax)
 		if ratio >= 0.8 {
 			p.onAlert(inst, "warning",
-				"⚠️ [DPM] "+inst.Name+" 커넥션 임계치 초과",
+				"[주의] [DPM] "+inst.Name+" 커넥션 임계치 초과",
 				"사용 중: "+itoa(used)+" / "+itoa(cur.Metrics.ConnectionsMax)+
 					" ("+ftoa(ratio*100, 1)+"%)",
 			)
@@ -179,7 +179,7 @@ func (p *Poller) evaluateAlerts(inst Instance, cur PollResult, prev PollResult, 
 	// 3) 캐시 히트율 90% 미만
 	if cur.Metrics.CacheHitRatio > 0 && cur.Metrics.CacheHitRatio < 0.9 {
 		p.onAlert(inst, "warning",
-			"⚠️ [DPM] "+inst.Name+" 캐시 히트율 저하",
+			"[주의] [DPM] "+inst.Name+" 캐시 히트율 저하",
 			"히트율: "+ftoa(cur.Metrics.CacheHitRatio*100, 2)+"% (권장: 90% 이상)",
 		)
 	}

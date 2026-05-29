@@ -20,7 +20,8 @@ export interface DPMMetrics {
   connections_max: number
   cache_hit_ratio: number
   db_size_bytes: number
-  error?: string
+  error?: string   // 치명적 (연결 실패 등) — 빨간 카드
+  notice?: string  // 정보성 (확장 미설치 등) — 일반 카드 + 안내
   collected_at: string
 }
 

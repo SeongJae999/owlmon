@@ -41,7 +41,8 @@ type InstanceMetrics struct {
 	ConnectionsMax    int       `json:"connections_max"`
 	CacheHitRatio     float64   `json:"cache_hit_ratio"` // 0.0 ~ 1.0
 	DBSizeBytes       int64     `json:"db_size_bytes"`
-	Error             string    `json:"error,omitempty"`
+	Error             string    `json:"error,omitempty"`  // 치명적 오류 (연결 실패 등) — 카드 빨간색
+	Notice            string    `json:"notice,omitempty"` // 정보성 알림 (확장 미설치 등) — 카드 일반
 	CollectedAt       time.Time `json:"collected_at"`
 }
 

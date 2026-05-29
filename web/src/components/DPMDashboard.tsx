@@ -4,9 +4,11 @@ import {
   type DPMStatusItem,
 } from '../api/dpm'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Database, Clock, Trash2, RefreshCcw, Plus, X, Save, AlertTriangle, Zap } from 'lucide-react'
+import { Database, Clock, Trash2, RefreshCcw, Plus, X, Save, AlertTriangle, Zap, Info } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
+import ConfirmDialog from './ConfirmDialog'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -32,6 +34,7 @@ function InstanceCard({
   const inst = item.instance
   const m = item.metrics
   const isError = m?.error && m.error !== ''
+  const hasNotice = m?.notice && m.notice !== ''
   const connRatio = m && m.connections_max > 0
     ? ((m.connections_active + m.connections_idle) / m.connections_max) * 100
     : 0
@@ -47,12 +50,12 @@ function InstanceCard({
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className={cn(
             "p-2 rounded-lg bg-slate-800 text-slate-400 group-hover:text-indigo-400 transition-colors shrink-0",
-            m && !isError && "text-indigo-500 bg-indigo-500/100/10"
+            m && !isError && "text-indigo-400 bg-indigo-500/10"
           )}>
             <Database size={18} />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="font-bold text-slate-100 leading-tight truncate" title={inst.name}>{inst.name}</h4>
+            <h4 className="font-bold text-slate-100 leading-snug line-clamp-2" title={inst.name}>{inst.name}</h4>
             <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight shrink-0">{inst.db_type}</span>
               <span className="text-slate-200 shrink-0">•</span>
@@ -63,10 +66,10 @@ function InstanceCard({
         
         <div className="flex items-center gap-1 shrink-0">
           <span className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight",
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight",
             isError ? "bg-rose-500/15 text-rose-300" : m ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-800 text-slate-500"
           )}>
-            {isError ? 'Error' : m ? 'Online' : 'Pending'}
+            {isError ? '연결 오류' : m ? '정상' : '대기'}
           </span>
           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={onCheck} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="즉시 점검"><RefreshCcw size={14} /></button>
@@ -92,7 +95,7 @@ function InstanceCard({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <div className="flex justify-between items-end">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Connections</span>
+                <span className="text-[10px] font-bold text-slate-400 tracking-wide leading-none">연결 수</span>
                 <span className={cn(
                   "text-[10px] font-bold leading-none",
                   connRatio >= 80 ? "text-rose-500" : connRatio >= 60 ? "text-amber-500" : "text-emerald-500"
@@ -107,7 +110,7 @@ function InstanceCard({
             </div>
             <div className="space-y-1.5">
               <div className="flex justify-between items-end">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Cache Hit</span>
+                <span className="text-[10px] font-bold text-slate-400 tracking-wide leading-none">캐시 적중률</span>
                 <span className={cn(
                   "text-[10px] font-bold leading-none",
                   cacheHitPct >= 95 ? "text-emerald-500" : cacheHitPct >= 90 ? "text-amber-500" : "text-rose-500"
@@ -125,21 +128,39 @@ function InstanceCard({
           {/* Details */}
           <div className="space-y-2 py-3 border-y border-slate-800">
             <div className="flex items-center justify-between text-[11px] font-bold">
-              <span className="text-slate-400 uppercase tracking-widest">Database Size</span>
+              <span className="text-slate-400 tracking-wide">DB 크기</span>
               <span className="text-slate-400">{formatBytes(m.db_size_bytes)}</span>
             </div>
             <div className="flex items-center justify-between text-[11px] font-bold">
-              <span className="text-slate-400 uppercase tracking-widest">Active / Idle</span>
+              <span className="text-slate-400 tracking-wide">활성 / 대기</span>
               <span className="text-slate-400">{m.connections_active} / {m.connections_idle}</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          {hasNotice && m!.notice === 'pg_stat_statements_missing' ? (
+            <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-2.5 flex items-start gap-2 text-[11px]">
+              <Info size={12} className="shrink-0 text-sky-400 mt-0.5" />
+              <div className="space-y-0.5 min-w-0">
+                <div className="text-sky-300 font-bold">쿼리 분석 기능 OFF</div>
+                <div className="text-sky-300/80 leading-relaxed">
+                  기본 모니터링은 정상. 슬로우 쿼리 찾기 기능을 쓰려면 <code className="bg-slate-900 px-1 py-0.5 rounded text-[10px]">pg_stat_statements</code> 확장 설치가 필요합니다.{' '}
+                  <Link to="/support#troubleshoot" className="text-indigo-300 hover:text-indigo-200 underline underline-offset-2">설치 방법 →</Link>
+                </div>
+              </div>
+            </div>
+          ) : hasNotice && (
+            <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-2.5 flex items-start gap-2 text-[11px]">
+              <AlertTriangle size={12} className="shrink-0 text-sky-400 mt-0.5" />
+              <span className="text-sky-300 font-medium">{m!.notice}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 tracking-wide">
             <div className="flex items-center gap-1.5">
               <Clock size={10} />
-              Interval {inst.poll_interval_sec}s
+              점검 주기 {inst.poll_interval_sec}초
             </div>
-            <div>Last: {new Date(m.collected_at).toLocaleTimeString('ko-KR')}</div>
+            <div>최근 확인: {new Date(m.collected_at).toLocaleTimeString('ko-KR')}</div>
           </div>
         </div>
       )}
@@ -155,12 +176,17 @@ function AddInstanceForm({ onAdd }: { onAdd: () => void }) {
     poll_interval_sec: 60, enabled: true,
   })
 
+  const [error, setError] = useState<string | null>(null)
   const mutation = useMutation({
     mutationFn: addDPMInstance,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dpmStatus'] })
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['dpmStatus'] })
       onAdd()
-    }
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.toString?.().trim() || err?.message || '등록 실패'
+      setError(msg)
+    },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -190,19 +216,39 @@ function AddInstanceForm({ onAdd }: { onAdd: () => void }) {
       <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
         <Zap size={18} className="text-amber-400 mt-0.5 shrink-0" />
         <div className="space-y-1">
-          <p className="text-xs font-bold text-amber-900 italic">성능 분석 권장 설정</p>
+          <p className="text-xs font-bold text-amber-200">성능 분석 권장 설정</p>
           <p className="text-[11px] text-amber-300 leading-relaxed font-medium">슬로우 쿼리 수집을 위해 대상 DB에 <code className="bg-slate-900 px-1 rounded border border-amber-500/30">pg_stat_statements</code> 확장이 활성화되어야 합니다. 또한 읽기 전용 계정 사용을 권장합니다.</p>
         </div>
       </div>
 
-      <div className="flex justify-end pt-2">
-        <button 
-          type="submit" 
+      {error && (
+        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs">
+          <AlertTriangle size={14} className="shrink-0 text-rose-400 mt-0.5" />
+          <span className="text-rose-300 font-medium">{error}</span>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 pt-2">
+        <button
+          type="button"
+          onClick={onAdd}
           disabled={mutation.isPending}
-          className="flex items-center gap-2 px-10 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+          className="px-6 py-3 rounded-xl text-sm font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-50"
+        >
+          취소
+        </button>
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className={cn(
+            "flex items-center gap-2 px-10 py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/20",
+            mutation.isPending
+              ? "bg-indigo-500 text-white cursor-wait ring-2 ring-indigo-400/50"
+              : "bg-indigo-600 text-white hover:bg-indigo-700"
+          )}
         >
           {mutation.isPending ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
-          데이터베이스 등록하기
+          {mutation.isPending ? '등록 중...' : '데이터베이스 등록하기'}
         </button>
       </div>
     </form>
@@ -249,7 +295,7 @@ function QueriesModal({ instanceId, name, onClose }: { instanceId: number; name:
             <div className="p-2 bg-slate-900 rounded-xl shadow-sm"><Zap size={20} className="text-amber-500" /></div>
             <div>
               <h3 className="font-bold text-lg leading-tight">{name}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Slow Query Performance Analysis · Top {queries.length}</p>
+              <p className="text-[10px] font-bold text-slate-400 tracking-wide mt-0.5">슬로우 쿼리 분석 · 상위 {queries.length}건</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-900 rounded-full hover:text-slate-100 transition-all border border-transparent hover:border-slate-800">
@@ -264,7 +310,7 @@ function QueriesModal({ instanceId, name, onClose }: { instanceId: number; name:
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 border border-slate-800 border-dashed rounded-3xl">
               <Zap size={48} className="mb-4 opacity-10" />
               <p className="font-bold text-slate-500">슬로우 쿼리 내역이 없습니다.</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">pg_stat_statements configuration required</p>
+              <p className="text-[10px] font-bold text-slate-400 tracking-wide mt-1">pg_stat_statements 확장 설치 필요</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -317,6 +363,7 @@ export default function DPMDashboard() {
   const queryClient = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [queriesTarget, setQueriesTarget] = useState<{ id: number; name: string } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
 
   const { data: items = [], isLoading, refetch } = useQuery({
     queryKey: ['dpmStatus'],
@@ -336,9 +383,8 @@ export default function DPMDashboard() {
     }
   })
 
-  const handleDelete = (id: number) => {
-    if (!confirm('정말 삭제하시겠습니까? 수집된 통계도 함께 삭제됩니다.')) return
-    deleteMutation.mutate(id)
+  const handleDelete = (id: number, name: string) => {
+    setDeleteTarget({ id, name })
   }
 
   return (
@@ -387,7 +433,7 @@ export default function DPMDashboard() {
             <InstanceCard
               key={item.instance.id}
               item={item}
-              onDelete={() => handleDelete(item.instance.id)}
+              onDelete={() => handleDelete(item.instance.id, item.instance.name)}
               onCheck={() => checkMutation.mutate(item.instance.id)}
               onShowQueries={() => setQueriesTarget({ id: item.instance.id, name: item.instance.name })}
             />
@@ -402,6 +448,17 @@ export default function DPMDashboard() {
           onClose={() => setQueriesTarget(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="DB 인스턴스 삭제"
+        message={`'${deleteTarget?.name}' 인스턴스를 삭제하시겠습니까? 수집된 통계도 함께 삭제됩니다.`}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
