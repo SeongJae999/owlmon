@@ -15,6 +15,7 @@ import { queryRange } from '../api/prometheus'
 import MetricCard from '../components/MetricCard'
 import ServiceCheckCard from '../components/ServiceCheckCard'
 import HostSpecCard from '../components/HostSpecCard'
+import DiskUsageBreakdown from '../components/DiskUsageBreakdown'
 import { getHostSpec } from '../api/specs'
 import { ChevronLeft, Server, Activity, ShieldAlert, Zap, ArrowLeft } from 'lucide-react'
 import { cn } from '../utils/cn'
@@ -72,18 +73,8 @@ export default function HostDetailPage() {
     enabled: !!hostName,
     refetchInterval: 30000,
   })
-  const { data: diskAbsolute } = useQuery({
-    queryKey: ['absolute', 'disk', hostName],
-    queryFn: async () => {
-      const [used, total] = await Promise.all([
-        promQuery(`sum(system_disk_used_bytes{host_name="${hostName}"})`),
-        promQuery(`sum(system_disk_total_bytes{host_name="${hostName}"})`),
-      ])
-      return { used, total }
-    },
-    enabled: !!hostName,
-    refetchInterval: 30000,
-  })
+  // 디스크 절대 용량/잔여는 "디스크 사용량"(DiskUsageBreakdown)이 마운트별로 단독 표시.
+  // 여기서 합산 절대값을 또 보여주면 정보가 중복돼 제거함.
 
   if (!hostName) {
     return (
@@ -193,6 +184,8 @@ export default function HostDetailPage() {
             usedBytes={memUsedBytes}
             totalBytes={hostSpec?.memory_total_bytes}
           />
+          {/* 디스크 카드 = 추이 + 예측 전담. 값은 max(마운트별 사용률) = 최고 사용률.
+              절대 용량/잔여는 아래 "디스크 사용량" 섹션이 단독 표시 (중복 제거) */}
           <MetricCard
             title="디스크"
             value={metrics?.disk ?? null}
@@ -202,11 +195,23 @@ export default function HostDetailPage() {
             critical={alertCfg?.disk_crit ?? 90}
             anomaly={hostAnomalies.find(a => a.metric === 'disk')}
             diskPrediction={anomalyData?.disk_predictions.find(p => p.host === hostName)}
-            usedBytes={diskAbsolute?.used}
-            totalBytes={diskAbsolute?.total}
-            absoluteHint="agent 업데이트 후 표시"
+            subtitle="최고 사용률 · 마운트별 상세 아래 ↓"
           />
         </div>
+      </div>
+
+      {/* 디스크별 사용량 (마운트포인트별 잔여 용량) */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+          <h2 className="text-base font-bold text-slate-100">디스크 사용량</h2>
+          <span className="text-[11px] font-semibold text-slate-500">마운트별 잔여 용량</span>
+        </div>
+        <DiskUsageBreakdown
+          host={hostName}
+          warnThreshold={alertCfg?.disk_warn ?? 85}
+          critThreshold={alertCfg?.disk_crit ?? 90}
+        />
       </div>
 
       {/* 장비 정보 */}

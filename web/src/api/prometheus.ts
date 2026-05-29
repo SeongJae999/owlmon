@@ -177,6 +177,58 @@ export async function fetchAllHostMetrics(): Promise<Record<string, { cpu: numbe
   return result
 }
 
+// ─── 마운트포인트(디스크)별 사용량 ─────────────────────────
+export interface DiskMountUsage {
+  mountpoint: string
+  device: string
+  usedBytes: number
+  totalBytes: number
+  freeBytes: number
+  usedPercent: number
+}
+
+// 호스트의 마운트포인트별 디스크 사용량 — used/total/free/%
+// SSD/HDD 각각 얼마 남았는지 표시용. 합산하지 않고 마운트별로 분리 반환.
+export async function fetchDiskUsageByMount(host: string): Promise<DiskMountUsage[]> {
+  const q = async (metricName: string) => {
+    const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
+      params: { query: `${metricName}{host_name="${host}"}` },
+    })
+    return res.data?.data?.result ?? []
+  }
+  const [usedRes, totalRes, pctRes] = await Promise.all([
+    q('system_disk_used_bytes'),
+    q('system_disk_total_bytes'),
+    q('system_disk_usage_percent'),
+  ])
+
+  // mountpoint + device 조합으로 join
+  const keyOf = (m: Record<string, string>) => `${m.mountpoint ?? ''}|${m.device ?? ''}`
+  const totalMap: Record<string, number> = {}
+  const pctMap: Record<string, number> = {}
+  for (const r of totalRes) totalMap[keyOf(r.metric)] = parseFloat(r.value[1])
+  for (const r of pctRes) pctMap[keyOf(r.metric)] = parseFloat(r.value[1])
+
+  const rows: DiskMountUsage[] = usedRes.map((r: { metric: Record<string, string>; value: [number, string] }) => {
+    const k = keyOf(r.metric)
+    const used = parseFloat(r.value[1])
+    const total = totalMap[k] ?? 0
+    const pct = pctMap[k] ?? (total > 0 ? (used / total) * 100 : 0)
+    return {
+      mountpoint: r.metric.mountpoint ?? '—',
+      device: r.metric.device ?? '',
+      usedBytes: used,
+      totalBytes: total,
+      freeBytes: Math.max(0, total - used),
+      usedPercent: pct,
+    }
+  })
+
+  // 용량 큰 디스크 우선 정렬
+  rows.sort((a, b) => b.totalBytes - a.totalBytes)
+  return rows
+}
+
 // 특정 호스트의 현재 메트릭
 // 오프라인 상태일 경우 최근 1시간 내 마지막 값을 반환
 export async function fetchMetrics(host?: string) {

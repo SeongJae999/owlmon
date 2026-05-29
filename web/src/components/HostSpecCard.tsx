@@ -88,7 +88,7 @@ export default function HostSpecCard({ host }: Props) {
           {hasDisks && (
             <div>
               <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
-                <HardDrive size={11} /> 디스크
+                <HardDrive size={11} /> 물리 디스크
               </div>
               <div className="space-y-1">
                 {spec.disks!.map(d => <DiskRow key={d.name} disk={d} />)}
