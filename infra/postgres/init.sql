@@ -277,7 +277,12 @@ INSERT INTO log_rules (name, pattern, severity, category, description, cooldown_
 -- 일반
 ('Segmentation fault',         'segfault|Segmentation fault', 'warning', 'app', '프로세스 segfault — 코드/메모리 오류', 300),
 -- 보안 — catch-all 인증 실패 (sudo/SSH/PAM 광범위 보완. 좁은 패턴 룰이 못 잡는 케이스 보완)
-('일반 인증 실패 폭증',         'authentication failure', 'warning', 'auth', '5분에 5회 이상 인증 실패 — PAM/SSH/sudo 광범위 catch-all (기존 SSH/sudo 룰 보완)', 600)
+('일반 인증 실패 폭증',         'authentication failure', 'warning', 'auth', '5분에 5회 이상 인증 실패 — PAM/SSH/sudo 광범위 catch-all (기존 SSH/sudo 룰 보완)', 600),
+-- 학교/공공기관 특화 ──────
+('백업 실패',                  '(?i)backup.*(fail|error|abort)', 'critical', 'system', '백업 실패 감지 — 행안부 감사 의무 항목. 즉시 백업 시스템 점검 필요', 3600),
+('방화벽 차단 폭증',           '(?i)(iptables.*DROP|firewall.*block|UFW BLOCK)', 'warning', 'security', '방화벽 차단 다발 — 스캐닝/공격 가능성', 600),
+('메일 발송 실패',             '(?i)(SMTP|sendmail|postfix).*(rejected|reject|deferred|bounced)', 'warning', 'app', '메일 발송 실패 — 가정통신문/공지 발송 영향 가능', 1800),
+('Ransomware 의심',            '(?i)(\\.locked$|\\.encrypted$|README.*decrypt|how_to_recover)', 'critical', 'security', '랜섬웨어 감염 의심 파일명 패턴 — 즉시 격리 필요', 300)
 ON CONFLICT (name) DO NOTHING;
 
 -- 빈도 기반 룰에 threshold 보강 (1회 매칭으로 알림 보내면 노이즈 큼)
@@ -290,3 +295,21 @@ UPDATE log_rules SET threshold_count = 20, threshold_window = 300  WHERE name = 
 UPDATE log_rules SET threshold_count = 10, threshold_window = 600  WHERE name = 'Python Exception traceback';
 UPDATE log_rules SET threshold_count = 30, threshold_window = 600  WHERE name = 'nginx upstream timeout';
 UPDATE log_rules SET threshold_count = 100, threshold_window = 60  WHERE name = 'TCP RST 폭증';
+
+-- ─── 감사 로그 (ISMS-P "변경 감사 추적" 의무 + 행안부 "관리자 이력 1년 보관") ────
+CREATE TABLE IF NOT EXISTS audit_log (
+  id          BIGSERIAL PRIMARY KEY,
+  ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actor       TEXT NOT NULL,                    -- 사용자명 (또는 'agent', 'system')
+  ip          TEXT,                              -- 요청 IP
+  action      TEXT NOT NULL,                    -- 'rule.create', 'alert.config.update' 등
+  target_type TEXT,                              -- 'rule', 'host', 'alert_config', ...
+  target_id   TEXT,                              -- 대상 ID/이름 (선택)
+  details     JSONB,                             -- 변경 전/후 또는 추가 정보
+  result      TEXT NOT NULL DEFAULT 'success',  -- 'success' / 'failure' / 'unauthorized'
+  user_agent  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_audit_ts          ON audit_log(ts DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_actor       ON audit_log(actor, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_action      ON audit_log(action, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_target      ON audit_log(target_type, target_id);
