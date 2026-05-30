@@ -14,6 +14,18 @@ export interface NetworkInfo {
   ipv4: string[]
 }
 
+// 물리 디스크→파티션→LVM→마운트 트리 노드 (에이전트 lsblk 수집, 재귀)
+export interface BlockDevice {
+  name: string
+  type: string // disk / part / lvm / crypt / rom
+  size_bytes: number
+  fstype?: string
+  mountpoint?: string
+  rotational: boolean
+  model?: string
+  children?: BlockDevice[]
+}
+
 export interface HostSpec {
   host_name: string
   cpu_model: string
@@ -22,6 +34,7 @@ export interface HostSpec {
   memory_total_bytes: number
   disks: DiskInfo[]
   networks: NetworkInfo[]
+  disk_topology?: BlockDevice[]
   os_pretty_name: string
   kernel_version: string
   virtualization: string

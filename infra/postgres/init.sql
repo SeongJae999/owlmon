@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS agent_specs (
     memory_total_bytes  BIGINT,                          -- /proc/meminfo MemTotal
     disks               JSONB,                           -- [{name,size_bytes,rotational,model}, ...]
     networks            JSONB,                           -- [{name,mac,ipv4}, ...]
+    disk_topology       JSONB,                           -- lsblk 트리: 물리 디스크→파티션→LVM→마운트
     os_pretty_name      TEXT,                            -- "Debian GNU/Linux 12 (bookworm)"
     kernel_version      TEXT,                            -- uname -r
     virtualization      TEXT,                            -- "none"/"kvm"/"docker"
