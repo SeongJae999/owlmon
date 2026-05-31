@@ -55,6 +55,8 @@ type Specs struct {
 	KernelVersion    string        `json:"kernel_version"`
 	Virtualization   string        `json:"virtualization"`
 	Arch             string        `json:"arch"`
+	// DiskTopology는 물리 디스크→파티션→LVM→마운트 트리 (Linux 전용, 없으면 빈 배열)
+	DiskTopology []BlockDevice `json:"disk_topology,omitempty"`
 }
 
 // Collect는 호스트 스펙을 1회 수집한다.
@@ -92,6 +94,7 @@ func Collect() (*Specs, error) {
 
 	s.Disks = collectDisks()
 	s.Networks = collectNetworks()
+	s.DiskTopology = collectDiskTopology()
 
 	return s, nil
 }

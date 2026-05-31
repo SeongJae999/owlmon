@@ -16,6 +16,7 @@ import MetricCard from '../components/MetricCard'
 import ServiceCheckCard from '../components/ServiceCheckCard'
 import HostSpecCard from '../components/HostSpecCard'
 import DiskUsageBreakdown from '../components/DiskUsageBreakdown'
+import DiskTopology from '../components/DiskTopology'
 import { getHostSpec } from '../api/specs'
 import { ChevronLeft, Server, Activity, ShieldAlert, Zap, ArrowLeft } from 'lucide-react'
 import { cn } from '../utils/cn'
@@ -212,6 +213,16 @@ export default function HostDetailPage() {
           warnThreshold={alertCfg?.disk_warn ?? 85}
           critThreshold={alertCfg?.disk_crit ?? 90}
         />
+      </div>
+
+      {/* 물리 디스크 구조 (디스크→파티션→LVM→마운트 트리) */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-1 h-5 bg-sky-500 rounded-full" />
+          <h2 className="text-base font-bold text-slate-100">물리 디스크 구조</h2>
+          <span className="text-[11px] font-semibold text-slate-500">파티션 · LVM 분해</span>
+        </div>
+        <DiskTopology host={hostName} />
       </div>
 
       {/* 장비 정보 */}

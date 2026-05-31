@@ -16,8 +16,9 @@ type AgentSpecs struct {
 	CPUCores         int             `json:"cpu_cores"`
 	CPUSockets       int             `json:"cpu_sockets"`
 	MemoryTotalBytes int64           `json:"memory_total_bytes"`
-	Disks            json.RawMessage `json:"disks"`     // [{name,size_bytes,rotational,model}, ...]
-	Networks         json.RawMessage `json:"networks"`  // [{name,mac,ipv4}, ...]
+	Disks            json.RawMessage `json:"disks"`         // [{name,size_bytes,rotational,model}, ...]
+	Networks         json.RawMessage `json:"networks"`      // [{name,mac,ipv4}, ...]
+	DiskTopology     json.RawMessage `json:"disk_topology"` // 물리 디스크→파티션→LVM→마운트 트리 (lsblk)
 	OSPrettyName     string          `json:"os_pretty_name"`
 	KernelVersion    string          `json:"kernel_version"`
 	Virtualization   string          `json:"virtualization"`
@@ -41,8 +42,8 @@ func (s *SpecsStore) Upsert(ctx context.Context, spec *AgentSpecs) error {
 INSERT INTO agent_specs
   (host_name, cpu_model, cpu_cores, cpu_sockets, memory_total_bytes,
    disks, networks, os_pretty_name, kernel_version, virtualization, arch,
-   collected_at, updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW(), NOW())
+   disk_topology, collected_at, updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, NOW(), NOW())
 ON CONFLICT (host_name) DO UPDATE SET
   cpu_model          = EXCLUDED.cpu_model,
   cpu_cores          = EXCLUDED.cpu_cores,
@@ -54,11 +55,13 @@ ON CONFLICT (host_name) DO UPDATE SET
   kernel_version     = EXCLUDED.kernel_version,
   virtualization     = EXCLUDED.virtualization,
   arch               = EXCLUDED.arch,
+  disk_topology      = EXCLUDED.disk_topology,
   updated_at         = NOW()
 `
 	_, err := s.pool.Exec(ctx, q,
 		spec.HostName, spec.CPUModel, spec.CPUCores, spec.CPUSockets, spec.MemoryTotalBytes,
 		spec.Disks, spec.Networks, spec.OSPrettyName, spec.KernelVersion, spec.Virtualization, spec.Arch,
+		spec.DiskTopology,
 	)
 	return err
 }
@@ -68,7 +71,7 @@ func (s *SpecsStore) List(ctx context.Context) ([]AgentSpecs, error) {
 	const q = `
 SELECT host_name, cpu_model, cpu_cores, cpu_sockets, memory_total_bytes,
        disks, networks, os_pretty_name, kernel_version, virtualization, arch,
-       collected_at, updated_at
+       disk_topology, collected_at, updated_at
 FROM agent_specs
 ORDER BY host_name ASC
 `
@@ -84,7 +87,7 @@ ORDER BY host_name ASC
 		if err := rows.Scan(
 			&sp.HostName, &sp.CPUModel, &sp.CPUCores, &sp.CPUSockets, &sp.MemoryTotalBytes,
 			&sp.Disks, &sp.Networks, &sp.OSPrettyName, &sp.KernelVersion, &sp.Virtualization, &sp.Arch,
-			&sp.CollectedAt, &sp.UpdatedAt,
+			&sp.DiskTopology, &sp.CollectedAt, &sp.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -98,14 +101,14 @@ func (s *SpecsStore) Get(ctx context.Context, hostName string) (*AgentSpecs, err
 	const q = `
 SELECT host_name, cpu_model, cpu_cores, cpu_sockets, memory_total_bytes,
        disks, networks, os_pretty_name, kernel_version, virtualization, arch,
-       collected_at, updated_at
+       disk_topology, collected_at, updated_at
 FROM agent_specs WHERE host_name = $1
 `
 	var sp AgentSpecs
 	err := s.pool.QueryRow(ctx, q, hostName).Scan(
 		&sp.HostName, &sp.CPUModel, &sp.CPUCores, &sp.CPUSockets, &sp.MemoryTotalBytes,
 		&sp.Disks, &sp.Networks, &sp.OSPrettyName, &sp.KernelVersion, &sp.Virtualization, &sp.Arch,
-		&sp.CollectedAt, &sp.UpdatedAt,
+		&sp.DiskTopology, &sp.CollectedAt, &sp.UpdatedAt,
 	)
 	if err != nil {
 		// pgx.ErrNoRows 처리는 호출 측이 errors.Is로 — 여기선 그대로 반환

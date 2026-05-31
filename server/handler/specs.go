@@ -27,6 +27,7 @@ type specsPayload struct {
 	MemoryTotalBytes int64           `json:"memory_total_bytes"`
 	Disks            json.RawMessage `json:"disks"`
 	Networks         json.RawMessage `json:"networks"`
+	DiskTopology     json.RawMessage `json:"disk_topology"`
 	OSPrettyName     string          `json:"os_pretty_name"`
 	KernelVersion    string          `json:"kernel_version"`
 	Virtualization   string          `json:"virtualization"`
@@ -58,6 +59,9 @@ func (h *SpecsHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 	if len(p.Networks) == 0 {
 		p.Networks = json.RawMessage("[]")
 	}
+	if len(p.DiskTopology) == 0 {
+		p.DiskTopology = json.RawMessage("[]")
+	}
 
 	spec := &db.AgentSpecs{
 		HostName:         p.HostName,
@@ -67,6 +71,7 @@ func (h *SpecsHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		MemoryTotalBytes: p.MemoryTotalBytes,
 		Disks:            p.Disks,
 		Networks:         p.Networks,
+		DiskTopology:     p.DiskTopology,
 		OSPrettyName:     p.OSPrettyName,
 		KernelVersion:    p.KernelVersion,
 		Virtualization:   p.Virtualization,
