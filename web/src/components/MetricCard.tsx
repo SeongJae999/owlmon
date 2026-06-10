@@ -1,4 +1,3 @@
-import React from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts'
 import { AlertTriangle, TrendingUp, Info } from 'lucide-react'
 import { cn } from '../utils/cn'
@@ -51,7 +50,7 @@ const statusConfig = {
   unknown:  { color: TONES.slate.hex,   label: '데이터 없음', bg: TONES.slate.bg,   text: TONES.slate.text,   border: TONES.slate.border },
 }
 
-export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes, absoluteHint, subtitle }: Props) {
+export default function MetricCard({ title, value, unit = '%', data, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes, absoluteHint, subtitle }: Props) {
   const status = getStatus(value, warning, critical)
   const hasAnomaly = anomaly != null
   const cfg = statusConfig[status]

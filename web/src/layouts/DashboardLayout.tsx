@@ -1,27 +1,24 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import { logout } from '../api/auth'
 import { useAlertStatus } from '../hooks/useMonitoring'
-import { 
-  LayoutGrid, 
-  Activity, 
-  Network, 
-  ShieldCheck, 
-  Globe, 
-  Database, 
-  FileText, 
-  History, 
-  Settings, 
-  FileBarChart, 
+import {
+  LayoutGrid,
+  Network,
+  ShieldCheck,
+  Globe,
+  Database,
+  FileText,
+  History,
+  Settings,
+  FileBarChart,
   Server,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Menu,
   Bell,
-  Search,
   ListChecks,
-  BarChart3,
   TrendingUp,
   Sparkles,
 } from 'lucide-react'
