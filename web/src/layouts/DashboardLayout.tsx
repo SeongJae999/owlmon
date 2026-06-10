@@ -171,6 +171,7 @@ export default function DashboardLayout() {
             <button
               className="lg:hidden p-2 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors"
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="메뉴 열기"
             >
               <Menu size={20} />
             </button>
@@ -179,14 +180,15 @@ export default function DashboardLayout() {
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg border border-slate-700">
-              <button className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 rounded-md transition-colors relative" title="알림">
+              {/* 벨 클릭 → 알림 이력 (장식 버튼이라 데모 중 무반응으로 보이던 것 수정) */}
+              <Link to="/history" className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 rounded-md transition-colors relative block" title="알림" aria-label="알림 이력 보기">
                 <Bell size={18} />
                 {unackedAlertCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-slate-900" />
                 )}
-              </button>
+              </Link>
               <div className="w-px h-5 bg-slate-700 mx-0.5" />
-              <button className="flex items-center gap-2 pl-1.5 pr-2 py-1 hover:bg-slate-700 rounded-md transition-colors group">
+              <button className="flex items-center gap-2 pl-1.5 pr-2 py-1 hover:bg-slate-700 rounded-md transition-colors group" aria-label="관리자 메뉴">
                 <div className="w-7 h-7 bg-slate-700 rounded-md flex items-center justify-center text-slate-300 text-xs font-semibold group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-colors">관</div>
                 <div className="hidden lg:block text-left">
                   <p className="text-xs font-semibold text-slate-200 leading-none">관리자</p>

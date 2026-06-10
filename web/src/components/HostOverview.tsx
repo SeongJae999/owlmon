@@ -145,6 +145,15 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
           </div>
         </div>
 
+        {/* 호스트 0개 — 빈 그리드 대신 설치 안내 (데모 첫 화면이 "고장난 화면"으로 보이는 것 방지) */}
+        {hosts.length === 0 && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-10 flex flex-col items-center text-center gap-2">
+            <Monitor size={40} className="text-slate-700" />
+            <p className="text-sm font-semibold text-slate-300">연결된 호스트가 없습니다</p>
+            <p className="text-xs text-slate-500">에이전트를 설치하면 자동으로 표시됩니다 (첫 수집 후 30초 이내)</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
           {hosts.map((host) => {
             const status = hostStatuses[host]
@@ -270,6 +279,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                           : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200 hover:bg-slate-700"
                       )}
                       title={inMaintenance ? "점검 모드 해제" : "점검 모드 설정"}
+                      aria-label={inMaintenance ? `${host} 점검 모드 해제` : `${host} 점검 모드 설정`}
                     >
                       <Wrench size={14} />
                     </button>
@@ -277,6 +287,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                       onClick={(e) => { e.stopPropagation(); onSelect(host) }}
                       className="p-1.5 rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
                       title="상세 보기"
+                      aria-label={`${host} 상세 보기`}
                     >
                       <ArrowRight size={14} />
                     </button>

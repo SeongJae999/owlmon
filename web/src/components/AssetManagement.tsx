@@ -177,7 +177,7 @@ export default function AssetManagement() {
                   <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-800">
                 {assets.map(a => {
                   const ws = warrantyStatus(a.warranty_expires)
                   return (
@@ -220,6 +220,7 @@ export default function AssetManagement() {
                             className="p-2 bg-slate-800 text-slate-400 hover:bg-indigo-500/10 hover:text-indigo-400 rounded-lg transition-all"
                             onClick={() => startEdit(a)}
                             title="정보 수정"
+                            aria-label={`${a.host_name} 정보 수정`}
                           >
                             <Edit2 size={16} />
                           </button>
@@ -227,6 +228,7 @@ export default function AssetManagement() {
                             className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all"
                             onClick={() => handleRemove(a.id, a.host_name)}
                             title="정보 삭제"
+                            aria-label={`${a.host_name} 정보 삭제`}
                           >
                             <Trash2 size={16} />
                           </button>
