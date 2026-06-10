@@ -5,6 +5,7 @@ import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, 
 import { cn } from '../utils/cn'
 import { listHostSpecs, shortCPU, formatBytes, type HostSpec } from '../api/specs'
 import { getAlertConfig } from '../api/alert'
+import { hostLabel } from '../config/hostLabels'
 
 interface HostMetrics {
   cpu: number | null
@@ -199,7 +200,12 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                         : "bg-emerald-400"
                     )} />
                     <div className="min-w-0 flex-1">
-                      <span className="font-semibold text-sm text-slate-100 group-hover:text-indigo-400 transition-colors block break-words leading-snug">{host}</span>
+                      <span className="font-semibold text-sm text-slate-100 group-hover:text-indigo-400 transition-colors block break-words leading-snug">
+                        {host}
+                        {hostLabel(host) && (
+                          <span className="ml-1.5 text-[11px] font-normal text-slate-400">({hostLabel(host)})</span>
+                        )}
+                      </span>
                       <span className="text-xs font-medium text-slate-500 mt-0.5 block">
                         {isOffline ? '연결 끊김'
                           : inMaintenance ? '점검 중'
