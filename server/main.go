@@ -95,8 +95,9 @@ func startServer() func() {
 	}
 	checker := alert.NewChecker(prometheusURL, emailCfg, appCtx.ConfigStore, appCtx.HistorySaver)
 
-	// 4. 백그라운드 워커 시작
-	InitWorkers(appCtx, checker, emailCfg, prometheusURL)
+	// 4. 백그라운드 워커 시작 — 앱 수명 ctx 하나로 종료 전파
+	workerCtx, stopWorkers := context.WithCancel(context.Background())
+	InitWorkers(workerCtx, appCtx, checker, emailCfg, prometheusURL)
 
 	// 5. 라우터 설정
 	r := InitRouter(appCtx, checker, jwtSecret, username, passwordHash, prometheusURL)
@@ -126,6 +127,8 @@ func startServer() func() {
 	}()
 
 	return func() {
+		// 워커 먼저 정지 — 종료 중 알림 발송/DB 쓰기 방지
+		stopWorkers()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {

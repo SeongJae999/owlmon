@@ -1,12 +1,9 @@
 package report
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
-	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -53,14 +50,18 @@ func (r *Reporter) CanSend() bool {
 }
 
 // Start는 매월 1일 09:00에 지난달 보고서를 자동 발송합니다.
-func (r *Reporter) Start() {
+func (r *Reporter) Start(ctx context.Context) {
 	go func() {
 		for {
 			now := time.Now()
 			// 다음달 1일 09:00 계산
 			next := time.Date(now.Year(), now.Month()+1, 1, 9, 0, 0, 0, now.Location())
 			log.Printf("월간 보고서 다음 발송: %s", next.Format("2006-01-02 15:04:05"))
-			time.Sleep(time.Until(next))
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Until(next)):
+			}
 
 			// 지난달 보고서 발송
 			prev := next.AddDate(0, -1, 0)
@@ -185,30 +186,11 @@ func min(a, b float64) float64 {
 // --- Prometheus 조회 헬퍼 ---
 
 func (r *Reporter) instantQuery(promql string, at time.Time) (float64, error) {
-	params := url.Values{}
-	params.Set("query", promql)
-	params.Set("time", strconv.FormatInt(at.Unix(), 10))
-
-	resp, err := http.Get(r.prometheusURL + "/api/v1/query?" + params.Encode())
-	if err != nil {
+	// HTTP 호출/파싱은 prom 패키지 공용 클라이언트로 (타임아웃 포함)
+	rs, err := prom.QueryAt(r.prometheusURL, promql, at)
+	if err != nil || len(rs) == 0 {
 		return 0, err
 	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Data struct {
-			Result []struct {
-				Value [2]interface{} `json:"value"`
-			} `json:"result"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, err
-	}
-	if len(result.Data.Result) == 0 {
-		return 0, nil
-	}
-	valStr, _ := result.Data.Result[0].Value[1].(string)
-	return strconv.ParseFloat(valStr, 64)
+	return rs[0].Value, nil
 }
 
