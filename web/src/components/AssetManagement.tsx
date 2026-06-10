@@ -166,7 +166,9 @@ export default function AssetManagement() {
             <p className="text-xs opacity-70 mt-1">상단의 '새 자산 등록' 버튼을 눌러 정보를 추가하세요.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* 데스크탑: 테이블 (모바일은 아래 카드뷰 — AlertHistory와 동일 분기 패턴) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-800/50 border-b border-slate-800">
@@ -240,6 +242,57 @@ export default function AssetManagement() {
               </tbody>
             </table>
           </div>
+
+          {/* 모바일: 카드뷰 — 5컬럼 테이블 가로 스크롤 대신 세로 스택 */}
+          <div className="md:hidden divide-y divide-slate-800">
+            {assets.map(a => {
+              const ws = warrantyStatus(a.warranty_expires)
+              return (
+                <div key={a.id} className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-200">{a.host_name}</div>
+                      <div className="text-[11px] font-bold text-slate-400 font-mono">{a.ip || '0.0.0.0'}</div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        className="p-2 bg-slate-800 text-slate-400 hover:bg-indigo-500/10 hover:text-indigo-400 rounded-lg transition-all"
+                        onClick={() => startEdit(a)}
+                        aria-label={`${a.host_name} 정보 수정`}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all"
+                        onClick={() => handleRemove(a.id, a.host_name)}
+                        aria-label={`${a.host_name} 정보 삭제`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                    <MapPin size={10} />
+                    {a.location || '-'}
+                    <span className="font-normal text-slate-500 truncate">· {a.description || '상세 설명 없음'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-semibold text-slate-500">
+                      <Calendar size={10} /> {a.purchase_date || '도입일 미설정'}
+                    </span>
+                    {ws ? (
+                      <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase', ws.bg, ws.text)}>
+                        {ws.label}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">보증 미설정</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          </>
         )}
       </div>
 
