@@ -21,6 +21,7 @@ import {
   ListChecks,
   TrendingUp,
   Sparkles,
+  MessageCircle,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { id: 'dpm', path: '/dpm', icon: Database, label: 'DB 성능', section: 'monitor' },
   { id: 'logs', path: '/logs', icon: FileText, label: '로그 뷰어', section: 'monitor' },
   { id: 'insights', path: '/insights', icon: Sparkles, label: 'AI 인사이트', section: 'monitor' },
+  { id: 'chat', path: '/chat', icon: MessageCircle, label: 'AI 도우미', section: 'monitor' },
   { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 룰', section: 'manage' },
   { id: 'alert-history', path: '/history', icon: History, label: '알림 히스토리', section: 'manage' },
   { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 설정', section: 'manage' },

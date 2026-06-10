@@ -208,6 +208,80 @@ func (h *LLMHandler) SummarizeAlerts(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// chatMessage — 챗봇 대화 한 턴.
+type chatMessage struct {
+	Role    string `json:"role"`    // "user" | "assistant"
+	Content string `json:"content"`
+}
+
+// Chat POST /api/chat — OWLmon 도우미 챗봇 (PoC, 실시간 데이터 미연동).
+// Body: {"messages":[{"role":"user","content":"..."}, ...]}  (대화 히스토리 전체)
+// Response: {"reply":"...","model":"..."}
+//
+// 멀티턴 맥락은 클라이언트가 messages 배열로 보내 유지(stateless).
+// 현재는 시스템 데이터 검색 없이 일반 질의응답만 — 데이터 연동(RAG)은 후속.
+func (h *LLMHandler) Chat(w http.ResponseWriter, r *http.Request) {
+	if h.provider == nil {
+		http.Error(w, "AI 도우미가 비활성화되어 있습니다 (OWLMON_LLM_PROVIDER 미설정)", http.StatusServiceUnavailable)
+		return
+	}
+
+	var req struct {
+		Messages []chatMessage `json:"messages"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "잘못된 요청", http.StatusBadRequest)
+		return
+	}
+	if len(req.Messages) == 0 {
+		http.Error(w, "messages는 비어있을 수 없습니다", http.StatusBadRequest)
+		return
+	}
+	last := req.Messages[len(req.Messages)-1]
+	if last.Role != "user" || strings.TrimSpace(last.Content) == "" {
+		http.Error(w, "마지막 메시지는 비어있지 않은 user 여야 합니다", http.StatusBadRequest)
+		return
+	}
+
+	// 최근 N턴만 유지 (프롬프트 폭주 방지) + 대화 히스토리를 단일 userPrompt로 조립.
+	const maxTurns = 10
+	msgs := req.Messages
+	if len(msgs) > maxTurns {
+		msgs = msgs[len(msgs)-maxTurns:]
+	}
+	var sb strings.Builder
+	for _, m := range msgs {
+		content := m.Content
+		if len(content) > 2000 {
+			content = content[:2000] + "...(생략)"
+		}
+		switch m.Role {
+		case "assistant":
+			sb.WriteString("[도우미] ")
+		default:
+			sb.WriteString("[사용자] ")
+		}
+		sb.WriteString(content)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("[도우미] ")
+	userPrompt := sb.String()
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	text, err := h.provider.Complete(ctx, llm.SystemPromptChat, userPrompt)
+	if err != nil {
+		http.Error(w, "AI 호출 실패: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	writeJSONLLM(w, map[string]interface{}{
+		"reply": strings.TrimSpace(text),
+		"model": h.provider.Name(),
+	})
+}
+
 func hash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:16])
