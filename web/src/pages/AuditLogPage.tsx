@@ -88,7 +88,7 @@ export default function AuditLogPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageToolbar
         icon={ShieldCheck}
         title="감사 로그"
@@ -98,7 +98,7 @@ export default function AuditLogPage() {
           onClick={() => handleDownload('csv')}
           disabled={downloading || filtered.length === 0}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
-          title="CSV 다운로드 (감사 자료 제출용)"
+          title="CSV 다운로드 (감사 자료 제출용)" aria-label="CSV 다운로드 (감사 자료 제출용)"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
           CSV
@@ -107,7 +107,7 @@ export default function AuditLogPage() {
           onClick={() => handleDownload('json')}
           disabled={downloading || filtered.length === 0}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
-          title="JSON 다운로드"
+          title="JSON 다운로드" aria-label="JSON 다운로드"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
           JSON

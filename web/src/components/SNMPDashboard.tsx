@@ -85,14 +85,14 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
           <button
             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-all"
             onClick={onEdit}
-            title="장비 정보 수정"
+            title="장비 정보 수정" aria-label="장비 정보 수정"
           >
             <Pencil size={14} />
           </button>
           <button
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all"
             onClick={onDelete}
-            title="장비 삭제"
+            title="장비 삭제" aria-label="장비 삭제"
           >
             <Trash2 size={16} />
           </button>
@@ -125,7 +125,7 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
               <button
                 onClick={() => setShowDown(s => !s)}
                 className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-                title="케이블 안 꽂힌 빈 포트 — 클릭하면 펼침"
+                title="케이블 안 꽂힌 빈 포트 — 클릭하면 펼침" aria-label="케이블 안 꽂힌 빈 포트 — 클릭하면 펼침"
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">

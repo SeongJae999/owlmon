@@ -197,7 +197,7 @@ export default function AnnotateModal({ log, onClose }: Props) {
                         onClick={() => deleteMutation.mutate(a.id)}
                         disabled={deleteMutation.isPending}
                         className="text-slate-500 hover:text-rose-400 transition-colors p-1 rounded"
-                        title="메모 삭제"
+                        title="메모 삭제" aria-label="메모 삭제"
                       >
                         <Trash2 size={13} />
                       </button>

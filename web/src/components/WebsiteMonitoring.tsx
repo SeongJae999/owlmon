@@ -578,14 +578,14 @@ function WebsiteCard({
           <button
             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all"
             onClick={onEdit}
-            title="수정"
+            title="수정" aria-label="수정"
           >
             <Pencil size={16} />
           </button>
           <button
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
             onClick={onDelete}
-            title="삭제"
+            title="삭제" aria-label="삭제"
           >
             <Trash2 size={16} />
           </button>
@@ -675,7 +675,7 @@ function WebsiteCard({
                 ? "bg-indigo-500 text-white cursor-wait"
                 : "bg-indigo-600 text-white hover:bg-indigo-700"
             )}
-            title="이 도메인에 사이트 점검 추가 (5분 주기)"
+            title="이 도메인에 사이트 점검 추가 (5분 주기)" aria-label="이 도메인에 사이트 점검 추가 (5분 주기)"
           >
             {addingSyn ? <RefreshCcw size={12} className="animate-spin" /> : <Plus size={12} />}
             {addingSyn ? '추가 중...' : '점검 추가'}
@@ -689,7 +689,7 @@ function WebsiteCard({
           <button
             onClick={onCheckSyn}
             className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-            title="사이트 즉시 점검"
+            title="사이트 즉시 점검" aria-label="사이트 즉시 점검"
           >
             <Zap size={10} /> 사이트 즉시 점검
           </button>

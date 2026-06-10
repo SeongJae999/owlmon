@@ -244,7 +244,7 @@ export default function LogViewer() {
               <button
                 onClick={() => { setQueryText(''); setPage(0); setTimeout(() => refetch(), 0) }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 text-xs px-1"
-                title="검색어 지우기"
+                title="검색어 지우기" aria-label="검색어 지우기"
               >
                 ✕
               </button>
@@ -331,7 +331,7 @@ export default function LogViewer() {
               onClick={() => handleDownload('csv')}
               disabled={downloading || total === 0}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
-              title="CSV 다운로드 (최대 1만건)"
+              title="CSV 다운로드 (최대 1만건)" aria-label="CSV 다운로드 (최대 1만건)"
             >
               {downloading ? <RefreshCcw size={11} className="animate-spin" /> : <Download size={11} />}
               CSV
@@ -340,7 +340,7 @@ export default function LogViewer() {
               onClick={() => handleDownload('json')}
               disabled={downloading || total === 0}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
-              title="JSON 다운로드 (최대 1만건)"
+              title="JSON 다운로드 (최대 1만건)" aria-label="JSON 다운로드 (최대 1만건)"
             >
               {downloading ? <RefreshCcw size={11} className="animate-spin" /> : <Download size={11} />}
               JSON
@@ -357,7 +357,7 @@ export default function LogViewer() {
                 key={i}
                 onClick={f.onClear}
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/20 hover:text-indigo-200 transition-colors"
-                title="필터 제거"
+                title="필터 제거" aria-label="필터 제거"
               >
                 {f.label}
                 <span className="text-slate-500">✕</span>
@@ -564,7 +564,7 @@ export default function LogViewer() {
                         <button
                           onClick={() => handleExplain(g.line)}
                           className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30"
-                          title="AI가 이 로그를 한국어로 설명"
+                          title="AI가 이 로그를 한국어로 설명" aria-label="AI가 이 로그를 한국어로 설명"
                         >
                           <Sparkles size={10} />
                           AI 설명
@@ -573,7 +573,7 @@ export default function LogViewer() {
                       <button
                         onClick={() => setSelectedLog(g.records[g.records.length - 1])}
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
-                        title="이 로그에 원인/조치 메모 남기기"
+                        title="이 로그에 원인/조치 메모 남기기" aria-label="이 로그에 원인/조치 메모 남기기"
                       >
                         <Tag size={10} />
                         메모
@@ -628,7 +628,7 @@ export default function LogViewer() {
                           <button
                             onClick={() => setSelectedLog(r)}
                             className="text-indigo-400 hover:text-indigo-300 underline-offset-2 hover:underline shrink-0"
-                            title="이 인스턴스에 메모 남기기"
+                            title="이 인스턴스에 메모 남기기" aria-label="이 인스턴스에 메모 남기기"
                           >
                             #{r.id}
                           </button>
@@ -684,7 +684,7 @@ export default function LogViewer() {
                         <button
                           onClick={() => handleExplain(r.line)}
                           className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30"
-                          title="AI가 이 로그를 한국어로 설명"
+                          title="AI가 이 로그를 한국어로 설명" aria-label="AI가 이 로그를 한국어로 설명"
                         >
                           <Sparkles size={10} />
                           AI 설명
@@ -693,7 +693,7 @@ export default function LogViewer() {
                       <button
                         onClick={() => setSelectedLog(r)}
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30"
-                        title="이 로그에 원인/조치 메모 남기기"
+                        title="이 로그에 원인/조치 메모 남기기" aria-label="이 로그에 원인/조치 메모 남기기"
                       >
                         <Tag size={10} />
                         메모

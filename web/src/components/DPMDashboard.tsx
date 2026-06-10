@@ -66,9 +66,9 @@ function InstanceCard({
             {isError ? '연결 오류' : m ? '정상' : '대기'}
           </span>
           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onCheck} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="즉시 점검"><RefreshCcw size={14} /></button>
-            <button onClick={onShowQueries} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="슬로우 쿼리"><Zap size={14} /></button>
-            <button onClick={onDelete} className="p-1 rounded-md text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-all" title="삭제"><Trash2 size={14} /></button>
+            <button onClick={onCheck} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="즉시 점검" aria-label="즉시 점검"><RefreshCcw size={14} /></button>
+            <button onClick={onShowQueries} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="슬로우 쿼리" aria-label="슬로우 쿼리"><Zap size={14} /></button>
+            <button onClick={onDelete} className="p-1 rounded-md text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-all" title="삭제" aria-label="삭제"><Trash2 size={14} /></button>
           </div>
         </div>
       </div>

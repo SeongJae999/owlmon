@@ -388,7 +388,7 @@ function CodeBlock({ code, note }: { code: string; note?: string }) {
           })
         }}
         className="absolute top-2 right-2 p-1.5 rounded-md bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
-        title="복사"
+        title="복사" aria-label="복사"
       >
         {copied ? <CheckCircle2 size={12} className="text-emerald-400" /> : <Copy size={12} />}
       </button>

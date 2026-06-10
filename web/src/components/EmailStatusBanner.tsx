@@ -90,7 +90,7 @@ export default function EmailStatusBanner() {
         <button
           onClick={handleDismiss}
           className="p-1.5 rounded-lg text-blue-300/60 hover:text-blue-200 hover:bg-blue-500/10 transition-colors"
-          title="7일간 숨기기"
+          title="7일간 숨기기" aria-label="7일간 숨기기"
         >
           <X size={14} />
         </button>

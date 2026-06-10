@@ -116,7 +116,7 @@ export default function AlertHistory() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageToolbar
         icon={History}
         title="알림 히스토리"
@@ -127,7 +127,7 @@ export default function AlertHistory() {
             onClick={handleSummary}
             disabled={summaryLoading}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 transition-colors disabled:opacity-40"
-            title="AI가 선택 기간 알림을 한국어로 요약"
+            title="AI가 선택 기간 알림을 한국어로 요약" aria-label="AI가 선택 기간 알림을 한국어로 요약"
           >
             {summaryLoading ? <RefreshCcw size={12} className="animate-spin" /> : <Sparkles size={12} />}
             AI 요약
@@ -144,7 +144,7 @@ export default function AlertHistory() {
           onClick={() => handleDownload('csv')}
           disabled={downloading || filtered.length === 0}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
-          title="CSV 다운로드 (감사 자료용)"
+          title="CSV 다운로드 (감사 자료용)" aria-label="CSV 다운로드 (감사 자료용)"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
           CSV
@@ -153,7 +153,7 @@ export default function AlertHistory() {
           onClick={() => handleDownload('json')}
           disabled={downloading || filtered.length === 0}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
-          title="JSON 다운로드"
+          title="JSON 다운로드" aria-label="JSON 다운로드"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
           JSON
