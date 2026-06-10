@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { listRules, getRuleStatsDetailed, severityLabel, categoryLabel } from '../api/rules'
 import { BarChart3, AlertTriangle, CheckCircle2, Clock, TrendingUp, Filter } from 'lucide-react'
 import { cn } from '../utils/cn'
+import SummaryCard from '../components/SummaryCard'
 import PageToolbar from '../components/PageToolbar'
 
 /**
@@ -176,29 +177,6 @@ export default function RuleStatsPage() {
   )
 }
 
-function SummaryCard({ icon: Icon, label, value, color, suffix }: {
-  icon: any; label: string; value: string | number; color: string; suffix?: string
-}) {
-  const themes: Record<string, string> = {
-    indigo:  'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
-    emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
-    slate:   'bg-slate-500/10 border-slate-700 text-slate-300',
-    amber:   'bg-amber-500/10 border-amber-500/30 text-amber-300',
-    rose:    'bg-rose-500/10 border-rose-500/30 text-rose-300',
-  }
-  return (
-    <div className={cn("rounded-xl p-4 border flex items-center gap-3", themes[color])}>
-      <Icon size={20} className="opacity-70 shrink-0" />
-      <div className="min-w-0">
-        <div className="text-[11px] font-semibold opacity-80 truncate">{label}</div>
-        <div className="text-xl font-bold tabular-nums">
-          {value}
-          {suffix && <span className="text-xs font-normal opacity-60 ml-1">{suffix}</span>}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function relativeTime(iso: string): string {
   const ts = new Date(iso).getTime()

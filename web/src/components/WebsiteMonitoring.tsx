@@ -13,6 +13,7 @@ import {
   type SyntheticStatusItem,
 } from '../api/synthetic'
 import { cn } from '../utils/cn'
+import { TONES } from '../utils/severity'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -24,12 +25,12 @@ import ConfirmDialog from './ConfirmDialog'
  */
 
 const STATUS_CONFIG: Record<string, { bg: string, text: string, label: string, icon: any }> = {
-  ok:       { bg: 'bg-emerald-500/15', text: 'text-emerald-300', label: '정상',      icon: CheckCircle2 },
-  notice:   { bg: 'bg-sky-500/15',     text: 'text-sky-300',     label: '갱신 준비', icon: Clock },
-  warning:  { bg: 'bg-amber-500/15',   text: 'text-amber-300',   label: '갱신 임박', icon: AlertTriangle },
-  critical: { bg: 'bg-rose-500/15',    text: 'text-rose-300',    label: '긴급 갱신', icon: ShieldAlert },
-  expired:  { bg: 'bg-rose-500/15',    text: 'text-rose-300',    label: '만료됨',    icon: ShieldAlert },
-  error:    { bg: 'bg-slate-800',      text: 'text-slate-400',   label: '연결 실패', icon: Info },
+  ok:       { bg: TONES.emerald.bg, text: TONES.emerald.text, label: '정상',      icon: CheckCircle2 },
+  notice:   { bg: TONES.sky.bg,     text: TONES.sky.text,     label: '갱신 준비', icon: Clock },
+  warning:  { bg: TONES.amber.bg,   text: TONES.amber.text,   label: '갱신 임박', icon: AlertTriangle },
+  critical: { bg: TONES.rose.bg,    text: TONES.rose.text,    label: '긴급 갱신', icon: ShieldAlert },
+  expired:  { bg: TONES.rose.bg,    text: TONES.rose.text,    label: '만료됨',    icon: ShieldAlert },
+  error:    { bg: TONES.slate.bg,   text: TONES.slate.text,   label: '연결 실패', icon: Info },
 }
 
 // URL 정규화 (붙여넣기용)
