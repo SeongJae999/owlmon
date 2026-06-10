@@ -28,7 +28,7 @@ func NewSNMPHandler(store *db.SNMPDeviceStore, poller *snmp.Poller, prometheusUR
 func (h *SNMPHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
 	devices, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if devices == nil {
@@ -64,7 +64,7 @@ func (h *SNMPHandler) AddDevice(w http.ResponseWriter, r *http.Request) {
 		Port:      req.Port,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (h *SNMPHandler) UpdateDevice(w http.ResponseWriter, r *http.Request) {
 	}
 	dev := snmp.Device{ID: id, Name: req.Name, IP: req.IP, Community: req.Community, Port: req.Port}
 	if err := h.store.Update(context.Background(), dev); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	// 즉시 재폴링 — 변경된 community/IP 즉시 반영
@@ -120,7 +120,7 @@ func (h *SNMPHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.store.Delete(context.Background(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

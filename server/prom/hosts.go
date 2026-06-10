@@ -8,7 +8,6 @@ package prom
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 )
 
@@ -27,7 +26,7 @@ import (
 //   - 진짜 살아있는 호스트만 잡힘
 func ActiveHosts(prometheusURL string) ([]string, error) {
 	q := url.QueryEscape("count(system_cpu_usage_percent) by (host_name)")
-	resp, err := http.Get(prometheusURL + "/api/v1/query?query=" + q)
+	resp, err := httpClient.Get(prometheusURL + "/api/v1/query?query=" + q)
 	if err != nil {
 		return nil, fmt.Errorf("prometheus query 실패: %w", err)
 	}

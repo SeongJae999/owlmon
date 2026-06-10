@@ -13,6 +13,7 @@ import {
 import { getLLMStatus, explainLog, type ExplainResult } from '../api/llm'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { cn } from '../utils/cn'
+import { TONES } from '../utils/severity'
 import AnnotateModal from './AnnotateModal'
 
 // 시간 범위 프리셋
@@ -25,12 +26,12 @@ const RANGE_PRESETS = [
 ] as const
 
 const LEVEL_CONFIG: Record<string, { bg: string, text: string, ring: string }> = {
-  ERROR:   { bg: 'bg-rose-500/15',  text: 'text-rose-300',  ring: 'ring-rose-500/30' },
-  FATAL:   { bg: 'bg-rose-500/15',  text: 'text-rose-300',  ring: 'ring-rose-500/30' },
-  WARN:    { bg: 'bg-amber-500/15', text: 'text-amber-300', ring: 'ring-amber-500/30' },
-  WARNING: { bg: 'bg-amber-500/15', text: 'text-amber-300', ring: 'ring-amber-500/30' },
-  INFO:    { bg: 'bg-blue-500/15',  text: 'text-blue-300',  ring: 'ring-blue-500/30' },
-  DEBUG:   { bg: 'bg-slate-700',    text: 'text-slate-400', ring: 'ring-slate-600/30' },
+  ERROR:   { bg: TONES.rose.bg,  text: TONES.rose.text,  ring: TONES.rose.ring },
+  FATAL:   { bg: TONES.rose.bg,  text: TONES.rose.text,  ring: TONES.rose.ring },
+  WARN:    { bg: TONES.amber.bg, text: TONES.amber.text, ring: TONES.amber.ring },
+  WARNING: { bg: TONES.amber.bg, text: TONES.amber.text, ring: TONES.amber.ring },
+  INFO:    { bg: TONES.blue.bg,  text: TONES.blue.text,  ring: TONES.blue.ring },
+  DEBUG:   { bg: 'bg-slate-700', text: TONES.slate.text, ring: TONES.slate.ring },
 }
 
 interface LogGroup {

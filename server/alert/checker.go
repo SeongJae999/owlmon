@@ -2,12 +2,8 @@ package alert
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -62,19 +58,28 @@ func (c *Checker) SetSSLDomainLister(lister SSLDomainLister) {
 }
 
 // StartSSLCheck는 SSL 인증서를 주기적으로 체크합니다.
-func (c *Checker) StartSSLCheck(interval time.Duration) {
+func (c *Checker) StartSSLCheck(ctx context.Context, interval time.Duration) {
 	if c.sslDomainLister == nil {
 		return
 	}
 	go func() {
-		// 시작 후 30초 뒤 첫 체크 (서버 초기화 대기)
-		time.Sleep(30 * time.Second)
+		// 시작 후 30초 뒤 첫 체크 (서버 초기화 대기) — 종료 시그널도 함께 대기
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(30 * time.Second):
+		}
 		c.checkSSLCerts()
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			c.checkSSLCerts()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c.checkSSLCerts()
+			}
 		}
 	}()
 	log.Printf("SSL 인증서 체커 시작 (주기: %v)", interval)
@@ -142,12 +147,17 @@ func (c *Checker) checkSSLCerts() {
 }
 
 // Start는 백그라운드에서 주기적으로 알림 조건을 체크합니다.
-func (c *Checker) Start(interval time.Duration) {
+func (c *Checker) Start(ctx context.Context, interval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			c.check()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c.check()
+			}
 		}
 	}()
 	log.Printf("알림 체커 시작 (주기: %v)", interval)
@@ -416,29 +426,14 @@ type metricResult struct {
 }
 
 func (c *Checker) query(promql string) ([]metricResult, error) {
-	resp, err := http.Get(c.prometheusURL + "/api/v1/query?query=" + url.QueryEscape(promql))
+	// HTTP 호출/파싱은 prom 패키지 공용 클라이언트로 (타임아웃 포함)
+	rs, err := prom.Query(c.prometheusURL, promql)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Data struct {
-			Result []struct {
-				Metric map[string]string `json:"metric"`
-				Value  [2]interface{}    `json:"value"`
-			} `json:"result"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-
-	var out []metricResult
-	for _, r := range result.Data.Result {
-		valStr, _ := r.Value[1].(string)
-		val, _ := strconv.ParseFloat(valStr, 64)
-		out = append(out, metricResult{metric: r.Metric, value: val})
+	out := make([]metricResult, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, metricResult{metric: r.Metric, value: r.Value})
 	}
 	return out, nil
 }
@@ -502,27 +497,6 @@ func (c *Checker) feedDiskPredictor() {
 }
 
 func (c *Checker) labelValues(label string) ([]string, error) {
-	// host_name은 공통 헬퍼로 — 같은 패턴이 status.go, reporter.go에도 있어서 공통화함
-	// 이걸 안 하면 30일 retention 동안 한 번이라도 송신한 호스트 모두에게 'down' 알람 발사
-	if label == "host_name" {
-		hosts, err := prom.ActiveHosts(c.prometheusURL)
-		if err == nil {
-			return hosts, nil
-		}
-		// instant query 실패 시 기본 labelValues로 폴백
-	}
-
-	resp, err := http.Get(c.prometheusURL + "/api/v1/label/" + label + "/values")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Data []string `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
+	// host_name의 stale 처리 포함 — prom.LabelValues가 ActiveHosts 우선 사용
+	return prom.LabelValues(c.prometheusURL, label)
 }

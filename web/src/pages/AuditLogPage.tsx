@@ -5,6 +5,7 @@ import {
   ShieldCheck, Clock, Download, RefreshCcw, AlertCircle, User, CheckCircle2, XCircle, Globe,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
+import SummaryCard from '../components/SummaryCard'
 import PageToolbar from '../components/PageToolbar'
 
 const RANGE_PRESETS = [
@@ -276,19 +277,3 @@ export default function AuditLogPage() {
   )
 }
 
-function SummaryCard({ label, value, color, icon: Icon }: { label: string; value: number; color: string; icon: any }) {
-  const themes: Record<string, string> = {
-    indigo:  'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
-    emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
-    rose:    'bg-rose-500/10 border-rose-500/30 text-rose-300',
-  }
-  return (
-    <div className={cn("rounded-xl p-3 border flex items-center gap-3", themes[color])}>
-      <Icon size={20} className="opacity-70 shrink-0" />
-      <div className="min-w-0">
-        <div className="text-[11px] font-semibold opacity-80 truncate">{label}</div>
-        <div className="text-xl font-bold tabular-nums">{value.toLocaleString()}</div>
-      </div>
-    </div>
-  )
-}

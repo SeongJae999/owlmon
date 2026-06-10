@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -24,7 +23,7 @@ type promResult struct {
 // query는 PromQL instant query 실행 + 결과 파싱.
 func query(prometheusURL, promql string) (*promResult, error) {
 	q := url.QueryEscape(promql)
-	resp, err := http.Get(prometheusURL + "/api/v1/query?query=" + q)
+	resp, err := httpClient.Get(prometheusURL + "/api/v1/query?query=" + q)
 	if err != nil {
 		return nil, err
 	}

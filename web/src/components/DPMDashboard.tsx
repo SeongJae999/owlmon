@@ -7,15 +7,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Database, Clock, Trash2, RefreshCcw, Plus, X, Save, AlertTriangle, Zap, Info } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../utils/cn'
+import { formatBytes } from '../api/specs'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`
-}
 
 function formatMs(ms: number): string {
   if (ms < 1) return `${ms.toFixed(2)}ms`

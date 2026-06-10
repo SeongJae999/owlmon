@@ -107,13 +107,15 @@ func InitDB() *AppContext {
 }
 
 // InitWorkers는 백그라운드 워커들을 초기화하고 시작합니다.
-func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.EmailConfig, prometheusURL string) {
+// ctx는 앱 수명 컨텍스트 — 서버 종료 시 cancel되어 모든 워커가 함께 멈춘다
+// (종전: 워커들이 ctx 없이 돌아 HTTP만 닫히고 체커/폴러는 종료 중에도 계속 동작).
+func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker, emailCfg *alert.EmailConfig, prometheusURL string) {
 	// 1. 이상탐지 및 알림 체커 시작
-	checker.Start(30 * time.Second)
+	checker.Start(ctx, 30*time.Second)
 
 	// 2. SSL 인증서 체크 (6시간 주기)
 	checker.SetSSLDomainLister(appCtx.SSLDomainStore)
-	checker.StartSSLCheck(6 * time.Hour)
+	checker.StartSSLCheck(ctx, 6*time.Hour)
 
 	// 3. Synthetic 모니터링
 	if appCtx.SyntheticStore != nil {
@@ -132,7 +134,7 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 				checker.SendAlert(m.Name, "synthetic", "info", subject, body)
 			},
 		)
-		syntheticChecker.Start(context.Background())
+		syntheticChecker.Start(ctx)
 		appCtx.SyntheticChecker = syntheticChecker
 		log.Println("Synthetic 모니터링 시작")
 	}
@@ -165,7 +167,7 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 				dpmPoller.SetAlertCallback(func(inst dpm.Instance, severity, subject, body string) {
 					checker.SendAlert(inst.Name, "dpm", severity, subject, body)
 				})
-				dpmPoller.Start(context.Background())
+				dpmPoller.Start(ctx)
 				appCtx.DPMPoller = dpmPoller
 				log.Println("DPM 폴러 시작")
 			} else {
@@ -177,7 +179,7 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 	// 5. 월간 보고서 스케줄러
 	if emailCfg != nil {
 		reporter := report.NewReporter(prometheusURL, emailCfg, appCtx.ConfigStore)
-		reporter.Start()
+		reporter.Start(ctx)
 	}
 
 	// 6. SNMP 폴러 — handler와 백그라운드 ticker가 같은 인스턴스 공유
@@ -189,13 +191,17 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 			ticker := time.NewTicker(30 * time.Second) // 60s → 30s (UI 갱신 체감 ↑)
 			defer ticker.Stop()
 			for {
-				devices, err := appCtx.SNMPDeviceStore.List(context.Background())
+				devices, err := appCtx.SNMPDeviceStore.List(ctx)
 				if err == nil {
 					for _, dev := range devices {
 						go appCtx.SNMPPoller.Poll(dev)
 					}
 				}
-				<-ticker.C
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
 			}
 		}()
 	}
@@ -205,10 +211,15 @@ func InitWorkers(appCtx *AppContext, checker *alert.Checker, emailCfg *alert.Ema
 		go func() {
 			ticker := time.NewTicker(24 * time.Hour)
 			defer ticker.Stop()
-			for range ticker.C {
-				deleted, err := appCtx.LogStore.Cleanup(context.Background(), 30)
-				if err == nil && deleted > 0 {
-					log.Printf("오래된 로그 %d건 삭제", deleted)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					deleted, err := appCtx.LogStore.Cleanup(ctx, 30)
+					if err == nil && deleted > 0 {
+						log.Printf("오래된 로그 %d건 삭제", deleted)
+					}
 				}
 			}
 		}()

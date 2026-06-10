@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OWLmon 기술 스크립트</title>
+<style>
+  :root {
+    --bg: #0b1220; --card: #131c2e; --card2: #0f1827; --line: #243049;
+    --text: #e2e8f0; --muted: #94a3b8; --dim: #64748b;
+    --indigo: #818cf8; --emerald: #34d399; --amber: #fbbf24; --sky: #38bdf8; --rose: #fb7185; --violet:#a78bfa;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  header.top { margin-bottom: 36px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--sky); box-shadow: 0 0 12px var(--sky); }
+  .brand h1 { font-size: 26px; margin: 0; font-weight: 800; letter-spacing: -0.5px; }
+  .brand .sub { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .meta { color: var(--dim); font-size: 12px; margin-top: 10px; }
+  .toolbar { margin-top: 18px; }
+  .toolbar button { background: var(--card); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .toolbar button:hover { border-color: var(--sky); }
+  .toolbar a { color: var(--dim); font-size: 13px; margin-left: 14px; text-decoration: none; }
+  .toolbar a:hover { color: var(--sky); }
+
+  h2.sec { font-size: 18px; font-weight: 800; margin: 44px 0 4px; display:flex; align-items:center; gap:10px; }
+  h2.sec .bar { width: 4px; height: 20px; border-radius: 3px; background: var(--sky); }
+  .sec-sub { color: var(--dim); font-size: 13px; margin: 0 0 18px 14px; }
+
+  .arch { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  .tier { display: grid; grid-template-columns: 84px 1fr; gap: 14px; align-items: center; }
+  .tier-label { font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; text-align: right; }
+  .nodes { display: flex; flex-wrap: wrap; gap: 10px; }
+  .node { flex: 1 1 0; min-width: 150px; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+  .node .t { font-weight: 700; font-size: 13.5px; }
+  .node .s { color: var(--muted); font-size: 11.5px; margin-top: 3px; line-height: 1.5; }
+  .node.agent { border-color: rgba(52,211,153,.4); } .node.agent .t { color: var(--emerald); }
+  .node.core  { border-color: rgba(129,140,248,.4); } .node.core .t { color: var(--indigo); }
+  .node.store { border-color: rgba(56,189,248,.4); } .node.store .t { color: var(--sky); }
+  .node.ui    { border-color: rgba(167,139,250,.45); background: rgba(167,139,250,.07); } .node.ui .t { color: var(--violet); }
+  .flow { display: grid; grid-template-columns: 84px 1fr; gap: 14px; }
+  .flow .conn { color: var(--dim); font-size: 12px; padding: 7px 0; text-align:center; }
+  .flow .conn b { color: var(--amber); font-weight: 600; }
+
+  section.script { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px 28px 32px; margin-top: 18px; }
+  .script-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .script-num { background: var(--sky); color: #0b1220; font-weight: 800; font-size: 13px;
+    width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .script-head h3 { font-size: 19px; margin: 0; font-weight: 700; }
+  .script-head .dur { color: var(--dim); font-size: 13px; margin-left: auto; }
+  .script-desc { color: var(--muted); font-size: 13.5px; margin: 0 0 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .beat { margin: 18px 0; }
+  .beat .label { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+    color: var(--sky); background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.25);
+    border-radius: 6px; padding: 3px 9px; margin-bottom: 9px; text-transform: uppercase; }
+  .say { font-size: 15.5px; color: var(--text); margin: 0; border-left: 3px solid var(--line); padding: 2px 0 2px 16px; }
+  .say strong { color: var(--sky); font-weight: 700; }
+
+  .ref-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 26px 0 4px; }
+  table.stack, table.feattable { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  table.stack th, table.stack td, table.feattable th, table.feattable td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.stack th, table.feattable th { color: var(--dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  table.stack { font-size: 14px; }
+  table.stack td:first-child { color: var(--sky); font-weight: 600; white-space: nowrap; width: 110px; }
+  table.stack td:last-child { color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+  table.feattable { font-size: 13.5px; }
+  table.feattable td:first-child { color: var(--sky); font-weight: 700; white-space: nowrap; width: 150px; }
+  table.feattable td:last-child { color: var(--muted); }
+  table.feattable td b { color: var(--text); font-weight: 600; }
+
+  .oslist { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .os { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; }
+  .os b { color: var(--sky); font-weight: 700; }
+  .os .ver { color: var(--muted); }
+  .os .arch { color: var(--dim); font-size: 11px; margin-left: 8px; border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+  .os.future { opacity: .65; } .os.future b { color: var(--dim); }
+
+  footer { color: var(--dim); font-size: 12px; margin-top: 44px; text-align: center; }
+
+  @media print {
+    body { background: #fff; color: #111; }
+    .arch, section.script { border-color: #ddd; background: #fff; break-inside: avoid; }
+    .os { background: #fafafa; border-color: #ddd; } .os b { color: #0369a1; }
+    .node, .arch { background: #fafafa; }
+    .toolbar { display: none; }
+    .say { color: #111; } .say strong { color: #0369a1; }
+    .beat .label { color: #0369a1; background: #e0f2fe; border-color: #bae6fd; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>OWLmon 기술 스크립트</h1>
+        <div class="sub">기술 담당자·개발자 대상 심화 발표 대본</div>
+      </div>
+    </div>
+    <div class="meta">아키텍처 → 설계 결정 → 차별점 → 기능별 기술 상세</div>
+    <div class="toolbar">
+      <button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+      <a href="owlmon-script.html">← 소개 스크립트</a>
+    </div>
+  </header>
+
+  <!-- ───────── 구조도 ───────── -->
+  <h2 class="sec"><span class="bar"></span>아키텍처 구조도</h2>
+  <p class="sec-sub">수집(Edge) → 처리·저장(Core) → 표현(UI) 3계층</p>
+  <div class="arch">
+    <div class="tier">
+      <div class="tier-label">수집<br>Edge</div>
+      <div class="nodes">
+        <div class="node agent"><div class="t">에이전트 (Go)</div><div class="s">CPU·메모리·디스크·네트워크 메트릭 + 로그 tail + lsblk 디스크 구조</div></div>
+        <div class="node agent"><div class="t">네트워크 장비</div><div class="s">SNMP v2c 폴링</div></div>
+        <div class="node agent"><div class="t">외부 도메인</div><div class="s">SSL/TLS 인증서 만료 체크</div></div>
+        <div class="node agent"><div class="t">DB 인스턴스</div><div class="s">DPM — 쿼리·성능 폴링</div></div>
+      </div>
+    </div>
+    <div class="flow"><div></div><div class="conn">▼ &nbsp; <b>OTLP(gRPC)</b> · <b>HTTP</b> · <b>SNMP</b> · <b>TLS</b> &nbsp; ▼</div></div>
+    <div class="tier">
+      <div class="tier-label">처리·저장<br>Core</div>
+      <div class="nodes">
+        <div class="node core"><div class="t">OTel Collector → Prometheus</div><div class="s">시계열 메트릭 TSDB</div></div>
+        <div class="node core"><div class="t">OWLmon 서버 (Go)</div><div class="s">이상탐지·예측·알림·SSL·SNMP·DPM·LLM 오케스트레이션 (chi · JWT)</div></div>
+        <div class="node store"><div class="t">PostgreSQL</div><div class="s">알림·자산·로그·SSL·감사·AI 인사이트</div></div>
+        <div class="node store"><div class="t">Ollama + Gemma 4 12B</div><div class="s">LLM 자체 호스팅 — 망분리 · 별도 GPU 장비 분리 가능</div></div>
+      </div>
+    </div>
+    <div class="flow"><div></div><div class="conn">▼ &nbsp; <b>REST API (JWT 인증)</b> &nbsp; ▼</div></div>
+    <div class="tier">
+      <div class="tier-label">표현<br>UI</div>
+      <div class="nodes">
+        <div class="node ui"><div class="t">React 대시보드</div><div class="s">오버뷰 · 호스트 상세 · 추이 · 로그 · SSL · SNMP · DPM · 자산 · 보고서 · 감사로그 · AI 인사이트</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───────── AI/LLM 파이프라인 구조도 ───────── -->
+  <h2 class="sec"><span class="bar"></span>AI 로그 분석 파이프라인 (LLM)</h2>
+  <p class="sec-sub">5분 주기 자동 분석 — 4중 필터로 LLM 호출을 최소화하고 한국어 인사이트를 영구 저장</p>
+  <div class="arch">
+    <div class="tier">
+      <div class="tier-label">입력<br>Logs</div>
+      <div class="nodes">
+        <div class="node store"><div class="t">PostgreSQL · logs</div><div class="s">에이전트가 수집한 원본 로그 (대부분 영문)</div></div>
+        <div class="node agent"><div class="t">Insight Worker</div><div class="s">5분 주기 Tick — 최근 5분의 ERROR·WARN만 fetch</div></div>
+      </div>
+    </div>
+    <div class="flow"><div></div><div class="conn">▼ &nbsp; <b>4중 필터</b> — severity → 호스트별 rate limit → 템플릿 캐시(24h) → 호출 예산 &nbsp; ▼</div></div>
+    <div class="tier">
+      <div class="tier-label">클러스터링</div>
+      <div class="nodes">
+        <div class="node core"><div class="t">Drain-lite 템플릿화</div><div class="s">타임스탬프·IP·경로·숫자 등 7종 placeholder 치환 → SHA-256 해시 → (호스트, 패턴) 그룹화 — 같은 패턴 100건도 샘플 3건만 LLM에 전달</div></div>
+        <div class="node core"><div class="t">PII 마스킹</div><div class="s">이메일·외부 IP·계정명 마스킹 후 전송 (개인정보 보호)</div></div>
+      </div>
+    </div>
+    <div class="flow"><div></div><div class="conn">▼ &nbsp; 캐시 miss 그룹만 <b>HTTP :11434</b> — 망분리 환경은 SSH 터널/내부망 &nbsp; ▼</div></div>
+    <div class="tier">
+      <div class="tier-label">추론<br>LLM</div>
+      <div class="nodes">
+        <div class="node core"><div class="t">Ollama — 엔진(실행기)</div><div class="s">모델 로드·행렬연산·GPU(Metal/CUDA) 담당 · 지능 없음 · MIT 라이선스 · 별도 장비로 분리 가능</div></div>
+        <div class="node ui"><div class="t">Gemma 4 12B — 모델(지능)</div><div class="s">실제 LLM — 한국어 분석 품질 결정 · Apache 2.0(상용 무제한) · think:false + JSON 모드 · 실측 22.7 tok/s (M1 Max)</div></div>
+      </div>
+    </div>
+    <div class="flow"><div></div><div class="conn">▼ &nbsp; 한국어 JSON — severity · category · 요약 · 추정 원인 · 권장 조치 &nbsp; ▼</div></div>
+    <div class="tier">
+      <div class="tier-label">저장·표현</div>
+      <div class="nodes">
+        <div class="node store"><div class="t">log_insights</div><div class="s">PostgreSQL 영구 저장 + 템플릿 캐시 갱신 (hit_count)</div></div>
+        <div class="node core"><div class="t">/api/insights/*</div><div class="s">status · list · by-template (JWT 인증)</div></div>
+        <div class="node ui"><div class="t">React · AI 인사이트</div><div class="s">심각도·호스트 필터 · 카드 펼침으로 원인·조치 표시</div></div>
+      </div>
+    </div>
+    <div class="flow"><div></div><div class="conn">＋ 온디맨드 경로 — 운영자 클릭 시 <b>/api/llm/explain</b>(로그 한 줄 설명) · <b>/api/llm/summary</b>(24h 알림 요약) → 같은 Ollama·Gemma 4 사용</div></div>
+  </div>
+
+  <!-- ───────── 스크립트 ② 기술 ───────── -->
+  <h2 class="sec"><span class="bar"></span>발표 대본</h2>
+  <p class="sec-sub">아키텍처 → 에이전트 → 데이터 → 이상탐지 → 알림/규칙 → LLM → 설계철학 · 약 5분</p>
+  <section class="script">
+    <div class="script-head"><span class="script-num">②</span><h3>OWLmon 기술</h3><span class="dur">약 5분</span></div>
+    <p class="script-desc">구조도를 함께 보며 진행</p>
+
+    <div class="beat"><span class="label">아키텍처</span>
+      <p class="say">"위 구조도처럼 3계층입니다. 에이전트가 메트릭을 <strong>OTLP</strong>로 보내면 Collector→<strong>Prometheus</strong>에 저장되고, <strong>Go 백엔드</strong>가 분석해 <strong>React 대시보드</strong>로 보여줍니다. 로그는 별도 HTTP로 PostgreSQL에 쌓입니다."</p></div>
+
+    <div class="beat"><span class="label">에이전트 · 경량</span>
+      <p class="say">"에이전트는 Go + gopsutil, 목표 <strong>메모리 10MB·CPU 1% 이하</strong>. OTLP 표준이라 벤더 종속이 없고, 로그는 파일 tail, 디스크는 lsblk로 LVM 트리까지 수집합니다. 망분리를 위해 <strong>서버에서 새 바이너리를 자동 배포받는 self-update</strong>도 내장했습니다."</p></div>
+
+    <div class="beat"><span class="label">데이터 이원화</span>
+      <p class="say">"백엔드는 Go + chi + JWT. 데이터는 성격별로 나눕니다 — 시계열 메트릭은 <strong>Prometheus</strong>, 알림·자산·로그·SSL·감사·AI 인사이트는 <strong>PostgreSQL</strong>."</p></div>
+
+    <div class="beat"><span class="label">이상탐지 · 핵심 차별점</span>
+      <p class="say">"이상탐지는 외부 ML 라이브러리 의존성 <strong>zero</strong>, 순수 Go 구현입니다. Z-score+이동평균으로 계절성을 보정하고, 선형회귀로 디스크 포화 시점을 예측합니다. 경량 에이전트 철학을 서버까지 일관되게 가져간 겁니다."</p></div>
+
+    <div class="beat"><span class="label">알림 · 규칙 엔진</span>
+      <p class="say">"알림은 디바운싱·중복제거·심각도 분류를 거쳐 폭주를 막고, <strong>사용자 정의 규칙 엔진</strong>으로 조건을 직접 만들 수 있습니다. SSL·SNMP·DPM·합성 체크 모두 같은 알림 파이프라인을 탑니다."</p></div>
+
+    <div class="beat"><span class="label">LLM · 망분리 self-hosted</span>
+      <p class="say">"LLM은 <strong>Ollama 엔진 + Gemma 4 12B 모델</strong>을 자체 호스팅합니다 — 둘 다 Apache 2.0/MIT라 상용 제약이 없습니다. 온디맨드(클릭하면 로그 설명)와 능동형(워커가 ERROR 로그를 <strong>Drain-lite로 템플릿 클러스터링</strong>→LLM→한국어 인사이트 저장) 두 갈래. 같은 패턴은 24시간 캐싱해 호출 비용을 아낍니다."</p></div>
+
+    <div class="beat"><span class="label">설계 철학 · 클로징</span>
+      <p class="say">"전체를 관통하는 원칙 — <strong>경량 · 표준(OTLP) 우선 · 4 Golden Signals · 망분리/보안(JWT·감사로그)</strong>. 작게 설치하고, 표준을 따르고, 폐쇄망에서도 AI까지 돌린다 — 이게 OWLmon입니다."</p></div>
+  </section>
+
+  <!-- ───────── 기능별 기술 상세 ───────── -->
+  <h2 class="sec"><span class="bar"></span>기능별 기술 상세</h2>
+  <p class="sec-sub">각 기능의 구현 방식 (Q&amp;A·심화 대응용)</p>
+  <table class="feattable">
+    <tr><th>기능</th><th>기술 구현</th></tr>
+    <tr><td>메트릭 수집</td><td>gopsutil로 시스템 통계 수집 → <b>OTLP(gRPC)</b>로 Collector에 push</td></tr>
+    <tr><td>이상탐지</td><td>Z-score + 이동평균(슬라이딩 윈도우) · 시간대별 계절성 보정 · 외부 의존성 0 순수 Go</td></tr>
+    <tr><td>디스크 예측</td><td>최근 추이 <b>선형회귀</b> → 기울기로 포화일(days_left) 추정 · R² 신뢰도 필터</td></tr>
+    <tr><td>SNMP</td><td>gosnmp v2c · OID GET 폴링으로 네트워크 장비 상태 수집</td></tr>
+    <tr><td>SSL 체크</td><td>TLS 핸드쉐이크로 인증서 NotAfter 추출 · 6h 주기 · 30/7/만료 단계 알림</td></tr>
+    <tr><td>로그 수집</td><td>에이전트 파일 tail + 레벨 감지 → Agent Key 인증 HTTP 배치 전송 → PostgreSQL</td></tr>
+    <tr><td>로그 검색</td><td>PostgreSQL ILIKE + 시간·레벨·소스 필터 · 히스토그램 집계</td></tr>
+    <tr><td>DPM</td><td>등록된 DB 인스턴스에 연결 → 쿼리·성능 메트릭 폴링·저장</td></tr>
+    <tr><td>합성 체크</td><td>주기적 HTTP/TCP 프로브로 가용성·응답시간 측정</td></tr>
+    <tr><td>AI 로그 인사이트</td><td><b>Drain-lite</b> 정규식 템플릿 클러스터링 → PII 마스킹 → <b>Gemma 4 12B</b>(think:false) JSON 모드 → 24h 캐시 → log_insights 저장</td></tr>
+    <tr><td>디스크 토폴로지</td><td><b>lsblk -J</b> 파싱(버전 강건) → 디스크→파티션→LVM 트리</td></tr>
+    <tr><td>알림</td><td>디바운싱 · 중복제거 · 심각도 분류 · 사용자 정의 규칙 엔진</td></tr>
+    <tr><td>감사 로그</td><td>HTTP 미들웨어가 변경 API(POST/PUT/DELETE) 자동 기록</td></tr>
+    <tr><td>인증·배포</td><td>JWT(만료·갱신) · Agent Key · 망분리 self-update(sha256 검증)</td></tr>
+  </table>
+
+  <!-- ───────── 기술 스택 ───────── -->
+  <h2 class="sec"><span class="bar"></span>기술 스택</h2>
+  <p class="sec-sub">레이어별 버전</p>
+  <table class="stack">
+    <tr><th>레이어</th><th>스택</th></tr>
+    <tr><td>에이전트</td><td>Go 1.26 · gopsutil 3.24 · OTLP 1.42 · goSNMP 1.43</td></tr>
+    <tr><td>백엔드</td><td>Go 1.26 · chi 5.2 · pgx 5.8 · 순수 Go 이상탐지</td></tr>
+    <tr><td>데이터</td><td>PostgreSQL 16 · Prometheus 2.51 · OTel Collector 0.96</td></tr>
+    <tr><td>프론트</td><td>React 19 · TypeScript 5.9 · Vite 8 · Recharts 3.8 · Tailwind 4.2</td></tr>
+    <tr><td>LLM</td><td>Ollama 0.30 (MIT) · Gemma 4 12B (Apache 2.0) · think:false JSON 모드</td></tr>
+  </table>
+
+  <!-- ───────── 검증 / 지원 OS ───────── -->
+  <h2 class="sec"><span class="bar"></span>검증 / 지원 OS</h2>
+  <p class="sec-sub">운영 에이전트로 실제 검증된 환경 · 전부 amd64</p>
+  <div class="ref-title">✅ 검증 완료 (운영 중)</div>
+  <div class="oslist">
+    <div class="os"><b>Ubuntu</b> <span class="ver">24.04 LTS</span><span class="arch">amd64</span></div>
+    <div class="os"><b>Debian</b> <span class="ver">12 (bookworm)</span><span class="arch">amd64</span></div>
+    <div class="os"><b>CentOS Stream</b> <span class="ver">8</span><span class="arch">amd64</span></div>
+  </div>
+  <div class="ref-title">🔧 빌드 제공 (gopsutil 폴백 · 미검증)</div>
+  <div class="oslist">
+    <div class="os future"><b>macOS</b> <span class="ver">arm64</span></div>
+    <div class="os future"><b>Windows</b> <span class="ver">amd64</span></div>
+  </div>
+
+  <footer>OWLmon — IT 전담 없는 학교·공공기관을 위한 통합 관제 솔루션</footer>
+
+</div>
+</body>
+</html>

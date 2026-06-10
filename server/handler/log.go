@@ -87,7 +87,7 @@ func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		} `json:"entries"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "잘못된 요청", err)
 		return
 	}
 
@@ -111,7 +111,7 @@ func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 
 	ids, err := h.store.Ingest(r.Context(), records)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -227,7 +227,7 @@ func (h *LogHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.store.Search(r.Context(), params)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -277,7 +277,7 @@ func (h *LogHandler) Histogram(w http.ResponseWriter, r *http.Request) {
 	}
 	buckets, err := h.store.Histogram(r.Context(), params, bucketSec)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -312,7 +312,7 @@ func (h *LogHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.store.Search(r.Context(), params)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -348,7 +348,7 @@ func (h *LogHandler) Export(w http.ResponseWriter, r *http.Request) {
 func (h *LogHandler) Sources(w http.ResponseWriter, r *http.Request) {
 	sources, err := h.store.Sources(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -368,7 +368,7 @@ func (h *LogHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "로그를 찾을 수 없음", http.StatusNotFound)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -401,7 +401,7 @@ func (h *LogHandler) Annotate(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "로그를 찾을 수 없음", http.StatusNotFound)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -435,7 +435,7 @@ func (h *LogHandler) Annotate(w http.ResponseWriter, r *http.Request) {
 		AlertID:      req.AlertID,
 	}
 	if err := h.annStore.Insert(r.Context(), a); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -457,7 +457,7 @@ func (h *LogHandler) ListAnnotationsByLog(w http.ResponseWriter, r *http.Request
 	}
 	list, err := h.annStore.ListByLogID(r.Context(), logID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if list == nil {
@@ -482,7 +482,7 @@ func (h *LogHandler) ListAnnotations(w http.ResponseWriter, r *http.Request) {
 
 	list, total, err := h.annStore.List(r.Context(), limit, offset)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if list == nil {
@@ -507,7 +507,7 @@ func (h *LogHandler) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.annStore.Delete(r.Context(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

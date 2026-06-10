@@ -25,7 +25,7 @@ func (h *ReportHandler) Preview(w http.ResponseWriter, r *http.Request) {
 
 	rep, err := h.reporter.Generate(year, month)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *ReportHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.reporter.SendReport(req.Year, time.Month(req.Month)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 

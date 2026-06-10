@@ -10,8 +10,6 @@ import AlertSettings from './components/AlertSettings'
 import AlertHistory from './components/AlertHistory'
 import SNMPDashboard from './components/SNMPDashboard'
 import AssetManagement from './components/AssetManagement'
-import SSLDashboard from './components/SSLDashboard'
-import SyntheticDashboard from './components/SyntheticDashboard'
 import WebsiteMonitoring from './components/WebsiteMonitoring'
 import DPMDashboard from './components/DPMDashboard'
 import LogViewer from './components/LogViewer'
@@ -38,9 +36,9 @@ export default function App() {
         <Route path="/detail" element={<HostDetailPage />} />
         <Route path="/snmp" element={<SNMPDashboard />} />
         <Route path="/website" element={<WebsiteMonitoring />} />
-        {/* Legacy routes — 사이드바에서 제거됐지만 호환을 위해 유지 */}
-        <Route path="/ssl" element={<SSLDashboard />} />
-        <Route path="/synthetic" element={<SyntheticDashboard />} />
+        {/* Legacy 경로 — 기능이 /website로 통합됨 (북마크 호환용 리다이렉트만 유지) */}
+        <Route path="/ssl" element={<Navigate to="/website" replace />} />
+        <Route path="/synthetic" element={<Navigate to="/website" replace />} />
         <Route path="/dpm" element={<DPMDashboard />} />
         <Route path="/logs" element={<LogViewer />} />
         <Route path="/insights" element={<InsightDashboard />} />

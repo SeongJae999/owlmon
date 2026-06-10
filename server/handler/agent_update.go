@@ -81,7 +81,7 @@ func (h *AgentUpdateHandler) GetLatest(w http.ResponseWriter, r *http.Request) {
 
 	sha, size, err := computeSHA256(path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 

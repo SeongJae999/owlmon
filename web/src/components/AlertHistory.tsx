@@ -7,13 +7,15 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../utils/cn'
+import { TONES } from '../utils/severity'
+import SummaryCard from './SummaryCard'
 import PageToolbar from './PageToolbar'
 import { getLLMStatus, summarizeAlerts, type SummaryResult } from '../api/llm'
 
 const SEVERITY_CONFIG: Record<string, { bg: string, text: string, icon: any }> = {
-  critical: { bg: 'bg-rose-500/15',  text: 'text-rose-300',  icon: AlertCircle },
-  warning:  { bg: 'bg-amber-500/15', text: 'text-amber-300', icon: AlertTriangle },
-  info:     { bg: 'bg-blue-500/15',  text: 'text-blue-300',  icon: Info },
+  critical: { bg: TONES.rose.bg,  text: TONES.rose.text,  icon: AlertCircle },
+  warning:  { bg: TONES.amber.bg, text: TONES.amber.text, icon: AlertTriangle },
+  info:     { bg: TONES.blue.bg,  text: TONES.blue.text,  icon: Info },
 }
 
 const RANGE_PRESETS = [
@@ -396,22 +398,3 @@ export default function AlertHistory() {
   )
 }
 
-function SummaryCard({ icon: Icon, label, value, color }: {
-  icon: any; label: string; value: number; color: string
-}) {
-  const themes: Record<string, string> = {
-    indigo: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300',
-    rose:   'bg-rose-500/10 border-rose-500/30 text-rose-300',
-    amber:  'bg-amber-500/10 border-amber-500/30 text-amber-300',
-    blue:   'bg-blue-500/10 border-blue-500/30 text-blue-300',
-  }
-  return (
-    <div className={cn("rounded-xl p-3 border flex items-center gap-3", themes[color])}>
-      <Icon size={20} className="opacity-70 shrink-0" />
-      <div className="min-w-0">
-        <div className="text-[11px] font-semibold opacity-80 truncate">{label}</div>
-        <div className="text-xl font-bold tabular-nums">{value.toLocaleString()}</div>
-      </div>
-    </div>
-  )
-}
