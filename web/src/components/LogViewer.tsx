@@ -455,7 +455,7 @@ export default function LogViewer() {
                 <Tooltip
                   contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', fontSize: '11px' }}
                   labelFormatter={(t) => new Date(t).toLocaleString('ko-KR')}
-                  formatter={(value: number, name: string) => [value, name === 'count' ? '전체' : 'ERROR/WARN']}
+                  formatter={(value, name) => [Number(value), name === 'count' ? '전체' : 'ERROR/WARN']}
                 />
                 <Bar dataKey="count" fill="#6366f1">
                   {histogram.buckets.map((b, i) => (
