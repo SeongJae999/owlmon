@@ -203,7 +203,7 @@ func (h *StatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
 
 	hosts, err := h.labelValues("host_name")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 

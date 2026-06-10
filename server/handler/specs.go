@@ -79,7 +79,7 @@ func (h *SpecsHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.Upsert(context.Background(), spec); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *SpecsHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 func (h *SpecsHandler) List(w http.ResponseWriter, r *http.Request) {
 	specs, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if specs == nil {
@@ -114,7 +114,7 @@ func (h *SpecsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "해당 호스트 스펙 없음", http.StatusNotFound)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
