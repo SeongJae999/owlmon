@@ -23,7 +23,7 @@ func NewAssetHandler(store *db.AssetStore) *AssetHandler {
 func (h *AssetHandler) List(w http.ResponseWriter, r *http.Request) {
 	assets, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if assets == nil {
@@ -47,7 +47,7 @@ func (h *AssetHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.store.Upsert(context.Background(), a)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -64,7 +64,7 @@ func (h *AssetHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.store.Delete(context.Background(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

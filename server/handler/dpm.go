@@ -26,7 +26,7 @@ func NewDPMHandler(store *db.DPMStore, poller *dpm.Poller) *DPMHandler {
 func (h *DPMHandler) ListInstances(w http.ResponseWriter, r *http.Request) {
 	instances, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	out := make([]dpm.Instance, len(instances))
@@ -63,7 +63,7 @@ func (h *DPMHandler) AddInstance(w http.ResponseWriter, r *http.Request) {
 
 	created, err := h.store.Add(context.Background(), inst)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *DPMHandler) DeleteInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.store.Delete(context.Background(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -99,7 +99,7 @@ type DPMStatusItem struct {
 func (h *DPMHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	instances, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	latest := h.poller.GetLatest()
@@ -126,7 +126,7 @@ func (h *DPMHandler) GetQueries(w http.ResponseWriter, r *http.Request) {
 	}
 	queries, err := h.store.LatestQueryStats(context.Background(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if queries == nil {
@@ -148,7 +148,7 @@ func (h *DPMHandler) GetMetricsHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	history, err := h.store.MetricsHistory(context.Background(), id, hours)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if history == nil {
@@ -166,7 +166,7 @@ func (h *DPMHandler) TriggerCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	instances, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	for _, inst := range instances {

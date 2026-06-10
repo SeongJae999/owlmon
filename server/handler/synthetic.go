@@ -27,7 +27,7 @@ func NewSyntheticHandler(store *db.SyntheticStore, checker *synthetic.Checker) *
 func (h *SyntheticHandler) ListMonitors(w http.ResponseWriter, r *http.Request) {
 	monitors, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if monitors == nil {
@@ -50,7 +50,7 @@ func (h *SyntheticHandler) AddMonitor(w http.ResponseWriter, r *http.Request) {
 
 	created, err := h.store.Add(context.Background(), m)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (h *SyntheticHandler) UpdateMonitor(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := h.store.Update(context.Background(), m); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -95,7 +95,7 @@ func (h *SyntheticHandler) DeleteMonitor(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err := h.store.Delete(context.Background(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -113,7 +113,7 @@ func (h *SyntheticHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	monitors, err := h.store.List(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	latest := h.checker.GetLatest()
@@ -144,7 +144,7 @@ func (h *SyntheticHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	results, err := h.store.RecentResults(context.Background(), id, limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	if results == nil {
@@ -162,7 +162,7 @@ func (h *SyntheticHandler) TriggerCheck(w http.ResponseWriter, r *http.Request) 
 	}
 	monitors, err := h.store.List(context.Background())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	for _, m := range monitors {

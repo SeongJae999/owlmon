@@ -29,14 +29,27 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 	r.Post("/api/auth/login", authHandler.Login)
 	r.Get("/api/health", statusHandler.HealthCheck)
-	r.Post("/api/agent/register", agentHandler.Register)
 
-	// 스펙 ingest는 에이전트가 호출하는 무인증 엔드포인트 (Agent Key 헤더는 추후 검증 도입 예정)
+	// ── 에이전트 전용 엔드포인트 — X-Agent-Key 인증 ──
+	// (종전: specs ingest 무인증, self-update는 JWT 그룹에 있어 에이전트가 항상 401 받던 버그 수정)
+	agentKeyAuth := handler.AgentKeyAuth(getEnv("OWLMON_AGENT_KEY", ""), appCtx.AgentStore)
+	agentUpdateHandler := handler.NewAgentUpdateHandler("/app/data/agents")
+	var specsHandler *handler.SpecsHandler
 	if appCtx.SpecsStore != nil {
-		specsHandler := handler.NewSpecsHandler(appCtx.SpecsStore)
-		r.Post("/api/agent/specs", specsHandler.Ingest)
+		specsHandler = handler.NewSpecsHandler(appCtx.SpecsStore)
+	}
+	r.Group(func(r chi.Router) {
+		r.Use(agentKeyAuth)
+		if specsHandler != nil {
+			r.Post("/api/agent/specs", specsHandler.Ingest)
+		}
+		// Agent self-update — 에이전트가 X-Agent-Key로 바이너리 확인/다운로드
+		r.Get("/api/agent/latest", agentUpdateHandler.GetLatest)
+		r.Get("/api/agent/binary", agentUpdateHandler.GetBinary)
+	})
 
-		// 조회는 인증 그룹에서
+	// 스펙 조회는 관리자(JWT) 그룹
+	if specsHandler != nil {
 		r.Group(func(r chi.Router) {
 			r.Use(auth.JWTMiddleware(jwtSecret))
 			r.Get("/api/agent/specs", specsHandler.List)
@@ -48,11 +61,6 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Use(auth.JWTMiddleware(jwtSecret))
 		r.Use(audit.Middleware(appCtx.AuditStore))
 		r.Handle("/api/v1/*", proxyHandler)
-
-		// Agent self-update — 바이너리 호스팅 (운영자가 /app/data/agents에 업로드)
-		agentUpdateHandler := handler.NewAgentUpdateHandler("/app/data/agents")
-		r.Get("/api/agent/latest", agentUpdateHandler.GetLatest)
-		r.Get("/api/agent/binary", agentUpdateHandler.GetBinary)
 
 		// Alert
 		r.Get("/api/alert/config", alertHandler.GetConfig)
@@ -147,6 +155,8 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		}
 
 		// Agents (Admin)
+		// register는 키 발급 엔드포인트 — 무인증이면 누구나 에이전트 행을 무한 생성 가능해 관리자 전용으로 이동
+		r.Post("/api/agent/register", agentHandler.Register)
 		r.Get("/api/agents", agentHandler.List)
 		r.Post("/api/agents/{id}/status", agentHandler.UpdateStatus)
 		r.Delete("/api/agents/{id}", agentHandler.Delete)

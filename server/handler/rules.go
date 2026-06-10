@@ -46,7 +46,7 @@ func (h *RulesHandler) List(w http.ResponseWriter, r *http.Request) {
 		       cooldown_seconds, enabled, description, category
 		FROM log_rules ORDER BY category NULLS LAST, name`)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	defer rows.Close()
@@ -57,7 +57,7 @@ func (h *RulesHandler) List(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&rl.ID, &rl.Name, &rl.Pattern, &rl.Severity,
 			&rl.ThresholdCount, &rl.ThresholdWindow, &rl.CooldownSeconds,
 			&rl.Enabled, &rl.Description, &rl.Category); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 			return
 		}
 		out = append(out, rl)
@@ -70,11 +70,11 @@ func (h *RulesHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *RulesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req LogRule
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "잘못된 요청", err)
 		return
 	}
 	if err := validateRule(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "잘못된 요청", err)
 		return
 	}
 	if req.CooldownSeconds <= 0 {
@@ -89,7 +89,7 @@ func (h *RulesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.CooldownSeconds, req.Enabled, req.Description, req.Category,
 	).Scan(&req.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -112,11 +112,11 @@ func (h *RulesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	var req LogRule
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "잘못된 요청", err)
 		return
 	}
 	if err := validateRule(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "잘못된 요청", err)
 		return
 	}
 	if req.CooldownSeconds <= 0 {
@@ -135,7 +135,7 @@ func (h *RulesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		req.CooldownSeconds, req.Enabled, req.Description, req.Category,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 
@@ -155,7 +155,7 @@ func (h *RulesHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 	_, err = h.pool.Exec(r.Context(),
 		`UPDATE log_rules SET enabled = NOT enabled, updated_at = NOW() WHERE id=$1`, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	h.reloadEngine()
@@ -172,7 +172,7 @@ func (h *RulesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = h.pool.Exec(r.Context(), `DELETE FROM log_rules WHERE id=$1`, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	h.reloadEngine()
@@ -187,7 +187,7 @@ func (h *RulesHandler) MatchStats(w http.ResponseWriter, r *http.Request) {
 		WHERE matched_at > NOW() - INTERVAL '24 hours'
 		GROUP BY rule_id`)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	defer rows.Close()
@@ -228,7 +228,7 @@ func (h *RulesHandler) MatchStatsDetailed(w http.ResponseWriter, r *http.Request
 		FROM log_rule_matches
 		GROUP BY rule_id`)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
 	defer rows.Close()
