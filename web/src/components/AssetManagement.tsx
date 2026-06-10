@@ -217,7 +217,7 @@ export default function AssetManagement() {
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           <button 
-                            className="p-2 bg-slate-800 text-slate-400 hover:bg-indigo-500/100/10 hover:text-indigo-400 rounded-lg transition-all"
+                            className="p-2 bg-slate-800 text-slate-400 hover:bg-indigo-500/10 hover:text-indigo-400 rounded-lg transition-all"
                             onClick={() => startEdit(a)}
                             title="정보 수정"
                           >
