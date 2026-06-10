@@ -9,7 +9,7 @@
 // 망분리 환경:
 //   OWLMON_LLM_PROVIDER=ollama
 //   OWLMON_OLLAMA_URL=http://192.168.0.30:11434
-//   OWLMON_OLLAMA_MODEL=qwen2.5:7b
+//   OWLMON_OLLAMA_MODEL=gemma4:12b
 //
 // 외부 API (학교/PoC):
 //   OWLMON_LLM_PROVIDER=openai
@@ -52,7 +52,7 @@ func NewProvider() Provider {
 	case "ollama":
 		return &OllamaProvider{
 			URL:   envOr("OWLMON_OLLAMA_URL", "http://localhost:11434"),
-			Model: envOr("OWLMON_OLLAMA_MODEL", "qwen2.5:7b"),
+			Model: envOr("OWLMON_OLLAMA_MODEL", "gemma4:12b"),
 		}
 	case "mock":
 		return &MockProvider{}
