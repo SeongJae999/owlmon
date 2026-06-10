@@ -2,6 +2,8 @@ import React from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts'
 import { AlertTriangle, TrendingUp, Info } from 'lucide-react'
 import { cn } from '../utils/cn'
+import { TONES } from '../utils/severity'
+import { formatBytes } from '../api/specs'
 
 interface AnomalyInfo {
   z_score: number
@@ -34,16 +36,6 @@ interface Props {
   subtitle?: string
 }
 
-// 사람 친화적 용량 포맷 (TB/GB/MB)
-function formatBytes(bytes: number): string {
-  const tb = 1024 ** 4
-  const gb = 1024 ** 3
-  const mb = 1024 ** 2
-  if (bytes >= tb) return `${(bytes / tb).toFixed(1)} TB`
-  if (bytes >= gb) return `${(bytes / gb).toFixed(1)} GB`
-  return `${(bytes / mb).toFixed(0)} MB`
-}
-
 function getStatus(value: number | null, warning = 70, critical = 90) {
   if (value === null) return 'unknown'
   if (value >= critical) return 'critical'
@@ -51,35 +43,12 @@ function getStatus(value: number | null, warning = 70, critical = 90) {
   return 'normal'
 }
 
+// 색은 공용 토큰(TONES)에서 — 페이지 간 severity 톤 일치 (hex는 recharts용)
 const statusConfig = {
-  normal: {
-    color: '#34d399',
-    label: '정상',
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-400',
-    border: 'border-emerald-500/30'
-  },
-  warning: {
-    color: '#fbbf24',
-    label: '경고',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-400',
-    border: 'border-amber-500/30'
-  },
-  critical: {
-    color: '#f87171',
-    label: '위험',
-    bg: 'bg-rose-500/10',
-    text: 'text-rose-400',
-    border: 'border-rose-500/30'
-  },
-  unknown: {
-    color: '#64748b',
-    label: '데이터 없음',
-    bg: 'bg-slate-800',
-    text: 'text-slate-500',
-    border: 'border-slate-700'
-  },
+  normal:   { color: TONES.emerald.hex, label: '정상',        bg: TONES.emerald.bg, text: TONES.emerald.text, border: TONES.emerald.border },
+  warning:  { color: TONES.amber.hex,   label: '경고',        bg: TONES.amber.bg,   text: TONES.amber.text,   border: TONES.amber.border },
+  critical: { color: TONES.rose.hex,    label: '위험',        bg: TONES.rose.bg,    text: TONES.rose.text,    border: TONES.rose.border },
+  unknown:  { color: TONES.slate.hex,   label: '데이터 없음', bg: TONES.slate.bg,   text: TONES.slate.text,   border: TONES.slate.border },
 }
 
 export default function MetricCard({ title, value, unit = '%', data, color, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes, absoluteHint, subtitle }: Props) {
