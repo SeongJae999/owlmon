@@ -221,7 +221,8 @@ function MetricTrendCard({
           </div>
 
           {/* 호스트별 요약 */}
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+          {/* 폰은 1열(칸당 폭 2배 확보), 태블릿 이상은 2~4열로 한눈 비교 유지 */}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
             {summary.map((s) => {
               const colorIdx = allHosts.indexOf(s.host)
               return (
@@ -230,7 +231,7 @@ function MetricTrendCard({
                   <div className="w-2 h-2 rounded-full" style={{ background: HOST_COLORS[colorIdx % HOST_COLORS.length] }} />
                   <span className="text-[11px] font-bold text-slate-300 truncate">{s.host}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1 text-[10px] text-slate-400">
+                <div className="grid grid-cols-3 gap-1 text-[11px] text-slate-400">
                   <div title="최신">
                     <div className="opacity-60">현재</div>
                     <div className="font-bold text-slate-200 tabular-nums">{s.latest != null ? `${s.latest.toFixed(1)}%` : '—'}</div>
