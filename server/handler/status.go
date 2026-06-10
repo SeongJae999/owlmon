@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -234,54 +233,19 @@ type promResult struct {
 }
 
 func (h *StatusHandler) query(promql string) ([]promResult, error) {
-	resp, err := http.Get(h.prometheusURL + "/api/v1/query?query=" + url.QueryEscape(promql))
+	// HTTP 호출/파싱은 prom 패키지 공용 클라이언트로 (타임아웃 포함)
+	rs, err := prom.Query(h.prometheusURL, promql)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Data struct {
-			Result []struct {
-				Metric map[string]string `json:"metric"`
-				Value  [2]interface{}    `json:"value"`
-			} `json:"result"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-
-	var out []promResult
-	for _, r := range result.Data.Result {
-		valStr, _ := r.Value[1].(string)
-		val, _ := strconv.ParseFloat(valStr, 64)
-		out = append(out, promResult{metric: r.Metric, value: val})
+	out := make([]promResult, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, promResult{metric: r.Metric, value: r.Value})
 	}
 	return out, nil
 }
 
 func (h *StatusHandler) labelValues(label string) ([]string, error) {
-	// host_name은 공통 헬퍼로 — 같은 패턴이 checker.go, reporter.go에도 있어서 공통화함
-	if label == "host_name" {
-		hosts, err := prom.ActiveHosts(h.prometheusURL)
-		if err == nil {
-			return hosts, nil
-		}
-		// instant query 실패 시 기본 labelValues로 폴백
-	}
-
-	resp, err := http.Get(h.prometheusURL + "/api/v1/label/" + label + "/values")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Data []string `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
+	// host_name의 stale 처리 포함 — prom.LabelValues가 ActiveHosts 우선 사용
+	return prom.LabelValues(h.prometheusURL, label)
 }
