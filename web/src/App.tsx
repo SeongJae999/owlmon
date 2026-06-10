@@ -13,6 +13,7 @@ import AssetManagement from './components/AssetManagement'
 import WebsiteMonitoring from './components/WebsiteMonitoring'
 import DPMDashboard from './components/DPMDashboard'
 import LogViewer from './components/LogViewer'
+import InsightDashboard from './pages/InsightDashboard'
 import MonthlyReportModal from './components/MonthlyReport'
 import RulesPage from './pages/RulesPage'
 import RuleStatsPage from './pages/RuleStatsPage'
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/synthetic" element={<Navigate to="/website" replace />} />
         <Route path="/dpm" element={<DPMDashboard />} />
         <Route path="/logs" element={<LogViewer />} />
+        <Route path="/insights" element={<InsightDashboard />} />
         <Route path="/rules" element={<RulesPage />} />
         <Route path="/rules/stats" element={<RuleStatsPage />} />
         <Route path="/history" element={<AlertHistory />} />

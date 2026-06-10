@@ -16,6 +16,9 @@ import (
 	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/dpm"
+	"github.com/seongJae/owlmon/server/llm"
+	"github.com/seongJae/owlmon/server/loginsight"
+	"github.com/seongJae/owlmon/server/masking"
 	"github.com/seongJae/owlmon/server/report"
 	"github.com/seongJae/owlmon/server/rules"
 	snmppkg "github.com/seongJae/owlmon/server/snmp"
@@ -42,6 +45,7 @@ type AppContext struct {
 	SpecsStore         *db.SpecsStore
 	RulesEngine        *rules.Engine
 	LogRuleMatchStore  *db.LogRuleMatchStore
+	LogInsightStore    *loginsight.Store // LLM 자동 분석 결과 저장소
 	EmailConfig        *alert.EmailConfig
 	SNMPPoller         *snmppkg.Poller // 백그라운드 ticker와 HTTP handler가 공유 (한 인스턴스만)
 }
@@ -72,6 +76,7 @@ func InitDB() *AppContext {
 			appCtx.SpecsStore = db.NewSpecsStore(pool)
 			appCtx.LogRuleMatchStore = db.NewLogRuleMatchStore(pool)
 			appCtx.AuditStore = audit.NewStore(pool)
+			appCtx.LogInsightStore = loginsight.NewStore(pool)
 			// 룰 엔진 초기화 + 첫 로드
 			engine := rules.NewEngine(pool)
 			if err := engine.Reload(context.Background()); err != nil {
@@ -218,5 +223,17 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 				}
 			}
 		}()
+	}
+
+	// 8. 로그 인사이트 워커 (LLM 자동 분석 — 5분 주기)
+	// OWLMON_LOGINSIGHT_ENABLED=true 이고 LLM Provider 활성일 때만 동작.
+	if appCtx.LogInsightStore != nil {
+		cfg := loginsight.LoadConfig()
+		provider := llm.NewProvider()
+		analyzer := loginsight.NewAnalyzer(provider, loginsight.WithMasking(func(s string) string {
+			return masking.Mask(s, masking.DefaultOptions())
+		}))
+		worker := loginsight.New(cfg, appCtx.DBPool, analyzer, appCtx.LogInsightStore)
+		worker.Start(context.Background())
 	}
 }

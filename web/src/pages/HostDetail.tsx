@@ -1,12 +1,10 @@
-import React from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { 
-  useHosts, 
-  useAllHostStatuses, 
-  useHostMetrics, 
-  useServiceChecks, 
-  useAlertStatus, 
-  useAnomalyData 
+import {
+  useHosts,
+  useAllHostStatuses,
+  useHostMetrics,
+  useServiceChecks,
+  useAnomalyData
 } from '../hooks/useMonitoring'
 import axios from 'axios'
 import { getAlertConfig } from '../api/alert'
@@ -18,7 +16,7 @@ import HostSpecCard from '../components/HostSpecCard'
 import DiskUsageBreakdown from '../components/DiskUsageBreakdown'
 import DiskTopology from '../components/DiskTopology'
 import { getHostSpec } from '../api/specs'
-import { ChevronLeft, Server, Activity, ShieldAlert, Zap, ArrowLeft } from 'lucide-react'
+import { ChevronLeft, Server, ShieldAlert, ArrowLeft } from 'lucide-react'
 import { cn } from '../utils/cn'
 
 export default function HostDetailPage() {
@@ -29,7 +27,6 @@ export default function HostDetailPage() {
   const { data: hostStatuses = {} } = useAllHostStatuses(hosts)
   const { data: metrics } = useHostMetrics(hostName)
   const { data: serviceChecks = [] } = useServiceChecks(hostName)
-  const { data: activeAlerts = [] } = useAlertStatus()
   const { data: anomalyData } = useAnomalyData()
   const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
 

@@ -14,12 +14,13 @@ import (
 // OllamaProvider — Ollama 자체 호스팅 LLM (망분리 환경용).
 //
 // Ollama 설치 후 사용:
-//   ollama pull qwen2.5:7b   # 한국어 좋음, 4-5GB
-//   ollama pull llama3.1:8b  # 영어 강함, 5GB
-//   ollama serve             # 11434 포트
+//
+//	ollama pull gemma4:12b   # 한국어 우수, 7.6GB (thinking 모델 — think:false로 호출)
+//	ollama pull qwen2.5:7b   # 경량 대안, 4-5GB
+//	ollama serve             # 11434 포트
 type OllamaProvider struct {
 	URL   string // 예: http://localhost:11434
-	Model string // 예: qwen2.5:7b
+	Model string // 예: gemma4:12b
 }
 
 func (p *OllamaProvider) Name() string { return "ollama:" + p.Model }
@@ -33,7 +34,11 @@ type ollamaRequest struct {
 	Model    string          `json:"model"`
 	Messages []ollamaMessage `json:"messages"`
 	Stream   bool            `json:"stream"`
-	Options  map[string]any  `json:"options,omitempty"`
+	// Think — reasoning(thinking) 모델 제어. gemma4 등 추론 모델은 기본적으로
+	// 영문 추론을 길게 생성해 구조화 출력(JSON)을 못 내고 토큰을 낭비한다.
+	// false로 끄면 즉시 본문 생성. 비-thinking 모델(qwen 등)은 이 값을 무시한다.
+	Think   *bool          `json:"think,omitempty"`
+	Options map[string]any `json:"options,omitempty"`
 }
 
 type ollamaResponse struct {
@@ -43,6 +48,7 @@ type ollamaResponse struct {
 }
 
 func (p *OllamaProvider) Complete(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	thinkOff := false // 로그 분석/요약은 추론 과정이 불필요 — 구조화 출력 우선
 	body := ollamaRequest{
 		Model: p.Model,
 		Messages: []ollamaMessage{
@@ -50,6 +56,7 @@ func (p *OllamaProvider) Complete(ctx context.Context, systemPrompt, userPrompt 
 			{Role: "user", Content: userPrompt},
 		},
 		Stream: false,
+		Think:  &thinkOff,
 		Options: map[string]any{
 			"temperature": 0.3,
 			"num_predict": 800,

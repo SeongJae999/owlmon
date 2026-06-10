@@ -170,6 +170,12 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Post("/api/llm/explain", llmHandler.ExplainLog)
 		r.Post("/api/llm/summary", llmHandler.SummarizeAlerts)
 
+		// 로그 인사이트 (LLM 자동 분석 결과 조회)
+		insightHandler := handler.NewInsightHandler(appCtx.LogInsightStore)
+		r.Get("/api/insights/status", insightHandler.Status)
+		r.Get("/api/insights/list", insightHandler.List)
+		r.Get("/api/insights/by-template", insightHandler.ByTemplate)
+
 		// 감사 로그 (ISMS-P 변경 추적)
 		auditHandler := handler.NewAuditHandler(appCtx.AuditStore)
 		r.Get("/api/audit", auditHandler.List)

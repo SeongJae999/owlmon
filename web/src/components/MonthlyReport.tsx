@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getReportPreview, sendReport, type MonthlyReport, type HostReport } from '../api/report'
 import { getEmailStatus } from '../api/alert'
-import { FileBarChart, Mail, Calendar, Server, Activity, CheckCircle2, AlertTriangle, RefreshCcw, Info } from 'lucide-react'
+import { FileBarChart, Mail, Calendar, Server, CheckCircle2, AlertTriangle, RefreshCcw, Info } from 'lucide-react'
 import { cn } from '../utils/cn'
 
 function ProgressBar({ value, colorClass }: { value: number; colorClass: string }) {

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { listRules, getRuleStatsDetailed, severityLabel, categoryLabel } from '../api/rules'
-import { BarChart3, AlertTriangle, CheckCircle2, Clock, TrendingUp, Filter } from 'lucide-react'
+import { BarChart3, AlertTriangle, CheckCircle2, TrendingUp, Filter } from 'lucide-react'
 import { cn } from '../utils/cn'
 import SummaryCard from '../components/SummaryCard'
 import PageToolbar from '../components/PageToolbar'
