@@ -19,20 +19,39 @@ var (
 	reNum       = regexp.MustCompile(`\b\d+\b`)
 )
 
+// 인증 로그 계정명 마스킹 — auth 문맥(sshd/pam 관용구)에 한정해 과도한 일반화를 피한다.
+// 계정명만 다른 brute-force 로그(root/admin/oracle...)가 같은 그룹으로 묶이도록 함.
+var (
+	// "Failed password for root", "Accepted publickey for bob",
+	// "Failed password for invalid user oracle" (sshd)
+	reAuthFor = regexp.MustCompile(`(?i)\b((?:Failed|Accepted|Postponed) \S+ for (?:invalid user )?)([^\s,;:]+)`)
+	// "Invalid user admin from ..." (sshd)
+	reInvalidUser = regexp.MustCompile(`(?i)\b(Invalid user )([^\s,;:]+)`)
+	// "session opened for user root by ..." (pam)
+	reForUser = regexp.MustCompile(`(?i)\b(for user )([^\s,;:]+)`)
+	// "authentication failure; ... user=root" (pam)
+	reUserEq = regexp.MustCompile(`(?i)\b(user=)([^\s,;:]+)`)
+)
+
 // Templatize — 로그 한 줄에서 가변 부분을 placeholder로 치환한 템플릿 문자열을 반환.
 //
 // 치환 순서:
-//  1. <TS>    타임스탬프 (ISO 8601 등)
-//  2. <UUID>  UUID v4
-//  3. <IP>    IPv4[:port]
-//  4. <PATH>  /a/b 형태 2-depth 이상 경로
-//  5. <HEX>   0xDEADBEEF
-//  6. <STR>   "..." 또는 '...' 인용 문자열
-//  7. <N>     일반 정수
+//  1. <USER>  인증 로그 계정명 (sshd/pam 관용구 한정 — 숫자 포함 계정명이 <N>으로 깨지기 전에 먼저)
+//  2. <TS>    타임스탬프 (ISO 8601 등)
+//  3. <UUID>  UUID v4
+//  4. <IP>    IPv4[:port]
+//  5. <PATH>  /a/b 형태 2-depth 이상 경로
+//  6. <HEX>   0xDEADBEEF
+//  7. <STR>   "..." 또는 '...' 인용 문자열
+//  8. <N>     일반 정수
 //
 // 같은 패턴의 로그가 같은 템플릿을 산출해야 클러스터링이 의미를 갖는다.
 func Templatize(line string) string {
 	s := strings.TrimSpace(line)
+	s = reAuthFor.ReplaceAllString(s, "${1}<USER>")
+	s = reInvalidUser.ReplaceAllString(s, "${1}<USER>")
+	s = reForUser.ReplaceAllString(s, "${1}<USER>")
+	s = reUserEq.ReplaceAllString(s, "${1}<USER>")
 	s = reTimestamp.ReplaceAllString(s, "<TS>")
 	s = reUUID.ReplaceAllString(s, "<UUID>")
 	s = reIP.ReplaceAllString(s, "<IP>")

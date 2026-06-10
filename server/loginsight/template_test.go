@@ -197,3 +197,55 @@ func TestBuildUserMsg(t *testing.T) {
 		}
 	}
 }
+
+func TestTemplatize_AuthUser_SSHBruteForce(t *testing.T) {
+	// 핵심: 계정명만 다른 brute-force 로그가 같은 템플릿을 산출해야 한다 (E2E에서 갈라졌던 케이스).
+	a := Templatize("Failed password for root from 203.0.113.9 port 44512 ssh2")
+	b := Templatize("Failed password for admin from 203.0.113.9 port 44513 ssh2")
+	if a != b {
+		t.Errorf("same brute-force pattern should yield same template:\n  a=%q\n  b=%q", a, b)
+	}
+	if !strings.Contains(a, "<USER>") {
+		t.Errorf("expected <USER> in template, got %q", a)
+	}
+}
+
+func TestTemplatize_AuthUser_Variants(t *testing.T) {
+	cases := []string{
+		"Failed password for invalid user oracle from 10.0.0.1 port 22 ssh2",
+		"Invalid user postgres from 10.0.0.2 port 51234",
+		"Accepted publickey for deploy from 10.0.0.3 port 22 ssh2",
+		"pam_unix(sshd:session): session opened for user root by (uid=0)",
+		"pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 user=guest",
+	}
+	for _, c := range cases {
+		got := Templatize(c)
+		if !strings.Contains(got, "<USER>") {
+			t.Errorf("expected <USER> in %q, got %q", c, got)
+		}
+	}
+}
+
+func TestTemplatize_AuthUser_DigitUsername(t *testing.T) {
+	// 숫자 포함 계정명(user123)이 <N> 치환으로 깨지기 전에 <USER>로 묶여야 한다.
+	a := Templatize("Failed password for user123 from 10.0.0.1 port 22 ssh2")
+	b := Templatize("Failed password for backup7 from 10.0.0.1 port 22 ssh2")
+	if a != b {
+		t.Errorf("digit usernames should still cluster:\n  a=%q\n  b=%q", a, b)
+	}
+}
+
+func TestTemplatize_AuthUser_NoOvermask(t *testing.T) {
+	// auth 관용구가 아닌 일반 문장의 "for ... from"은 마스킹하면 안 된다.
+	cases := []string{
+		"waiting for connection from peer",
+		"retry scheduled for tomorrow",
+		"checking for updates from registry",
+	}
+	for _, c := range cases {
+		got := Templatize(c)
+		if strings.Contains(got, "<USER>") {
+			t.Errorf("over-masked non-auth line %q → %q", c, got)
+		}
+	}
+}
