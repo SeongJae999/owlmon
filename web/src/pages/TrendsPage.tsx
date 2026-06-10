@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { TrendingUp, Activity, MemoryStick, HardDrive } from 'lucide-react'
+import { TrendingUp, Activity, MemoryStick, HardDrive, RefreshCcw } from 'lucide-react'
 import { fetchHosts, queryRangeMultiHost } from '../api/prometheus'
 import { cn } from '../utils/cn'
 import PageToolbar from '../components/PageToolbar'
@@ -177,9 +177,16 @@ function MetricTrendCard({
       </div>
 
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center text-slate-500 text-sm">로딩 중...</div>
+        <div className="h-64 flex flex-col items-center justify-center gap-2 text-slate-500">
+          <RefreshCcw size={20} className="animate-spin opacity-50" />
+          <span className="text-sm">추이 데이터 불러오는 중…</span>
+        </div>
       ) : data.length === 0 ? (
-        <div className="h-64 flex items-center justify-center text-slate-500 text-sm">데이터 없음</div>
+        <div className="h-64 flex flex-col items-center justify-center gap-2 text-center">
+          <TrendingUp size={36} className="text-slate-700" />
+          <p className="text-sm font-semibold text-slate-400">아직 수집된 추이 데이터가 없습니다</p>
+          <p className="text-xs text-slate-600">에이전트 수집이 시작되면 몇 분 뒤 자동으로 표시됩니다</p>
+        </div>
       ) : (
         <>
           <div className="h-56 sm:h-64 -mx-2">

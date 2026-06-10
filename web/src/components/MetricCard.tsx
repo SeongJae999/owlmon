@@ -105,7 +105,7 @@ export default function MetricCard({ title, value, unit = '%', data, warning, cr
               <span className="text-xs font-bold text-slate-100 tabular-nums leading-none">
                 {value.toFixed(0)}
               </span>
-              <span className="text-[8px] text-slate-500 leading-none">{unit}</span>
+              <span className="text-[9px] text-slate-500 leading-none">{unit}</span>
             </div>
           </div>
         )}

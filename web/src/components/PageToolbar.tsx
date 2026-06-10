@@ -17,7 +17,7 @@ interface Props {
  */
 export default function PageToolbar({ icon: Icon, title, description, children }: Props) {
   return (
-    <div className="flex justify-between items-center bg-slate-900 p-4 rounded-xl border border-slate-800">
+    <div className="flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800">
       <div className="flex items-center gap-3">
         <div className="p-2 bg-indigo-500/15 text-indigo-400 rounded-lg border border-indigo-500/20">
           <Icon size={18} />
