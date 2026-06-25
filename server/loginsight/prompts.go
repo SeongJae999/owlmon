@@ -29,7 +29,21 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
 - 정상 로그면 severity="low", needs_human=false.
 - 추측이 강하면 root_cause_ko에 "추정" 명시.
 - 학교 IT 담당자(비전문가)도 따라할 수 있게 action_ko 작성.
-- 출력은 한국어 (필드 키는 영문 그대로).`
+- 출력은 한국어 (필드 키는 영문 그대로).
+
+정상 종료 오탐 금지 (매우 중요):
+- 배치/oneshot 서비스(이름에 daily, weekly, rotate, logrotate, cleanup, backup,
+  renew, certbot, pmlogger, mandb, updatedb, fstrim 등 포함)가 작업을 마치고
+  종료되는 것은 정상이다.
+- 다음 신호가 있으면 "실패"가 아니라 "정상 완료"로 판단하라 → severity="low",
+  needs_human=false, summary_ko는 "정상 완료"임을 명시:
+    · status=0/SUCCESS, code=exited status=0
+    · "Succeeded", "Deactivated successfully", "Finished"
+    · systemd가 oneshot/배치 유닛을 종료(Stopped/inactive)시키는 일상 메시지
+- "종료됨(stopped/exited/deactivated)" 자체는 실패가 아니다. 종료 코드와 성공
+  메시지를 먼저 확인하고, 비정상 신호(non-zero exit, failed, error, core dump,
+  segfault, OOM)가 있을 때만 medium 이상으로 올려라.
+- 확신이 없으면 과장하지 말고 root_cause_ko에 "정상 동작일 가능성 — 추가 확인 필요"로 적어라.`
 
 // BuildUserMsg — LogGroup을 LLM 유저 메시지로 변환.
 // 워커가 Provider.Complete(SystemPromptLogCluster, BuildUserMsg(group)) 호출에 사용.
