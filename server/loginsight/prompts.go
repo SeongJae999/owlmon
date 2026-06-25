@@ -43,7 +43,27 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
 - "종료됨(stopped/exited/deactivated)" 자체는 실패가 아니다. 종료 코드와 성공
   메시지를 먼저 확인하고, 비정상 신호(non-zero exit, failed, error, core dump,
   segfault, OOM)가 있을 때만 medium 이상으로 올려라.
-- 확신이 없으면 과장하지 말고 root_cause_ko에 "정상 동작일 가능성 — 추가 확인 필요"로 적어라.`
+- 확신이 없으면 과장하지 말고 root_cause_ko에 "정상 동작일 가능성 — 추가 확인 필요"로 적어라.
+
+판단 예시 (이 기준을 모방하라. 출력은 항상 JSON 한 개):
+
+[입력] will systemd[<N>]: pmlogger_daily.service: Succeeded.
+[출력] {"severity":"low","category":"other","summary_ko":"정기 로그 정리 작업 정상 완료","root_cause_ko":"배치 서비스(pmlogger_daily)가 작업을 마치고 정상 종료됨","action_ko":"조치 필요 없음 (정상 동작)","needs_human":false}
+
+[입력] logrotate.service: Deactivated successfully.
+[출력] {"severity":"low","category":"other","summary_ko":"로그 로테이션 정상 완료","root_cause_ko":"logrotate 배치가 정상 종료됨","action_ko":"조치 필요 없음 (정상 동작)","needs_human":false}
+
+[입력] kernel: Out of memory: Killed process <N> (mysqld)
+[출력] {"severity":"high","category":"db","summary_ko":"메모리 부족으로 DB 프로세스(mysqld) 강제 종료","root_cause_ko":"시스템 메모리 고갈로 커널이 mysqld를 종료시킴(OOM Killer)","action_ko":"free -h로 메모리 확인, DB 메모리 설정·전체 사용량 점검. 반복되면 메모리 증설 검토","needs_human":true}
+
+[입력] sshd[<N>]: Failed password for <USER> from <IP> port <N> ssh2 (47회 반복)
+[출력] {"severity":"high","category":"security","summary_ko":"외부 IP의 SSH 무차별 대입 공격 시도","root_cause_ko":"공격자가 여러 계정 비밀번호를 반복 시도하는 것으로 추정","action_ko":"해당 IP를 방화벽에서 차단, fail2ban 도입, SSH 포트 변경·키 인증 전환 권장","needs_human":true}
+
+[입력] postgres: PANIC: could not write to file <PATH>: No space left on device
+[출력] {"severity":"critical","category":"disk","summary_ko":"디스크 공간 부족으로 DB 쓰기 실패 및 중단 위험","root_cause_ko":"DB 저장 경로의 물리 디스크가 가득 참","action_ko":"df -h로 용량 확인 후 불필요 파일 정리 또는 스토리지 증설. 긴급","needs_human":true}
+
+[입력] nginx: connect() failed (<N>: Connection refused) while connecting to upstream (1회)
+[출력] {"severity":"medium","category":"network","summary_ko":"백엔드 연결 일시 실패(1회)","root_cause_ko":"백엔드 프로세스 재시작 등 일시적 원인 추정. 반복되면 심각","action_ko":"백엔드 서비스 상태 확인. 반복 발생 시 high로 대응","needs_human":false}`
 
 // BuildUserMsg — LogGroup을 LLM 유저 메시지로 변환.
 // 워커가 Provider.Complete(SystemPromptLogCluster, BuildUserMsg(group)) 호출에 사용.
