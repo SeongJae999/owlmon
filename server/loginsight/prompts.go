@@ -45,6 +45,32 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
   segfault, OOM)가 있을 때만 medium 이상으로 올려라.
 - 확신이 없으면 과장하지 말고 root_cause_ko에 "정상 동작일 가능성 — 추가 확인 필요"로 적어라.
 
+환경 인식 (과대평가 방지 — 서버 운영에서 흔한 양성 패턴):
+- 가상화 호스트(Proxmox/KVM): VM 관리 작업(qmshutdown, qmreboot, qmigrate,
+  qmclone, vzdump 등)의 일시적 실패·타임아웃("VM quit/powerdown failed got timeout" 등)은
+  운영 중 흔하다 → 단발이면 medium, 반복되거나 데이터 손실·복제 실패 신호가 있으면 high.
+- 헤드리스 서버(모니터 없음): 디스플레이·그래픽 관련 로그(/dev/fb0, modeset, glamor,
+  drm, "(EE) open ... Permission denied", X11/Xorg)는 거의 항상 무해 → low, needs_human=false.
+- 부팅/네트워크 타이밍 경고: NetworkManager-wait-online.service 실패,
+  systemd "*-wait-online" 류는 흔하고 보통 무해 → low.
+- 펌웨어/ACPI/하드웨어 양성 메시지(ERST, "Failed to get Error Log Address Range",
+  ACPI BIOS Error 등 잘 알려진 양성)는 → low.
+- 패키지 관리 일시 오류(apt-get update failed, 미러 접속 실패)는 보통 일시적 →
+  medium, needs_human=false (반복되면 격상).
+- ⚠ 단, 위 카테고리라도 다음 신호가 동반되면 격상하라: 짧은 시간 반복 급증,
+  데이터/파일시스템 손상(read-only remount, I/O error), OOM, 서비스 영구 다운,
+  디스크 가득참. 환경 특성이라고 무조건 깎지 마라.
+
+현재 호스트 상태 활용 (상관 분석 — 핵심):
+- 입력 끝에 "[현재 호스트 상태]" 블록(CPU/메모리/디스크 사용률, 이상탐지)이 함께 주어질 수 있다.
+- 로그와 그 수치를 **연관지어** root_cause_ko를 작성하라. 예:
+    · 디스크 사용률 높음(≥90%) + "No space"/"write failed" 로그 → "디스크 부족이 직접 원인" + severity 격상
+    · 메모리 사용률 높음 + OOM/killed 로그 → "메모리 고갈" 연관
+    · CPU 이상탐지(Z-score 높음) + 응답 지연/타임아웃 로그 → "부하 급증" 연관
+- 수치가 정상 범위(예: CPU/메모리/디스크 모두 낮음)인데 심각한 에러 로그면, 자원 문제가
+  아니라 애플리케이션/설정 문제일 가능성을 root_cause_ko에 반영하라.
+- 상태 블록이 없거나 "데이터 없음"이면 로그만으로 판단하되 과대평가하지 마라.
+
 판단 예시 (이 기준을 모방하라. 출력은 항상 JSON 한 개):
 
 [입력] will systemd[<N>]: pmlogger_daily.service: Succeeded.

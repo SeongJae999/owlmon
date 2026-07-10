@@ -223,3 +223,55 @@ func TestExtractJSON(t *testing.T) {
 		})
 	}
 }
+
+// WithContext로 주입된 호스트 상태가 프롬프트 뒤에 붙는지 검증.
+func TestAnalyzer_WithContext_Injected(t *testing.T) {
+	stub := &stubProvider{name: "ollama:gemma4:12b", response: validJSON()}
+	ctxBlock := "[현재 호스트 상태]\n- 사용률: CPU 92% · 디스크(최대) 88%\n"
+	a := NewAnalyzer(stub, WithContext(func(_ context.Context, host string) string {
+		if host != "web1" {
+			t.Errorf("ctxFn host=%q want web1", host)
+		}
+		return ctxBlock
+	}))
+	if _, err := a.Analyze(context.Background(), sampleGroup()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// 로그 내용과 컨텍스트가 둘 다 프롬프트에 있어야 함
+	if !strings.Contains(stub.lastUser, "connection refused") {
+		t.Error("프롬프트에 로그 패턴이 없음")
+	}
+	if !strings.Contains(stub.lastUser, "CPU 92%") {
+		t.Errorf("프롬프트에 호스트 상태 컨텍스트가 주입되지 않음:\n%s", stub.lastUser)
+	}
+}
+
+// ctxFn 미주입 시 기존 동작(컨텍스트 없음) 유지.
+func TestAnalyzer_NoContext_Unchanged(t *testing.T) {
+	stub := &stubProvider{name: "x", response: validJSON()}
+	a := NewAnalyzer(stub)
+	if _, err := a.Analyze(context.Background(), sampleGroup()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(stub.lastUser, "현재 호스트 상태") {
+		t.Error("ctxFn 없는데 컨텍스트 블록이 들어감")
+	}
+}
+
+// 마스킹은 로그에만 적용되고, 시스템 생성 컨텍스트는 마스킹 뒤에 붙어 온전해야 함.
+func TestAnalyzer_ContextAfterMasking(t *testing.T) {
+	stub := &stubProvider{name: "x", response: validJSON()}
+	a := NewAnalyzer(stub,
+		WithMasking(func(s string) string { return strings.ReplaceAll(s, "refused", "<M>") }),
+		WithContext(func(_ context.Context, _ string) string { return "[현재 호스트 상태]\n- 사용률: CPU 50%\n" }),
+	)
+	if _, err := a.Analyze(context.Background(), sampleGroup()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(stub.lastUser, "<M>") {
+		t.Error("마스킹이 로그에 적용되지 않음")
+	}
+	if !strings.Contains(stub.lastUser, "CPU 50%") {
+		t.Error("컨텍스트가 마스킹 후 온전히 붙지 않음")
+	}
+}

@@ -15,14 +15,20 @@ import (
 // nil이면 마스킹 없이 원문 전송 (망내 Ollama 등).
 type MaskFunc func(string) string
 
+// ContextFunc — 분석 시점의 호스트 상황(메트릭·이상탐지)을 요약 문자열로 반환한다.
+// nil이면 로그만으로 분석(기존 동작). loginsight가 prom/anomaly를 직접 import하지
+// 않도록 클로저로 주입한다 (WithMasking과 동일 패턴).
+type ContextFunc func(ctx context.Context, host string) string
+
 // Analyzer — LogGroup을 LLM에 보내고 검증된 Insight를 반환한다.
 //
 // 의존성 격리:
 //   - llm.Provider만 외부 의존 (이미 server/llm/에 추상화됨)
-//   - 마스킹은 옵션 주입 (server/masking 직접 의존 없음)
+//   - 마스킹·컨텍스트는 옵션 주입 (server/masking, prom, anomaly 직접 의존 없음)
 type Analyzer struct {
 	provider llm.Provider
 	maskFn   MaskFunc
+	ctxFn    ContextFunc
 }
 
 // Option — 함수형 옵션 패턴.
@@ -35,6 +41,12 @@ type Option func(*Analyzer)
 //	}))
 func WithMasking(fn MaskFunc) Option {
 	return func(a *Analyzer) { a.maskFn = fn }
+}
+
+// WithContext — 분석 시점 호스트 상황(메트릭·이상탐지)을 프롬프트에 함께 주입.
+// 로그만 보던 LLM이 "CPU 급증·디스크 부족과의 상관관계"를 반영하게 한다.
+func WithContext(fn ContextFunc) Option {
+	return func(a *Analyzer) { a.ctxFn = fn }
 }
 
 // NewAnalyzer — provider가 nil이면 nil 반환 (LLM 비활성 환경 대응).
@@ -58,8 +70,15 @@ func (a *Analyzer) Analyze(ctx context.Context, g LogGroup) (*Insight, error) {
 	}
 
 	userMsg := BuildUserMsg(g)
+	// 로그 원문에만 마스킹 적용 (컨텍스트는 시스템 생성값이라 PII 없음)
 	if a.maskFn != nil {
 		userMsg = a.maskFn(userMsg)
+	}
+	// 분석 시점 호스트 상황(메트릭·이상탐지)을 뒤에 덧붙여 상관 분석 유도
+	if a.ctxFn != nil {
+		if hostCtx := a.ctxFn(ctx, g.HostName); hostCtx != "" {
+			userMsg += "\n\n" + hostCtx
+		}
 	}
 
 	start := time.Now()

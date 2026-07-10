@@ -13,12 +13,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seongJae/owlmon/server/alert"
+	"github.com/seongJae/owlmon/server/anomaly"
 	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/dpm"
 	"github.com/seongJae/owlmon/server/llm"
 	"github.com/seongJae/owlmon/server/loginsight"
 	"github.com/seongJae/owlmon/server/masking"
+	"github.com/seongJae/owlmon/server/prom"
 	"github.com/seongJae/owlmon/server/report"
 	"github.com/seongJae/owlmon/server/rules"
 	snmppkg "github.com/seongJae/owlmon/server/snmp"
@@ -230,10 +232,60 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 	if appCtx.LogInsightStore != nil {
 		cfg := loginsight.LoadConfig()
 		provider := llm.NewProvider()
-		analyzer := loginsight.NewAnalyzer(provider, loginsight.WithMasking(func(s string) string {
-			return masking.Mask(s, masking.DefaultOptions())
-		}))
+		analyzer := loginsight.NewAnalyzer(provider,
+			loginsight.WithMasking(func(s string) string {
+				return masking.Mask(s, masking.DefaultOptions())
+			}),
+			// 분석 시점 호스트 상황(메트릭·이상탐지)을 프롬프트에 주입 → 상관 분석
+			loginsight.WithContext(func(_ context.Context, host string) string {
+				return buildHostContext(prometheusURL, checker.Detector, host)
+			}),
+		)
 		worker := loginsight.New(cfg, appCtx.DBPool, analyzer, appCtx.LogInsightStore)
-		worker.Start(context.Background())
+		worker.Start(ctx)
 	}
+}
+
+// buildHostContext — 로그 분석 시점의 호스트 상황(메트릭·이상탐지)을 요약한다.
+// loginsight 프롬프트에 "[현재 호스트 상태]" 블록으로 붙어 상관 분석을 유도한다.
+// 데이터가 없으면 "데이터 없음"으로 표기 (LLM이 과대평가하지 않게).
+func buildHostContext(prometheusURL string, detector *anomaly.Detector, host string) string {
+	q := func(tmpl string) (float64, bool) {
+		rs, err := prom.Query(prometheusURL, fmt.Sprintf(tmpl, host))
+		if err != nil || len(rs) == 0 {
+			return 0, false
+		}
+		return rs[0].Value, true
+	}
+	cpu, okC := q(`system_cpu_usage_percent{host_name="%s"}`)
+	mem, okM := q(`system_memory_usage_percent{host_name="%s"}`)
+	dsk, okD := q(`max(system_disk_usage_percent{host_name="%s"})`)
+
+	var b strings.Builder
+	b.WriteString("[현재 호스트 상태]\n")
+	if okC || okM || okD {
+		b.WriteString("- 사용률:")
+		if okC {
+			fmt.Fprintf(&b, " CPU %.0f%%", cpu)
+		}
+		if okM {
+			fmt.Fprintf(&b, " · 메모리 %.0f%%", mem)
+		}
+		if okD {
+			fmt.Fprintf(&b, " · 디스크(최대) %.0f%%", dsk)
+		}
+		b.WriteByte('\n')
+	} else {
+		b.WriteString("- 사용률: 데이터 없음\n")
+	}
+	if detector != nil {
+		if ans := detector.GetHostAnomalies(host); len(ans) > 0 {
+			b.WriteString("- 이상탐지:")
+			for _, a := range ans {
+				fmt.Fprintf(&b, " %s(현재 %.0f·평소 %.0f·Z=%.1f)", a.Metric, a.Value, a.Mean, a.ZScore)
+			}
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
 }
