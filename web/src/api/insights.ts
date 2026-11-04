@@ -35,6 +35,9 @@ export interface InsightListResult {
 
 export interface InsightStatus {
   enabled: boolean
+  failing?: boolean
+  last_success_at?: string | null
+  last_error_at?: string | null
 }
 
 export interface ListInsightsParams {

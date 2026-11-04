@@ -279,3 +279,22 @@ func TestLoadConfig_InvalidFallsBack(t *testing.T) {
 		t.Errorf("invalid int should fall back to 10, got %d", cfg.PerHostPerMin)
 	}
 }
+
+// LLM 실패 → Failing, 이후 성공 → 복구. 4개월 무인지 장애 재발 방지용.
+func TestHealth_FailThenRecover(t *testing.T) {
+	ana := &stubAnalyzer{err: errors.New("LLM down")}
+	w := newTestWorker(ana, newStubStore(), 10)
+	if w.Health().Failing() {
+		t.Fatal("초기 상태는 정상이어야 함")
+	}
+	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "a", HostName: "web1"}})
+	if !w.Health().Failing() {
+		t.Fatal("LLM 실패 후 Failing이어야 함")
+	}
+	time.Sleep(time.Millisecond)
+	ana.err = nil
+	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "b", HostName: "web1"}})
+	if h := w.Health(); h.Failing() || h.LastSuccessAt == nil {
+		t.Fatalf("성공 후 복구돼야 함: %+v", h)
+	}
+}

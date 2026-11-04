@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,6 +30,38 @@ type Worker struct {
 	pool     *pgxpool.Pool
 	analyzer analyzerIface
 	store    storeIface
+
+	mu     sync.Mutex
+	health Health
+}
+
+// Health — 워커 최근 성공/실패 시각. LLM 장애가 로그에만 묻히지 않도록 status API로 노출.
+type Health struct {
+	LastSuccessAt *time.Time `json:"last_success_at"`
+	LastErrorAt   *time.Time `json:"last_error_at"`
+}
+
+// Failing — 마지막 실패가 마지막 성공보다 최근이면 장애 상태.
+func (h Health) Failing() bool {
+	return h.LastErrorAt != nil && (h.LastSuccessAt == nil || h.LastErrorAt.After(*h.LastSuccessAt))
+}
+
+// Health — 현재 상태 스냅샷.
+func (w *Worker) Health() Health {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.health
+}
+
+func (w *Worker) record(err error) {
+	now := time.Now()
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err != nil {
+		w.health.LastErrorAt = &now
+	} else {
+		w.health.LastSuccessAt = &now
+	}
 }
 
 // New — Worker 생성. pool/analyzer/store가 nil이면 Start가 no-op.
@@ -82,6 +115,7 @@ func (w *Worker) runTick(ctx context.Context) {
 	n, err := w.Tick(ctx)
 	if err != nil {
 		log.Printf("[loginsight] tick 실패: %v (소요 %s)", err, time.Since(start))
+		w.record(err)
 		return
 	}
 	if n > 0 {
@@ -125,12 +159,15 @@ func (w *Worker) processGroups(ctx context.Context, groups []LogGroup) (int, err
 		if err != nil {
 			log.Printf("[loginsight] Analyze 실패 (host=%s hash=%s): %v",
 				g.HostName, g.TemplateHash, err)
+			w.record(err)
 			continue
 		}
 		if err := w.store.Save(ctx, ins); err != nil {
 			log.Printf("[loginsight] Save 실패: %v", err)
+			w.record(err)
 			continue
 		}
+		w.record(nil)
 		analyzed++
 		budget--
 	}

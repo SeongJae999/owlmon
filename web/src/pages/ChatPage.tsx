@@ -40,7 +40,11 @@ export default function ChatPage() {
       const res = await sendChat(next)
       setMessages([...next, { role: 'assistant', content: res.reply }])
     } catch (e: any) {
-      setError(e?.response?.data?.toString?.() || e?.message || 'AI 응답 실패')
+      setError(
+        e?.code === 'ECONNABORTED'
+          ? 'AI 응답이 너무 오래 걸립니다. 잠시 후 다시 시도하세요.'
+          : 'AI 응답을 받지 못했습니다. 잠시 후 다시 시도하세요.',
+      )
       setMessages(next)
     } finally {
       setLoading(false)

@@ -173,6 +173,9 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 		// 로그 인사이트 (LLM 자동 분석 결과 조회)
 		insightHandler := handler.NewInsightHandler(appCtx.LogInsightStore)
+		if appCtx.LogInsightWorker != nil {
+			insightHandler.Health = appCtx.LogInsightWorker.Health
+		}
 		r.Get("/api/insights/status", insightHandler.Status)
 		r.Get("/api/insights/list", insightHandler.List)
 		r.Get("/api/insights/by-template", insightHandler.ByTemplate)

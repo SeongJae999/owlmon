@@ -48,6 +48,7 @@ type AppContext struct {
 	RulesEngine        *rules.Engine
 	LogRuleMatchStore  *db.LogRuleMatchStore
 	LogInsightStore    *loginsight.Store // LLM 자동 분석 결과 저장소
+	LogInsightWorker   *loginsight.Worker
 	EmailConfig        *alert.EmailConfig
 	SNMPPoller         *snmppkg.Poller // 백그라운드 ticker와 HTTP handler가 공유 (한 인스턴스만)
 }
@@ -248,6 +249,7 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 		)
 		worker := loginsight.New(cfg, appCtx.DBPool, analyzer, appCtx.LogInsightStore)
 		worker.Start(ctx)
+		appCtx.LogInsightWorker = worker
 	}
 }
 

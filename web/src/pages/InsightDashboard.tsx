@@ -47,7 +47,7 @@ export default function InsightDashboard() {
     refetchInterval: 60_000,
   })
 
-  const { data: listResult, isLoading, refetch, isFetching } = useQuery({
+  const { data: listResult, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['insightList', severity, hostFilter],
     queryFn: () =>
       listInsights({
@@ -102,11 +102,22 @@ export default function InsightDashboard() {
           <div>
             <p className="text-sm font-semibold text-amber-300">AI 분석 기능이 비활성화되어 있습니다</p>
             <p className="text-xs text-amber-200/80 mt-1 leading-relaxed">
-              서버 환경변수{' '}
-              <code className="bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-200">
-                OWLMON_LOGINSIGHT_ENABLED=true
-              </code>{' '}
-              와 LLM Provider 설정(<code className="bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-200">OWLMON_LLM_PROVIDER</code>)이 필요합니다.
+              관리자(설치 업체)에게 AI 분석 기능 활성화를 요청하세요.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 장애 배너 — LLM 호출이 실패 중이면 옛 결과만 보이는 상태임을 알림 */}
+      {status?.failing && (
+        <div role="alert" className="rounded-xl bg-rose-500/10 border border-rose-500/30 p-4 flex items-start gap-3">
+          <AlertTriangle size={20} className="text-rose-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-rose-300">AI 분석 서버에 연결하지 못하고 있습니다</p>
+            <p className="text-xs text-rose-200/80 mt-1 leading-relaxed">
+              새 로그가 분석되지 않고 있으며, 아래 목록은 이전 결과입니다.
+              {' '}마지막 성공: {status.last_success_at ? formatTime(status.last_success_at) : '서버 재시작 이후 없음'}
+              {' '}· 관리자에게 AI 분석 서버 상태 확인을 요청하세요.
             </p>
           </div>
         </div>
@@ -139,6 +150,10 @@ export default function InsightDashboard() {
       {/* List */}
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">로딩 중...</div>
+      ) : isError ? (
+        <div role="alert" className="text-center py-12 rounded-xl bg-slate-900 border border-rose-500/30 text-rose-300 text-sm">
+          인사이트 목록을 불러오지 못했습니다. 잠시 후 새로고침하세요.
+        </div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 rounded-xl bg-slate-900 border border-slate-800">
           <Sparkles size={32} className="mx-auto text-slate-700 mb-3" />

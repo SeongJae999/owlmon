@@ -19,7 +19,8 @@ type insightStore interface {
 
 // InsightHandler — log_insights 조회 API.
 type InsightHandler struct {
-	store insightStore
+	store  insightStore
+	Health func() loginsight.Health // nil이면 상태 정보 생략
 }
 
 // NewInsightHandler — store가 nil이면 모든 엔드포인트가 503 반환.
@@ -34,9 +35,14 @@ func (h *InsightHandler) Enabled() bool {
 
 // Status — GET /api/insights/status
 func (h *InsightHandler) Status(w http.ResponseWriter, r *http.Request) {
-	writeJSONInsight(w, map[string]any{
-		"enabled": h.Enabled(),
-	})
+	resp := map[string]any{"enabled": h.Enabled()}
+	if h.Enabled() && h.Health != nil {
+		hl := h.Health()
+		resp["last_success_at"] = hl.LastSuccessAt
+		resp["last_error_at"] = hl.LastErrorAt
+		resp["failing"] = hl.Failing()
+	}
+	writeJSONInsight(w, resp)
 }
 
 // List — GET /api/insights/list
