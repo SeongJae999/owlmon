@@ -28,13 +28,13 @@ type SSLDomainLister interface {
 
 // Checker는 Prometheus를 주기적으로 조회하여 알림 조건을 평가합니다.
 type Checker struct {
-	prometheusURL  string
-	email          *EmailConfig
-	state          *State
-	configStore    ConfigStorer
-	history        HistorySaver // nil이면 저장 안 함
-	Detector       *anomaly.Detector
-	Predictor      *anomaly.Predictor
+	prometheusURL   string
+	email           *EmailConfig
+	state           *State
+	configStore     ConfigStorer
+	history         HistorySaver // nil이면 저장 안 함
+	Detector        *anomaly.Detector
+	Predictor       *anomaly.Predictor
 	sslDomainLister SSLDomainLister // nil이면 SSL 체크 비활성
 	SSLChecker      *ssl.CertChecker
 }
@@ -172,6 +172,9 @@ func (c *Checker) check() {
 	if c.email != nil && len(cfg.Recipients) > 0 {
 		c.email.To = cfg.Recipients
 	}
+	if !c.promHealthy() {
+		return
+	}
 
 	c.checkMetric("CPU", "max(system_cpu_usage_percent) by (host_name)", cfg.CPUThreshold, 0)
 	c.checkMetric("메모리", "max(system_memory_usage_percent) by (host_name)", cfg.MemThreshold, 0)
@@ -181,6 +184,29 @@ func (c *Checker) check() {
 	c.checkServiceFailures()
 	c.feedAnomalyDetector()
 	c.feedDiskPredictor()
+}
+
+// promHealthy는 Prometheus 응답 여부를 확인합니다.
+// 조회 실패 시 모든 임계치 감시가 조용히 멈추므로, 연속 실패하면 알림으로 알립니다.
+func (c *Checker) promHealthy() bool {
+	const key = "prom:down"
+	if _, err := c.query("up"); err != nil {
+		n := c.state.RecordFailure(key)
+		if n == 1 {
+			log.Printf("Prometheus 조회 실패 — 알림 감시 일시 중단: %v", err)
+		}
+		if n == consecutiveFailThreshold && c.state.ShouldAlert(key) {
+			subject := "🔴 Prometheus 응답 없음 — 알림 감시 중단"
+			body := fmt.Sprintf("Prometheus 조회가 %d회 연속 실패했습니다.\n복구될 때까지 CPU·메모리·디스크·서버 다운 알림이 동작하지 않습니다.\n\n오류: %v", n, err)
+			c.sendAlert("owlmon", "monitoring", "critical", subject, body)
+		}
+		return false
+	}
+	c.state.ResetFailure(key)
+	if c.state.ClearIfFiring(key) {
+		c.sendAlert("owlmon", "monitoring", "info", "[복구] Prometheus 응답 복구 — 알림 감시 재개", "Prometheus 조회가 정상화되어 알림 감시를 재개합니다.")
+	}
+	return true
 }
 
 // checkMetric은 단일 메트릭 임계값을 체크합니다.
