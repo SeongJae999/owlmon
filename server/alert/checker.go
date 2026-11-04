@@ -101,12 +101,8 @@ func (c *Checker) checkSSLCerts() {
 
 	results := c.SSLChecker.CheckAll(entries)
 
-	cfg := c.configStore.Get()
-	if !cfg.Enabled {
+	if !c.configStore.Get().Enabled {
 		return
-	}
-	if c.email != nil && len(cfg.Recipients) > 0 {
-		c.email.To = cfg.Recipients
 	}
 
 	for _, info := range results {
@@ -167,10 +163,6 @@ func (c *Checker) check() {
 	cfg := c.configStore.Get()
 	if !cfg.Enabled {
 		return
-	}
-	// 수신자 목록을 동적으로 반영
-	if c.email != nil && len(cfg.Recipients) > 0 {
-		c.email.To = cfg.Recipients
 	}
 	if !c.promHealthy() {
 		return
@@ -400,7 +392,12 @@ func (c *Checker) sendAlert(host, category, severity, subject, body string) {
 		return
 	}
 	if c.email != nil {
-		if err := c.email.Send(subject, body); err != nil {
+		// 수신자는 알림 설정 값을 매번 반영 (공유 EmailConfig를 바꾸지 않음 — 보고서 고루틴과 경쟁)
+		to := c.email.To
+		if r := c.configStore.Get().Recipients; len(r) > 0 {
+			to = r
+		}
+		if err := c.email.SendTo(to, subject, body); err != nil {
 			log.Printf("알림 이메일 발송 실패: %v", err)
 		} else {
 			log.Printf("알림 발송: %s", subject)
