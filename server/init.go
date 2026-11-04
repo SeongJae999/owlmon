@@ -156,9 +156,14 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 				// 32바이트 임의 키 생성
 				rb := make([]byte, 32)
 				if _, err := cryptorand.Read(rb); err == nil {
-					masterKey = hex.EncodeToString(rb)
-					_ = os.WriteFile(keyFile, []byte(masterKey), 0600)
-					log.Println("✨ New DPM key generated and saved")
+					key := hex.EncodeToString(rb)
+					// 저장 못 한 키로 암호화하면 재시작 후 복호화 불가 → DPM 비활성화
+					if err := os.WriteFile(keyFile, []byte(key), 0600); err != nil {
+						log.Printf("⚠️ DPM 키 저장 실패 (%v) — DPM 비활성화. OWLMON_DPM_KEY 설정 또는 %s 쓰기 권한 확인", err, dataDir)
+					} else {
+						masterKey = key
+						log.Println("✨ New DPM key generated and saved")
+					}
 				}
 			}
 		}
