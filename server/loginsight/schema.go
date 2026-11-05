@@ -3,6 +3,7 @@ package loginsight
 import (
 	"errors"
 	"time"
+	"unicode/utf8"
 )
 
 // Severity — LLM 출력 severity enum.
@@ -56,8 +57,9 @@ func (i *Insight) Validate() error {
 	if i.SummaryKo == "" {
 		return errors.New("summary_ko는 비어있을 수 없습니다")
 	}
-	if len(i.SummaryKo) > 200 {
-		return errors.New("summary_ko가 너무 깁니다 (최대 200자)")
+	// 바이트가 아닌 글자 수 — 한글은 3바이트라 len() 200이면 66자에서 탈락했다
+	if utf8.RuneCountInString(i.SummaryKo) > 120 {
+		return errors.New("summary_ko가 너무 깁니다 (최대 120자)")
 	}
 	switch i.Severity {
 	case SeverityCritical, SeverityHigh, SeverityMedium, SeverityLow:

@@ -343,3 +343,15 @@ func TestNotify_ConsecutiveFailThenRecover(t *testing.T) {
 		t.Fatalf("경고 1회 + 복구 1회여야 함: %v", got)
 	}
 }
+
+// 길이 제한은 바이트가 아닌 글자 수 (한글 70자는 통과해야 함).
+func TestValidate_SummaryRuneLength(t *testing.T) {
+	ins := Insight{Severity: SeverityHigh, Category: CatNetwork, SummaryKo: strings.Repeat("가", 70)}
+	if err := ins.Validate(); err != nil {
+		t.Fatalf("한글 70자는 통과해야 함: %v", err)
+	}
+	ins.SummaryKo = strings.Repeat("가", 121)
+	if ins.Validate() == nil {
+		t.Fatal("121자는 탈락해야 함")
+	}
+}
