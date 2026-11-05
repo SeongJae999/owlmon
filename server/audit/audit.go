@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seongJae/owlmon/server/auth"
 )
@@ -98,6 +100,7 @@ func Log(ctx context.Context, action, targetType, targetID string, details map[s
 	if !ok || info == nil || info.Store == nil {
 		return
 	}
+	info.Skip = true // 명시 기록했으므로 미들웨어 자동 기록과 중복되지 않게
 	info.Store.Save(ctx, Entry{
 		Actor:      info.Actor,
 		IP:         info.IP,
@@ -115,6 +118,7 @@ func LogFailure(ctx context.Context, action, reason string) {
 	if !ok || info == nil || info.Store == nil {
 		return
 	}
+	info.Skip = true // 명시 기록했으므로 미들웨어 자동 기록과 중복되지 않게
 	info.Store.Save(ctx, Entry{
 		Actor:     info.Actor,
 		IP:        info.IP,
@@ -139,9 +143,43 @@ func Middleware(store *Store) func(http.Handler) http.Handler {
 				Store:     store,
 			}
 			ctx := context.WithValue(r.Context(), auditCtxKey, info)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			next.ServeHTTP(ww, r.WithContext(ctx))
+
+			// 핸들러가 audit.Log를 안 불러도 모든 변경 요청은 "누가·무엇을·결과"가 남도록 자동 기록
+			if !isMutating(r.Method) || info.Skip || store == nil || autoSkipPaths[r.URL.Path] {
+				return
+			}
+			result := "success"
+			switch {
+			case ww.Status() == http.StatusUnauthorized || ww.Status() == http.StatusForbidden:
+				result = "unauthorized"
+			case ww.Status() >= 400:
+				result = "failure"
+			}
+			action := r.Method + " " + r.URL.Path
+			if rc := chi.RouteContext(r.Context()); rc != nil && rc.RoutePattern() != "" {
+				action = r.Method + " " + rc.RoutePattern() // /api/users/{id} 형태로 묶어서 검색 쉽게
+			}
+			store.Save(r.Context(), Entry{
+				Actor: info.Actor, IP: info.IP, UserAgent: info.UserAgent,
+				Action: action, TargetType: "api", TargetID: r.URL.Path,
+				Details: map[string]any{"status": ww.Status()},
+				Result:  result,
+			})
 		})
 	}
+}
+
+func isMutating(m string) bool {
+	return m == http.MethodPost || m == http.MethodPut || m == http.MethodPatch || m == http.MethodDelete
+}
+
+// 상태를 바꾸지 않는 POST(AI 질문)는 자동 기록에서 제외 — 감사 로그가 질문으로 뒤덮이지 않게
+var autoSkipPaths = map[string]bool{
+	"/api/chat":        true,
+	"/api/llm/explain": true,
+	"/api/llm/summary": true,
 }
 
 func extractActor(r *http.Request) string {
