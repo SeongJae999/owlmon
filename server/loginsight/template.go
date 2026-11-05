@@ -15,6 +15,7 @@ var (
 	reIP        = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b`)
 	rePath      = regexp.MustCompile(`(?:/[A-Za-z0-9._-]+){2,}`) // 최소 2-depth만 PATH로 간주
 	reHex       = regexp.MustCompile(`\b0x[0-9a-fA-F]+\b`)
+	reBareHex   = regexp.MustCompile(`\b[0-9a-fA-F]{8,}\b`) // 0x 없는 ID (Proxmox UPID 0036E1B3, 컨테이너 ID 등)
 	reQuoted    = regexp.MustCompile(`"[^"]*"|'[^']*'`)
 	reNum       = regexp.MustCompile(`\b\d+\b`)
 )
@@ -41,7 +42,7 @@ var (
 //  3. <UUID>  UUID v4
 //  4. <IP>    IPv4[:port]
 //  5. <PATH>  /a/b 형태 2-depth 이상 경로
-//  6. <HEX>   0xDEADBEEF
+//  6. <HEX>   0xDEADBEEF, 0x 없는 8자 이상 16진 ID (숫자+a-f 혼합)
 //  7. <STR>   "..." 또는 '...' 인용 문자열
 //  8. <N>     일반 정수
 //
@@ -57,11 +58,20 @@ func Templatize(line string) string {
 	s = reIP.ReplaceAllString(s, "<IP>")
 	s = rePath.ReplaceAllString(s, "<PATH>")
 	s = reHex.ReplaceAllString(s, "<HEX>")
+	s = reBareHex.ReplaceAllStringFunc(s, bareHex)
 	s = reQuoted.ReplaceAllString(s, "<STR>")
 	s = reNum.ReplaceAllString(s, "<N>")
 	// 공백 정규화 (다중 공백 → 단일 공백)
 	s = strings.Join(strings.Fields(s), " ")
 	return s
+}
+
+// bareHex — 숫자와 a-f가 섞인 토큰만 <HEX>. 순수 숫자는 <N>으로, 영단어(deadbeef 등)는 그대로 둔다.
+func bareHex(tok string) string {
+	if strings.ContainsAny(tok, "0123456789") && strings.ContainsAny(tok, "abcdefABCDEF") {
+		return "<HEX>"
+	}
+	return tok
 }
 
 // Hash — 템플릿 문자열의 16자(64bit) 해시.

@@ -258,3 +258,15 @@ func TestTemplatize_AuthUser_NoOvermask(t *testing.T) {
 		}
 	}
 }
+
+// Proxmox UPID의 16진 ID가 작업마다 달라 같은 작업 로그가 매번 새 템플릿이 되던 문제.
+func TestTemplatize_BareHexID(t *testing.T) {
+	a := Templatize("end task UPID:willkomo:0036E1B3:199BBA33:qmshutdown:171:root@pam: VM quit/powerdown failed - got timeout")
+	b := Templatize("end task UPID:willkomo:001E10C0:2A0F11D4:qmshutdown:105:root@pam: VM quit/powerdown failed - got timeout")
+	if a != b || !strings.Contains(a, "<HEX>") {
+		t.Errorf("16진 ID만 다른 로그는 같은 템플릿이어야 함:\n  a=%q\n  b=%q", a, b)
+	}
+	if got := Templatize("deadbeefcafe 12345678 willkomo"); got != "deadbeefcafe <N> willkomo" {
+		t.Errorf("영단어·순수 숫자는 HEX로 바꾸지 않아야 함: %q", got)
+	}
+}
