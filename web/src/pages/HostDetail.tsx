@@ -32,7 +32,7 @@ export default function HostDetailPage() {
   const { data: anomalyData } = useAnomalyData()
   const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
   const th = thresholds(alertCfg)
-  const { data: activeAlerts = [], refetch: refetchAlerts } = useAlertStatus()
+  const { data: activeAlerts = [], refetch: refetchAlerts, isError: alertsError } = useAlertStatus()
 
   // Chart Data Queries
   const { data: cpuChart = [] } = useQuery({
@@ -151,7 +151,7 @@ export default function HostDetailPage() {
       )}
 
       {hostName && (
-        <ActiveAlertsPanel alerts={activeAlerts} onChanged={refetchAlerts} host={hostName} />
+        <ActiveAlertsPanel alerts={activeAlerts} onChanged={refetchAlerts} host={hostName} error={alertsError} />
       )}
 
       {/* Metric Cards Grid */}

@@ -19,7 +19,7 @@ export default function OverviewPage() {
   const { data: hosts = [], isLoading: hostsLoading } = useHosts()
   const { data: hostStatuses = {} } = useAllHostStatuses(hosts)
   const { data: hostMetrics = {} } = useAllHostMetrics()
-  const { data: activeAlerts = [], refetch: refetchAlerts } = useAlertStatus()
+  const { data: activeAlerts = [], refetch: refetchAlerts, isError: alertsError } = useAlertStatus()
   const { data: uptimes = {} } = useUptimes()
   const { data: maintenanceHosts = [], refetch: refetchMaintenance } = useMaintenanceHosts()
 
@@ -63,6 +63,7 @@ export default function OverviewPage() {
       <ActiveAlertsPanel
         alerts={activeAlerts}
         onChanged={refetchAlerts}
+        error={alertsError}
         onSelectHost={(host) => navigate(`/detail?host=${host}`)}
       />
 

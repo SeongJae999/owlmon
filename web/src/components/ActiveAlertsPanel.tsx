@@ -16,9 +16,10 @@ interface Props {
   onChanged: () => void
   onSelectHost?: (host: string) => void
   host?: string // 지정 시 해당 호스트만 (상세 화면)
+  error?: boolean
 }
 
-export default function ActiveAlertsPanel({ alerts, onChanged, onSelectHost, host }: Props) {
+export default function ActiveAlertsPanel({ alerts, onChanged, onSelectHost, host, error }: Props) {
   const [pending, setPending] = useState<string | null>(null)
 
   const items = alerts
@@ -37,6 +38,16 @@ export default function ActiveAlertsPanel({ alerts, onChanged, onSelectHost, hos
     } finally {
       setPending(null)
     }
+  }
+
+  // 조회 실패를 "문제 없음"으로 보여주면 장애를 정상으로 오인함
+  if (error) {
+    return (
+      <div role="alert" className={cn('rounded-xl border px-4 py-3 flex items-center gap-2 text-sm', TONES.amber.bg, TONES.amber.border, TONES.amber.text)}>
+        <AlertTriangle size={16} className="shrink-0" />
+        알림 상태를 불러오지 못했습니다 — 서버 연결을 확인하세요
+      </div>
+    )
   }
 
   if (items.length === 0) {
