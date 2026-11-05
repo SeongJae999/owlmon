@@ -57,21 +57,7 @@ func NewLogHandler(
 
 // Ingest POST /api/logs/ingest — 에이전트에서 호출 (Agent Key 인증)
 func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
-	// Agent Key 인증
-	key := r.Header.Get("X-Agent-Key")
-	
-	valid := false
-	if h.legacyKey != "" && key == h.legacyKey {
-		valid = true
-	} else if h.agentStore != nil {
-		agent, err := h.agentStore.GetByKey(r.Context(), key)
-		if err == nil && agent.Status == "active" {
-			valid = true
-			go h.agentStore.UpdateLastSeen(context.Background(), key)
-		}
-	}
-
-	if !valid {
+	if !validAgentKey(r, h.legacyKey, h.agentStore) {
 		http.Error(w, "인증 실패 또는 비활성화된 에이전트", http.StatusUnauthorized)
 		return
 	}
