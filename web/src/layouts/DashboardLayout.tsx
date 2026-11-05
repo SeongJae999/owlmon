@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import { logout } from '../api/auth'
 import { useAlertStatus } from '../hooks/useMonitoring'
@@ -205,7 +205,9 @@ export default function DashboardLayout() {
         <main className="flex-1 overflow-y-auto p-6 lg:p-8 scroll-smooth">
           <div className="w-full">
             <EmailStatusBanner />
-            <Outlet />
+            <Suspense fallback={<div className="py-12 text-center text-sm text-slate-500">불러오는 중...</div>}>
+              <Outlet />
+            </Suspense>
           </div>
 
           {/* Global Footer in Main Area */}

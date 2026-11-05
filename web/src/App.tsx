@@ -1,26 +1,27 @@
+import { lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { isLoggedIn } from './api/auth'
 import LoginPage from './components/LoginPage'
 import DashboardLayout from './layouts/DashboardLayout'
 
-// Pages
-import OverviewPage from './pages/Overview'
-import HostDetailPage from './pages/HostDetail'
-import AlertSettings from './components/AlertSettings'
-import AlertHistory from './components/AlertHistory'
-import SNMPDashboard from './components/SNMPDashboard'
-import AssetManagement from './components/AssetManagement'
-import WebsiteMonitoring from './components/WebsiteMonitoring'
-import DPMDashboard from './components/DPMDashboard'
-import LogViewer from './components/LogViewer'
-import InsightDashboard from './pages/InsightDashboard'
-import ChatPage from './pages/ChatPage'
-import MonthlyReportModal from './components/MonthlyReport'
-import RulesPage from './pages/RulesPage'
-import RuleStatsPage from './pages/RuleStatsPage'
-import TrendsPage from './pages/TrendsPage'
-import SupportPage from './pages/SupportPage'
-import AuditLogPage from './pages/AuditLogPage'
+// 페이지별 코드 분할 — 첫 로딩 번들 축소 (Recharts 등은 쓰는 페이지에서만 로드)
+const OverviewPage = lazy(() => import('./pages/Overview'))
+const HostDetailPage = lazy(() => import('./pages/HostDetail'))
+const AlertSettings = lazy(() => import('./components/AlertSettings'))
+const AlertHistory = lazy(() => import('./components/AlertHistory'))
+const SNMPDashboard = lazy(() => import('./components/SNMPDashboard'))
+const AssetManagement = lazy(() => import('./components/AssetManagement'))
+const WebsiteMonitoring = lazy(() => import('./components/WebsiteMonitoring'))
+const DPMDashboard = lazy(() => import('./components/DPMDashboard'))
+const LogViewer = lazy(() => import('./components/LogViewer'))
+const InsightDashboard = lazy(() => import('./pages/InsightDashboard'))
+const ChatPage = lazy(() => import('./pages/ChatPage'))
+const MonthlyReportModal = lazy(() => import('./components/MonthlyReport'))
+const RulesPage = lazy(() => import('./pages/RulesPage'))
+const RuleStatsPage = lazy(() => import('./pages/RuleStatsPage'))
+const TrendsPage = lazy(() => import('./pages/TrendsPage'))
+const SupportPage = lazy(() => import('./pages/SupportPage'))
+const AuditLogPage = lazy(() => import('./pages/AuditLogPage'))
 
 export default function App() {
   const authenticated = isLoggedIn()
