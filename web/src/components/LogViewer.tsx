@@ -14,6 +14,7 @@ import { getLLMStatus, explainLog, type ExplainResult } from '../api/llm'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { cn } from '../utils/cn'
 import { TONES } from '../utils/severity'
+import Markdown from './Markdown'
 import AnnotateModal from './AnnotateModal'
 
 // 시간 범위 프리셋
@@ -790,9 +791,7 @@ export default function LogViewer() {
                   </div>
                 )}
                 {explainResult && (
-                  <pre className="text-sm text-slate-200 whitespace-pre-wrap break-words font-sans leading-relaxed">
-                    {explainResult.explanation}
-                  </pre>
+                  <Markdown text={explainResult.explanation} className="text-sm text-slate-200 leading-relaxed" />
                 )}
               </div>
 

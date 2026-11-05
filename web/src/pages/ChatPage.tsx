@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { sendChat, type ChatMessage } from '../api/chat'
 import { getLLMStatus } from '../api/llm'
 import { useQuery } from '@tanstack/react-query'
+import Markdown from '../components/Markdown'
 import { Sparkles, Send, User, Bot, AlertCircle } from 'lucide-react'
 
 const SUGGESTIONS = [
@@ -130,12 +131,12 @@ export default function ChatPage() {
                 }`}>
                   {m.role === 'user' ? <User size={15} className="text-white" /> : <Bot size={15} className="text-indigo-300" />}
                 </div>
-                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                   m.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-tr-sm'
+                    ? 'bg-indigo-600 text-white rounded-tr-sm whitespace-pre-wrap'
                     : 'bg-slate-800 text-slate-200 rounded-tl-sm'
                 }`}>
-                  {m.content}
+                  {m.role === 'user' ? m.content : <Markdown text={m.content} />}
                 </div>
               </div>
             </div>

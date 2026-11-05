@@ -10,6 +10,7 @@ import { cn } from '../utils/cn'
 import { TONES } from '../utils/severity'
 import SummaryCard from './SummaryCard'
 import PageToolbar from './PageToolbar'
+import Markdown from './Markdown'
 import { getLLMStatus, summarizeAlerts, type SummaryResult } from '../api/llm'
 
 const SEVERITY_CONFIG: Record<string, { bg: string, text: string, icon: any }> = {
@@ -382,9 +383,7 @@ export default function AlertHistory() {
                 </div>
               )}
               {aiSummary && (
-                <pre className="text-sm text-slate-200 whitespace-pre-wrap break-words font-sans leading-relaxed">
-                  {aiSummary.summary}
-                </pre>
+                <Markdown text={aiSummary.summary} className="text-sm text-slate-200 leading-relaxed" />
               )}
             </div>
 
