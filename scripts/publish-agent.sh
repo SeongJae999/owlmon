@@ -3,13 +3,13 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-TARGET="${TARGET:-owlmon@192.168.0.30:owlmon/data/owlmon-server/agents/}"
-OUT="$(mktemp -d)/owlmon-agent-linux-amd64"
+SERVER="${SERVER:-owlmon@192.168.0.30}"
+NAME="owlmon-agent-linux-amd64"
+OUT="$(mktemp -d)/$NAME"
 
 (cd "$REPO/agent" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$OUT" .)
 (cd "$REPO/server" && go run ./cmd/agentsign "$OUT")
-# 임시 이름으로 올린 뒤 mv로 교체 — 전송 중인 반쪽 파일이 서비스되지 않게
-rsync -az "$OUT" "$TARGET.owlmon-agent-linux-amd64.tmp"
-rsync -az "$OUT.sig" "$TARGET.owlmon-agent-linux-amd64.sig.tmp"
-ssh "${TARGET%%:*}" "cd ${TARGET#*:} && mv .owlmon-agent-linux-amd64.sig.tmp owlmon-agent-linux-amd64.sig && mv .owlmon-agent-linux-amd64.tmp owlmon-agent-linux-amd64"
+rsync -az "$OUT" "$OUT.sig" "$SERVER:/tmp/"
+# 볼륨 디렉토리는 컨테이너 소유라 docker cp로 넣음
+ssh "$SERVER" "docker cp /tmp/$NAME.sig owlmon-server:/app/data/agents/ && docker cp /tmp/$NAME owlmon-server:/app/data/agents/ && rm /tmp/$NAME /tmp/$NAME.sig"
 echo "게시 완료: $(shasum -a 256 "$OUT" | cut -c1-12)"
