@@ -123,6 +123,7 @@ func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig) error {
 		return err
 	}
 	reader := bufio.NewReader(f)
+	var pending string // 개행 전까지 쓰인 미완성 라인 (다음 Write 때 이어붙임)
 
 	for {
 		select {
@@ -137,7 +138,15 @@ func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig) error {
 				return nil // 재시도 루프로 복귀
 			}
 			if ev.Op&fsnotify.Write != 0 {
-				t.drainNewLines(reader, cfg)
+				// copytruncate 회전: 파일이 읽은 위치보다 작아지면 처음부터 다시 읽음
+				if truncated(f, reader) {
+					if _, err := f.Seek(0, io.SeekStart); err != nil {
+						return err
+					}
+					reader.Reset(f)
+					pending = ""
+				}
+				pending = t.drainNewLines(reader, cfg, pending)
 			}
 		case err := <-watcher.Errors:
 			return err
@@ -145,12 +154,33 @@ func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig) error {
 	}
 }
 
-// drainNewLines는 reader에서 가능한 모든 새 라인을 읽어 버퍼에 추가합니다.
-func (t *Tailer) drainNewLines(reader *bufio.Reader, cfg config.TailConfig) {
+const maxPendingLine = 64 << 10
+
+// truncated는 파일 크기가 현재 읽기 위치보다 작아졌는지(copytruncate) 확인합니다.
+func truncated(f *os.File, reader *bufio.Reader) bool {
+	pos, err := f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return false
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return st.Size() < pos-int64(reader.Buffered())
+}
+
+// drainNewLines는 reader에서 가능한 모든 새 라인을 읽어 버퍼에 추가하고,
+// 개행 없이 끝난 미완성 라인을 반환합니다 (버리면 라인 앞부분이 유실됨).
+func (t *Tailer) drainNewLines(reader *bufio.Reader, cfg config.TailConfig, pending string) string {
 	for {
-		line, err := reader.ReadString('\n')
+		chunk, err := reader.ReadString('\n')
+		line := pending + chunk
+		pending = ""
 		if err != nil {
-			break
+			if len(line) < maxPendingLine {
+				return line
+			}
+			// 개행 없이 계속 쌓이는 경우(바이너리 등) 무한 증가 방지 — 한 줄로 확정
 		}
 		line = strings.TrimRight(line, "\r\n")
 		if line == "" {
