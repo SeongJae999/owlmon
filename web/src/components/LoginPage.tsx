@@ -20,8 +20,13 @@ export default function LoginPage({ onLogin }: Props) {
     try {
       await login(username, password)
       onLogin()
-    } catch {
-      setError('아이디 또는 비밀번호가 올바르지 않습니다.')
+    } catch (err: any) {
+      // 429 = 연속 실패 잠금 — 서버가 남은 시간을 담아 보냄
+      setError(
+        err?.response?.status === 429 && typeof err.response.data === 'string'
+          ? err.response.data.trim()
+          : '아이디 또는 비밀번호가 올바르지 않습니다.',
+      )
     } finally {
       setLoading(false)
     }
