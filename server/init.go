@@ -238,6 +238,9 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 	if appCtx.LogInsightStore != nil {
 		cfg := loginsight.LoadConfig()
 		provider := llm.NewProvider()
+		if op, ok := provider.(*llm.OllamaProvider); ok {
+			op.JSON = true // 분류 전용 인스턴스 — 챗봇·설명은 router.go의 별도 인스턴스
+		}
 		analyzer := loginsight.NewAnalyzer(provider,
 			loginsight.WithMasking(func(s string) string {
 				return masking.Mask(s, masking.DefaultOptions())

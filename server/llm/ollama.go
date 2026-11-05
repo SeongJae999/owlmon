@@ -21,6 +21,9 @@ import (
 type OllamaProvider struct {
 	URL   string // 예: http://localhost:11434
 	Model string // 예: gemma4:12b
+	// JSON — 분류용 인스턴스 전용: format=json + 낮은 temperature로 같은 로그에 같은 판단을 내게 한다.
+	// 챗봇/설명은 공유 인스턴스(false)를 쓰므로 영향 없음.
+	JSON bool
 }
 
 func (p *OllamaProvider) Name() string { return "ollama:" + p.Model }
@@ -38,6 +41,7 @@ type ollamaRequest struct {
 	// 영문 추론을 길게 생성해 구조화 출력(JSON)을 못 내고 토큰을 낭비한다.
 	// false로 끄면 즉시 본문 생성. 비-thinking 모델(qwen 등)은 이 값을 무시한다.
 	Think   *bool          `json:"think,omitempty"`
+	Format  string         `json:"format,omitempty"`
 	Options map[string]any `json:"options,omitempty"`
 }
 
@@ -61,6 +65,10 @@ func (p *OllamaProvider) Complete(ctx context.Context, systemPrompt, userPrompt 
 			"temperature": 0.3,
 			"num_predict": 800,
 		},
+	}
+	if p.JSON {
+		body.Format = "json"
+		body.Options["temperature"] = 0.1
 	}
 	b, _ := json.Marshal(body)
 
