@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // AgentUpdateHandler는 agent self-update를 위한 바이너리 호스팅.
@@ -93,6 +95,10 @@ func (h *AgentUpdateHandler) GetLatest(w http.ResponseWriter, r *http.Request) {
 		"size":     size,
 		"modified": stat.ModTime().UTC().Format("2006-01-02T15:04:05Z"),
 	}
+	// 서명은 개발 Mac에서 agentsign으로 생성해 바이너리 옆에 업로드 (서버는 개인키를 모름)
+	if sig, err := os.ReadFile(path + ".sig"); err == nil {
+		resp["signature"] = strings.TrimSpace(string(sig))
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
@@ -125,7 +131,7 @@ func (h *AgentUpdateHandler) GetBinary(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", "attachment; filename="+binaryName(osName, arch))
 	if stat != nil {
-		w.Header().Set("Content-Length", "")
+		w.Header().Set("Content-Length", strconv.FormatInt(stat.Size(), 10))
 	}
 	_, _ = io.Copy(w, f)
 }

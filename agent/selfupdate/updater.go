@@ -2,17 +2,20 @@
 //
 // 망분리 환경에서 운영자가 일일이 sudo 명령 안 쳐도 되도록 — agent가 알아서.
 // 안전장치:
-//   • opt-in (config.yaml의 self_update.enabled: true 필요)
-//   • sha256 검증 (받은 바이너리 무결성 확인)
-//   • 기존 바이너리 백업 (실패 시 복원)
-//   • staged: 새 파일 검증 후에만 교체
+//   - opt-in (config.yaml의 self_update.enabled: true 필요)
+//   - sha256 검증 (받은 바이너리 무결성 확인)
+//   - ed25519 서명 검증 (서버가 침해돼도 개발 Mac 개인키 없이는 바이너리를 바꿀 수 없음)
+//   - 기존 바이너리 백업 (실패 시 복원)
+//   - staged: 새 파일 검증 후에만 교체
 //
 // 동작: 6시간마다 GET /api/agent/latest → 새 버전이면 다운로드 → 교체 → exit
-//       (systemd가 자동 재시작 — Restart=always)
+//
+//	(systemd가 자동 재시작 — Restart=always)
 package selfupdate
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -25,6 +28,9 @@ import (
 	"time"
 )
 
+// signingPublicKey는 server/cmd/agentsign -gen 으로 만든 공개키. 개인키는 개발 Mac(~/.config/owlmon)에만 있음.
+const signingPublicKey = "27017c5bb54ee54878d225900920a85f83af50b6bdb00a5dd08412f591f5c5dc"
+
 // Config는 self-update 설정입니다.
 type Config struct {
 	Enabled       bool          `yaml:"enabled"`
@@ -36,10 +42,24 @@ type Config struct {
 
 // LatestResponse는 /api/agent/latest 응답.
 type LatestResponse struct {
-	Version  string `json:"version"`
-	SHA256   string `json:"sha256"`
-	Size     int64  `json:"size"`
-	Modified string `json:"modified"`
+	Version   string `json:"version"`
+	SHA256    string `json:"sha256"`
+	Size      int64  `json:"size"`
+	Modified  string `json:"modified"`
+	Signature string `json:"signature"`
+}
+
+// verifySignature는 sha256(hex)에 대한 ed25519 서명을 검증합니다.
+func verifySignature(pubHex, shaHex, sigHex string) error {
+	pub, _ := hex.DecodeString(pubHex)
+	sig, err := hex.DecodeString(sigHex)
+	if sigHex == "" || err != nil {
+		return fmt.Errorf("서명 없음 또는 형식 오류")
+	}
+	if !ed25519.Verify(ed25519.PublicKey(pub), []byte(shaHex), sig) {
+		return fmt.Errorf("서명 불일치")
+	}
+	return nil
 }
 
 // Start는 백그라운드 update loop를 띄웁니다.
@@ -111,6 +131,11 @@ func checkAndUpdate(cfg Config) error {
 	if currentSHA == latest.SHA256 {
 		log.Printf("[selfupdate] 최신 (sha=%s)", currentSHA[:12])
 		return nil
+	}
+
+	// 서명 검증을 다운로드 전에 — 서명이 맞는 sha256이어야 받은 파일과 비교할 의미가 있음
+	if err := verifySignature(signingPublicKey, latest.SHA256, latest.Signature); err != nil {
+		return fmt.Errorf("업데이트 거부 (%w) — 서명되지 않은 바이너리", err)
 	}
 
 	log.Printf("[selfupdate] 새 버전 발견: %s → %s — 다운로드 시작", currentSHA[:12], latest.SHA256[:12])
