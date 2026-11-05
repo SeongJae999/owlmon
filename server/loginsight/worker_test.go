@@ -59,7 +59,7 @@ func (s *stubStore) Save(ctx context.Context, ins *Insight) error {
 	return nil
 }
 
-func (s *stubStore) ByTemplate(ctx context.Context, hash string, maxAge time.Duration) (*Insight, error) {
+func (s *stubStore) ByTemplate(ctx context.Context, hash, host string, maxAge time.Duration) (*Insight, error) {
 	if v, ok := s.cached[hash]; ok {
 		return v, nil
 	}

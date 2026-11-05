@@ -29,7 +29,7 @@ func (s *stubInsightStore) List(ctx context.Context, f loginsight.Filter) ([]log
 	return s.listItems, s.listErr
 }
 
-func (s *stubInsightStore) ByTemplate(ctx context.Context, hash string, maxAge time.Duration) (*loginsight.Insight, error) {
+func (s *stubInsightStore) ByTemplate(ctx context.Context, hash, host string, maxAge time.Duration) (*loginsight.Insight, error) {
 	s.lastByTplKey = hash
 	return s.byTplResult, s.byTplErr
 }

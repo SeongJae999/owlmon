@@ -118,7 +118,7 @@ func TestNilStore(t *testing.T) {
 	if _, err := s.List(ctx, Filter{}); err == nil {
 		t.Error("nil store List should error")
 	}
-	if _, err := s.ByTemplate(ctx, "x", time.Hour); err == nil {
+	if _, err := s.ByTemplate(ctx, "x", "", time.Hour); err == nil {
 		t.Error("nil store ByTemplate should error")
 	}
 	if err := s.TouchTemplate(ctx, "x"); err == nil {

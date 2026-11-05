@@ -113,10 +113,10 @@ func (s *Store) List(ctx context.Context, f Filter) ([]Insight, error) {
 	return out, rows.Err()
 }
 
-// ByTemplate — template_hash로 maxAge 내 캐시된 인사이트 조회.
+// ByTemplate — (템플릿, 호스트)의 maxAge 내 최신 인사이트. host가 ""이면 호스트 무관.
 // 캐시 hit이 없거나 만료되었으면 (nil, nil).
 // Worker가 LLM 호출 직전에 체크해서 중복 호출을 방지.
-func (s *Store) ByTemplate(ctx context.Context, hash string, maxAge time.Duration) (*Insight, error) {
+func (s *Store) ByTemplate(ctx context.Context, hash, host string, maxAge time.Duration) (*Insight, error) {
 	if s == nil || s.pool == nil {
 		return nil, errors.New("Store: pool 미설정")
 	}
@@ -125,12 +125,14 @@ func (s *Store) ByTemplate(ctx context.Context, hash string, maxAge time.Duratio
 	}
 	cutoff := time.Now().Add(-maxAge)
 
-	var cacheID int64
+	// 만료 기준은 분석 시각 — 재발 시각(last_seen_at) 기준이면 반복 패턴이 영영 재분석되지 않는다
+	var id int64
 	err := s.pool.QueryRow(ctx, `
-		SELECT last_insight_id FROM log_template_cache
-		WHERE template_hash = $1 AND last_seen_at >= $2`,
-		hash, cutoff,
-	).Scan(&cacheID)
+		SELECT id FROM log_insights
+		WHERE template_hash = $1 AND ($2 = '' OR host_name = $2) AND created_at >= $3
+		ORDER BY created_at DESC LIMIT 1`,
+		hash, host, cutoff,
+	).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -138,7 +140,7 @@ func (s *Store) ByTemplate(ctx context.Context, hash string, maxAge time.Duratio
 		return nil, err
 	}
 
-	return s.getByID(ctx, cacheID)
+	return s.getByID(ctx, id)
 }
 
 // TouchTemplate — 같은 패턴이 또 등장했지만 LLM 호출은 건너뛸 때

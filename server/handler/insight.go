@@ -14,7 +14,7 @@ import (
 // 실제로는 *loginsight.Store가 만족.
 type insightStore interface {
 	List(ctx context.Context, f loginsight.Filter) ([]loginsight.Insight, error)
-	ByTemplate(ctx context.Context, hash string, maxAge time.Duration) (*loginsight.Insight, error)
+	ByTemplate(ctx context.Context, hash, host string, maxAge time.Duration) (*loginsight.Insight, error)
 }
 
 // InsightHandler — log_insights 조회 API.
@@ -102,7 +102,7 @@ func (h *InsightHandler) ByTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ins, err := h.store.ByTemplate(r.Context(), hash, 24*time.Hour)
+	ins, err := h.store.ByTemplate(r.Context(), hash, "", 24*time.Hour)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "조회 실패", err)
 		return

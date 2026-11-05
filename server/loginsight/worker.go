@@ -20,7 +20,7 @@ type analyzerIface interface {
 // storeIface — Worker가 사용하는 저장소 인터페이스.
 type storeIface interface {
 	Save(ctx context.Context, ins *Insight) error
-	ByTemplate(ctx context.Context, hash string, maxAge time.Duration) (*Insight, error)
+	ByTemplate(ctx context.Context, hash, host string, maxAge time.Duration) (*Insight, error)
 	TouchTemplate(ctx context.Context, hash string) error
 }
 
@@ -172,7 +172,7 @@ func (w *Worker) processGroups(ctx context.Context, groups []LogGroup) (int, err
 		if budget <= 0 {
 			break
 		}
-		cached, _ := w.store.ByTemplate(ctx, g.TemplateHash, w.cfg.CacheTTL)
+		cached, _ := w.store.ByTemplate(ctx, g.TemplateHash, g.HostName, w.cfg.CacheTTL)
 		if cached != nil {
 			_ = w.store.TouchTemplate(ctx, g.TemplateHash)
 			continue
