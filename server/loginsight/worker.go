@@ -2,6 +2,7 @@ package loginsight
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -31,9 +32,15 @@ type Worker struct {
 	analyzer analyzerIface
 	store    storeIface
 
+	// Notify — 연속 실패/복구 시 호출 (nil이면 알림 없음). 화면 배지만으론 장애를 못 알아채서 메일로 통지.
+	Notify func(severity, subject, body string)
+
 	mu     sync.Mutex
 	health Health
+	fails  int
 }
+
+const alertAfterFails = 3
 
 // Health — 워커 최근 성공/실패 시각. LLM 장애가 로그에만 묻히지 않도록 status API로 노출.
 type Health struct {
@@ -56,11 +63,26 @@ func (w *Worker) Health() Health {
 func (w *Worker) record(err error) {
 	now := time.Now()
 	w.mu.Lock()
-	defer w.mu.Unlock()
+	var send func()
 	if err != nil {
 		w.health.LastErrorAt = &now
+		w.fails++
+		if w.fails == alertAfterFails && w.Notify != nil {
+			body := fmt.Sprintf("AI 로그 분석이 %d회 연속 실패했습니다.\n복구될 때까지 새 로그 패턴이 분석되지 않습니다.\n\n오류: %v", w.fails, err)
+			send = func() { w.Notify("warning", "🟠 AI 로그 분석 중단 — 연속 실패", body) }
+		}
 	} else {
 		w.health.LastSuccessAt = &now
+		if w.fails >= alertAfterFails && w.Notify != nil {
+			send = func() {
+				w.Notify("info", "[복구] AI 로그 분석 재개", "AI 로그 분석이 정상화되었습니다.")
+			}
+		}
+		w.fails = 0
+	}
+	w.mu.Unlock()
+	if send != nil {
+		send()
 	}
 }
 

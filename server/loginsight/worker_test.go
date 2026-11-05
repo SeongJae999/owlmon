@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -296,5 +297,29 @@ func TestHealth_FailThenRecover(t *testing.T) {
 	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "b", HostName: "web1"}})
 	if h := w.Health(); h.Failing() || h.LastSuccessAt == nil {
 		t.Fatalf("성공 후 복구돼야 함: %+v", h)
+	}
+}
+
+// 연속 3회 실패 시 1번만 경고, 이후 성공 시 복구 통지. 단발 실패는 알리지 않음.
+func TestNotify_ConsecutiveFailThenRecover(t *testing.T) {
+	ana := &stubAnalyzer{err: errors.New("LLM down")}
+	w := newTestWorker(ana, newStubStore(), 10)
+	var got []string
+	w.Notify = func(sev, _, _ string) { got = append(got, sev) }
+
+	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "a", HostName: "web1"}})
+	ana.err = nil
+	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "b", HostName: "web1"}})
+	if len(got) != 0 {
+		t.Fatalf("단발 실패는 알리지 않아야 함: %v", got)
+	}
+
+	ana.err = errors.New("LLM down")
+	groups := []LogGroup{{TemplateHash: "c"}, {TemplateHash: "d"}, {TemplateHash: "e"}, {TemplateHash: "f"}}
+	w.processGroups(context.Background(), groups)
+	ana.err = nil
+	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "g"}})
+	if strings.Join(got, ",") != "warning,info" {
+		t.Fatalf("경고 1회 + 복구 1회여야 함: %v", got)
 	}
 }

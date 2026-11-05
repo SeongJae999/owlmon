@@ -248,6 +248,9 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 			}),
 		)
 		worker := loginsight.New(cfg, appCtx.DBPool, analyzer, appCtx.LogInsightStore)
+		worker.Notify = func(severity, subject, body string) {
+			checker.SendAlert("owlmon", "monitoring", severity, subject, body)
+		}
 		worker.Start(ctx)
 		appCtx.LogInsightWorker = worker
 	}
