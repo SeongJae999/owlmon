@@ -1,0 +1,10 @@
+{"id":"prod-vm-powerdown","log":"<root@pam> end task UPID:willkomo:0036E1B3:qmshutdown:171:root@pam: VM quit/powerdown failed - got timeout","want_sev":"medium","want_human":true,"note":"[잠정] VM 종료 타임아웃 — 확인 필요하나 치명적 아님"}
+{"id":"prod-apt-update","log":"<root@pam> end task UPID:willkomo:001E10C0:aptupdate::root@pam: command 'apt-get update' failed: exit code 100","want_sev":"medium","want_human":false,"note":"[잠정] apt 미러 일시 오류 흔함"}
+{"id":"prod-backup-fail","log":"ERROR: Backup job failed - interrupted by signal","want_sev":"high","want_human":true,"note":"[잠정] 백업 실패는 중요"}
+{"id":"prod-backup-vm100","log":"ERROR: Backup of VM 100 failed - interrupted by signal","want_sev":"high","want_human":true,"note":"[잠정] VM 백업 실패"}
+{"id":"prod-erst","log":"ERST: Failed to get Error Log Address Range.","want_sev":"low","want_human":false,"note":"[잠정] 펌웨어 양성 메시지, 무해로 알려짐"}
+{"id":"prod-nm-wait","log":"Failed to start NetworkManager-wait-online.service - Network Manager Wait Online.","want_sev":"low","want_human":false,"note":"[잠정] 흔한 부팅 경고, 보통 무해"}
+{"id":"prod-fstat","log":"/dev/VMDK_Volume/vm-102-disk-0: fstat failed: Has device name changed?","want_sev":"medium","want_human":true,"note":"[잠정] 디스크 인식 이상 가능"}
+{"id":"prod-qmclone","log":"<root@pam> end task UPID:willkomo:003C0E16:qmclone:201:root@pam: clone failed: copy failed","want_sev":"high","want_human":true,"note":"[잠정] VM 복제 작업 실패"}
+{"id":"prod-netplan","log":"<warn> device (enp195s0f0np0): Activation: failed for connection 'netplan-enp195s' (반복)","want_sev":"medium","want_human":true,"note":"[잠정] 네트워크 인터페이스 활성 반복 실패"}
+{"id":"prod-fb0","log":"(EE) open /dev/fb0: Permission denied","want_sev":"low","want_human":false,"note":"[잠정] 헤드리스 서버 디스플레이, 무해"}

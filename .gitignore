@@ -19,6 +19,7 @@ bin/
 # Go 빌드 산출물 (에이전트/서버 단일 바이너리)
 /agent/agent
 /server/server
+/server/llmeval
 /agent/owlmon-agent-mac-*
 /agent/owlmon-agent-windows*
 /agent/owlmon-agent-linux-*

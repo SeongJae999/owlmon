@@ -1,0 +1,6 @@
+{"id":"hist-datastore-120d","log":"pvestatd[1234]: storage 'nas' is not online - unable to connect to 192.168.0.50: Connection timed out","want_sev":"high","want_human":true,"hist_days":120,"hist_n":3,"note":"실장애 장기 지속 → high + N일째 지속"}
+{"id":"hist-backup-5d","log":"vzdump[2211]: ERROR: Backup of VM 105 failed - unable to access storage 'nas'","want_sev":"high","want_human":true,"hist_days":5,"hist_n":5,"note":"백업 실패 5일 지속 → high"}
+{"id":"hist-apt-10d","log":"<root@pam> end task UPID:willkomo:001E10C0:aptupdate::root@pam: command 'apt-get update' failed: exit code 100","want_sev":"high","want_human":true,"hist_days":10,"hist_n":10,"note":"apt 일시오류도 10일 반복이면 격상 (프롬프트: 반복되면 격상)"}
+{"id":"hist-fb0-120d","log":"(EE) open /dev/fb0: Permission denied","want_sev":"low","want_human":false,"hist_days":120,"hist_n":4,"note":"헤드리스 양성 → 기간 무관 low"}
+{"id":"hist-waitonline-60d","log":"systemd[1]: Failed to start NetworkManager-wait-online.service - Network Manager Wait Online.","want_sev":"low","want_human":false,"hist_days":60,"hist_n":6,"note":"wait-online 양성 → low 유지"}
+{"id":"hist-pmlogger-90d","log":"systemd[1]: pmlogger_daily.service: Succeeded.","want_sev":"low","want_human":false,"hist_days":90,"hist_n":9,"note":"정상 종료 → 기간 무관 low"}

@@ -1,0 +1,20 @@
+{"id":"normal-pmlogger","log":"will systemd[1]: pmlogger_daily.service: Succeeded.","want_sev":"low","want_human":false,"note":"배치 정상종료"}
+{"id":"normal-logrotate","log":"logrotate.service: Deactivated successfully.","want_sev":"low","want_human":false,"note":"배치 정상종료"}
+{"id":"normal-certbot","log":"certbot-renew.service: Succeeded.","want_sev":"low","want_human":false,"note":"인증서갱신 정상"}
+{"id":"normal-anacron","log":"anacron[1234]: Job `cron.daily' terminated (success)","want_sev":"low","want_human":false,"note":"cron 정상"}
+{"id":"normal-tmpfiles","log":"systemd-tmpfiles-clean.service: Deactivated successfully.","want_sev":"low","want_human":false,"note":"임시파일정리 정상"}
+{"id":"normal-session","log":"sshd[2201]: pam_unix(sshd:session): session opened for user deploy by (uid=0)","want_sev":"low","want_human":false,"note":"정상 로그인"}
+{"id":"disk-full","log":"postgres: PANIC: could not write to file \"pg_wal/000000010000000000000042\": No space left on device","want_sev":"critical","want_human":true,"note":"디스크풀 DB중단"}
+{"id":"oom-mysqld","log":"kernel: Out of memory: Killed process 1234 (mysqld)","want_sev":"high","want_human":true,"note":"OOM"}
+{"id":"ssh-brute","log":"sshd[2233]: Failed password for root from 203.0.113.9 port 44512 ssh2 (47회 반복)","want_sev":"high","want_human":true,"note":"무차별대입"}
+{"id":"disk-90","log":"agent: disk usage on / is 92% (warning threshold 90%)","want_sev":"high","want_human":true,"note":"디스크 임박"}
+{"id":"nginx-502-repeat","log":"nginx: connect() failed (111: Connection refused) while connecting to upstream (38회 반복)","want_sev":"high","want_human":true,"note":"백엔드다운 반복"}
+{"id":"nginx-502-once","log":"nginx: connect() failed (111: Connection refused) while connecting to upstream (1회)","want_sev":"medium","want_human":false,"note":"일시적 1회"}
+{"id":"db-deadlock","log":"postgres: ERROR: deadlock detected","want_sev":"medium","want_human":true,"note":"DB 데드락"}
+{"id":"cert-expire","log":"ssl-checker: certificate for example.com expires in 5 days","want_sev":"high","want_human":true,"note":"인증서 만료임박"}
+{"id":"tcp-oom-once","log":"kernel: TCP: out of memory -- consider tuning tcp_mem (1회)","want_sev":"medium","want_human":false,"note":"1회 경고 과잉반응 금지"}
+{"id":"service-failed","log":"systemd[1]: nginx.service: Main process exited, code=exited, status=1/FAILURE","want_sev":"high","want_human":true,"note":"진짜 실패(exit 1)"}
+{"id":"auth-fail-once","log":"sshd[999]: Failed password for invalid user test from 10.0.0.5 port 22 ssh2 (1회)","want_sev":"low","want_human":false,"note":"1회 오타 수준"}
+{"id":"readonly-fs","log":"kernel: EXT4-fs error (device sda1): ext4_journal_check_start: Detected aborted journal, remounting filesystem read-only","want_sev":"critical","want_human":true,"note":"파일시스템 읽기전용=심각"}
+{"id":"normal-backup","log":"backup-daily.service: Succeeded.","want_sev":"low","want_human":false,"note":"백업 정상완료"}
+{"id":"normal-info-start","log":"systemd[1]: Started Daily apt download activities.","want_sev":"low","want_human":false,"note":"정상 시작 메시지"}
