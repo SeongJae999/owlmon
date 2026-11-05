@@ -181,7 +181,7 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-40 sticky top-0">
+        <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 sm:px-6 shrink-0 z-40 sticky top-0">
           <div className="flex items-center gap-4">
             <button
               className="lg:hidden p-2 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors"
@@ -215,7 +215,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Scrollable Area */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8 scroll-smooth">
+        <main className="flex-1 overflow-y-auto p-3 pb-20 sm:p-6 lg:p-8 scroll-smooth">
           <div className="w-full">
             <EmailStatusBanner />
             <Suspense fallback={<div className="py-12 text-center text-sm text-slate-500">불러오는 중...</div>}>

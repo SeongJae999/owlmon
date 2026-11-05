@@ -430,7 +430,7 @@ function RuleEditor({ initial, onClose, onSaved }: {
             )}
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="심각도">
               <select value={form.severity} onChange={e => setForm({ ...form, severity: e.target.value as any })}
                 className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200">
