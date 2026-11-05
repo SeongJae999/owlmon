@@ -21,33 +21,42 @@ import {
   ListChecks,
   TrendingUp,
   Sparkles,
-  MessageCircle,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
 
-const NAV_ITEMS = [
-  { id: 'overview', path: '/', icon: LayoutGrid, label: '전체 현황', section: 'monitor' },
-  { id: 'trends', path: '/trends', icon: TrendingUp, label: '자원 추이', section: 'monitor' },
-  // 호스트 상세는 Overview 카드 클릭으로만 진입 — 사이드바에서 제거
-  { id: 'snmp', path: '/snmp', icon: Network, label: '네트워크 장비', section: 'monitor' },
-  { id: 'website', path: '/website', icon: Globe, label: '웹사이트 모니터링', section: 'monitor' },
-  { id: 'dpm', path: '/dpm', icon: Database, label: 'DB 성능', section: 'monitor' },
-  { id: 'logs', path: '/logs', icon: FileText, label: '로그 뷰어', section: 'monitor' },
-  { id: 'insights', path: '/insights', icon: Sparkles, label: 'AI 인사이트', section: 'monitor' },
-  { id: 'chat', path: '/chat', icon: MessageCircle, label: 'AI 도우미', section: 'monitor' },
-  { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 룰', section: 'manage' },
-  { id: 'alert-history', path: '/history', icon: History, label: '알림 히스토리', section: 'manage' },
-  { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 설정', section: 'manage' },
-  { id: 'audit', path: '/audit', icon: ShieldCheck, label: '감사 로그', section: 'manage' },
-  { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서', section: 'manage' },
-  { id: 'assets', path: '/assets', icon: Server, label: '자산 관리', section: 'manage' },
+// 기능 나열 대신 "문제 확인 → 장비 → 분석 → 설정" 흐름 순서. 경로(path)는 기존 그대로 (북마크 호환)
+const NAV_SECTIONS: { title?: string; collapsible?: boolean; items: { id: string; path: string; icon: any; label: string; match?: string[] }[] }[] = [
+  { items: [
+    { id: 'overview', path: '/', icon: LayoutGrid, label: '지금 상태', match: ['/detail'] },
+  ] },
+  { title: '문제·알림', items: [
+    { id: 'alert-history', path: '/history', icon: History, label: '지난 알림' },
+    { id: 'insights', path: '/insights', icon: Sparkles, label: 'AI 분석 결과' },
+  ] },
+  { title: '장비별 보기', items: [
+    { id: 'snmp', path: '/snmp', icon: Network, label: '네트워크 장비' },
+    { id: 'website', path: '/website', icon: Globe, label: '웹사이트' },
+    { id: 'dpm', path: '/dpm', icon: Database, label: '데이터베이스' },
+  ] },
+  { title: '분석 도구', items: [
+    { id: 'trends', path: '/trends', icon: TrendingUp, label: '사용량 추이' },
+    { id: 'logs', path: '/logs', icon: FileText, label: '로그 검색' },
+    { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서' },
+  ] },
+  { title: '설정', collapsible: true, items: [
+    { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 받는 사람·기준' },
+    { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 감지 규칙', match: ['/rules/stats'] },
+    { id: 'assets', path: '/assets', icon: Server, label: '장비 목록' },
+    { id: 'audit', path: '/audit', icon: ShieldCheck, label: '사용 기록' },
+  ] },
 ]
 
 export default function DashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const location = useLocation()
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const { data: activeAlerts = [] } = useAlertStatus()
 
   const unackedAlertCount = activeAlerts.filter(a => !a.acked && !a.in_maintenance).length
@@ -87,63 +96,66 @@ export default function DashboardLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-6 space-y-6 scrollbar-hide">
-          <div className="px-3">
-            {!sidebarCollapsed && <p className="text-xs font-semibold text-slate-500 px-3 mb-3">모니터링</p>}
-            <div className="space-y-1.5">
-              {NAV_ITEMS.filter(n => n.section === 'monitor').map(item => {
-                const isActive = location.pathname === item.path
-                return (
-                  <Link
-                    key={item.id}
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group relative font-semibold",
-                      isActive 
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
-                        : "hover:bg-slate-800/50 hover:text-white"
-                    )}
-                  >
-                    <item.icon size={20} className={cn("shrink-0 transition-transform duration-200 group-hover:scale-110", isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300")} />
-                    {!sidebarCollapsed && <span className="text-[13px]">{item.label}</span>}
-                    {item.id === 'overview' && unackedAlertCount > 0 && (
-                      <span className={cn(
-                        "absolute right-3 top-1/2 -translate-y-1/2 flex h-5 min-w-[20px] px-1 items-center justify-center rounded-full text-[10px] font-bold shadow-sm",
-                        isActive ? "bg-white text-indigo-600" : "bg-rose-500 text-white"
-                      )}>
-                        {unackedAlertCount}
-                      </span>
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="px-3">
-            {!sidebarCollapsed && <p className="text-xs font-semibold text-slate-500 px-3 mb-3">관리</p>}
-            <div className="space-y-1.5">
-              {NAV_ITEMS.filter(n => n.section === 'manage').map(item => {
-                const isActive = location.pathname === item.path
-                return (
-                  <Link
-                    key={item.id}
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group font-semibold",
-                      isActive 
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
-                        : "hover:bg-slate-800/50 hover:text-white"
-                    )}
-                  >
-                    <item.icon size={20} className={cn("shrink-0 transition-transform duration-200 group-hover:scale-110", isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300")} />
-                    {!sidebarCollapsed && <span className="text-[13px]">{item.label}</span>}
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
+          {NAV_SECTIONS.map(section => {
+            const isActive = (it: { path: string; match?: string[] }) =>
+              location.pathname === it.path || !!it.match?.includes(location.pathname)
+            // 설정은 평소 접어 둠 — 설정 화면에 있거나 사이드바가 아이콘 모드면 펼침
+            const open = !section.collapsible || settingsOpen || sidebarCollapsed || section.items.some(isActive)
+            return (
+              <div key={section.title ?? 'home'} className="px-3">
+                {section.title && !sidebarCollapsed && (
+                  section.collapsible ? (
+                    <button
+                      type="button"
+                      onClick={() => setSettingsOpen(o => !o)}
+                      aria-expanded={open}
+                      className="w-full flex items-center justify-between text-xs font-semibold text-slate-500 hover:text-slate-300 px-3 mb-3"
+                    >
+                      {section.title}
+                      <ChevronRight size={14} className={cn('transition-transform', open && 'rotate-90')} />
+                    </button>
+                  ) : (
+                    <p className="text-xs font-semibold text-slate-500 px-3 mb-3">{section.title}</p>
+                  )
+                )}
+                {open && (
+                  <div className="space-y-1.5">
+                    {section.items.map(item => {
+                      const active = isActive(item)
+                      return (
+                        <Link
+                          key={item.id}
+                          to={item.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          title={sidebarCollapsed ? item.label : undefined}
+                          className={cn(
+                            "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group relative font-semibold",
+                            active
+                              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                              : "hover:bg-slate-800/50 hover:text-white"
+                          )}
+                        >
+                          <item.icon size={20} className={cn("shrink-0 transition-transform duration-200 group-hover:scale-110", active ? "text-white" : "text-slate-500 group-hover:text-slate-300")} />
+                          {!sidebarCollapsed && <span className="text-[13px]">{item.label}</span>}
+                          {item.id === 'overview' && unackedAlertCount > 0 && (
+                            <span
+                              aria-label={`처리할 문제 ${unackedAlertCount}건`}
+                              className={cn(
+                                "absolute right-3 top-1/2 -translate-y-1/2 flex h-5 min-w-[20px] px-1 items-center justify-center rounded-full text-[10px] font-bold shadow-sm",
+                                active ? "bg-white text-indigo-600" : "bg-rose-500 text-white"
+                              )}
+                            >
+                              {unackedAlertCount}
+                            </span>
+                          )}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Footer */}
