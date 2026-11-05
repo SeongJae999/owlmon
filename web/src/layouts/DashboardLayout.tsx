@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
+import ChatWidget from '../components/ChatWidget'
 
 // 기능 나열 대신 "문제 확인 → 장비 → 분석 → 설정" 흐름 순서. 경로(path)는 기존 그대로 (북마크 호환)
 const NAV_SECTIONS: { title?: string; collapsible?: boolean; items: { id: string; path: string; icon: any; label: string; match?: string[] }[] }[] = [
@@ -55,8 +56,8 @@ const NAV_SECTIONS: { title?: string; collapsible?: boolean; items: { id: string
 export default function DashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const location = useLocation()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const location = useLocation()
   const { data: activeAlerts = [] } = useAlertStatus()
 
   const unackedAlertCount = activeAlerts.filter(a => !a.acked && !a.in_maintenance).length
@@ -235,6 +236,7 @@ export default function DashboardLayout() {
           </footer>
         </main>
       </div>
+      <ChatWidget />
     </div>
   )
 }

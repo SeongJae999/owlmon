@@ -15,7 +15,6 @@ const WebsiteMonitoring = lazy(() => import('./components/WebsiteMonitoring'))
 const DPMDashboard = lazy(() => import('./components/DPMDashboard'))
 const LogViewer = lazy(() => import('./components/LogViewer'))
 const InsightDashboard = lazy(() => import('./pages/InsightDashboard'))
-const ChatPage = lazy(() => import('./pages/ChatPage'))
 const MonthlyReportModal = lazy(() => import('./components/MonthlyReport'))
 const RulesPage = lazy(() => import('./pages/RulesPage'))
 const RuleStatsPage = lazy(() => import('./pages/RuleStatsPage'))
@@ -44,7 +43,8 @@ export default function App() {
         <Route path="/dpm" element={<DPMDashboard />} />
         <Route path="/logs" element={<LogViewer />} />
         <Route path="/insights" element={<InsightDashboard />} />
-        <Route path="/chat" element={<ChatPage />} />
+        {/* OWL AI는 모든 화면 우측 하단 버튼으로 이동 (ChatWidget) */}
+        <Route path="/chat" element={<Navigate to="/" replace />} />
         <Route path="/rules" element={<RulesPage />} />
         <Route path="/rules/stats" element={<RuleStatsPage />} />
         <Route path="/history" element={<AlertHistory />} />

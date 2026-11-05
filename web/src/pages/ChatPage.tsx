@@ -12,7 +12,7 @@ const SUGGESTIONS = [
   'nginx 502 오류는 보통 왜 생겨?',
 ]
 
-export default function ChatPage() {
+export default function ChatPage({ floating = false }: { floating?: boolean }) {
   // 메뉴 이동 후 돌아와도 대화 유지 (탭을 닫으면 초기화)
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
@@ -75,29 +75,31 @@ export default function ChatPage() {
   const disabled = llmStatus && !llmStatus.enabled
 
   return (
-    <div className="space-y-6">
+    <div className={floating ? 'h-full flex flex-col' : 'space-y-6'}>
       {/* Hero */}
-      <div className="flex items-center gap-3">
+      {!floating && <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center shrink-0">
           <Sparkles size={20} className="text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-100">AI 도우미</h1>
+          <h1 className="text-xl font-bold text-slate-100">OWL AI</h1>
           <p className="text-slate-400 text-sm mt-0.5">
             모니터링·서버·로그·보안 관련 질문에 한국어로 답해드립니다.
           </p>
         </div>
-      </div>
+      </div>}
 
       {disabled && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm">
-          <AlertCircle size={16} />
-          AI 도우미가 비활성화되어 있습니다 (서버에 OWLMON_LLM_PROVIDER 설정 필요).
+        <div className={`flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm ${floating ? 'm-3 rounded-lg' : 'rounded-xl'}`}>
+          <AlertCircle size={16} className="shrink-0" />
+          OWL AI가 꺼져 있습니다. 관리자(설치 업체)에게 활성화를 요청하세요.
         </div>
       )}
 
       {/* Chat window */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 flex flex-col h-[calc(100vh-260px)] min-h-[420px]">
+      <div className={floating
+        ? 'flex-1 min-h-0 flex flex-col'
+        : 'bg-slate-900 rounded-2xl border border-slate-800 flex flex-col h-[calc(100dvh-260px)] min-h-[420px]'}>
         <div ref={scrollRef} aria-live="polite" className="flex-1 overflow-y-auto p-5 space-y-4">
           {messages.length === 0 && !loading && (
             <div className="h-full flex flex-col items-center justify-center text-center gap-5">
@@ -125,7 +127,7 @@ export default function ChatPage() {
 
           {messages.map((m, i) => (
             <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-              <div className={`flex gap-2.5 max-w-[80%] ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div className={`flex gap-2.5 ${floating ? 'max-w-[90%]' : 'max-w-[80%]'} ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                   m.role === 'user' ? 'bg-indigo-600' : 'bg-slate-700'
                 }`}>
@@ -172,8 +174,8 @@ export default function ChatPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             disabled={disabled || loading}
-            aria-label="AI 도우미에게 질문"
-            placeholder={disabled ? 'AI 도우미 비활성화 상태' : '질문을 입력하세요…'}
+            aria-label="OWL AI에게 질문"
+            placeholder={disabled ? 'OWL AI 비활성화 상태' : '질문을 입력하세요…'}
             className="flex-1 bg-slate-800 text-slate-100 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-slate-700 focus:border-indigo-500 transition-colors disabled:opacity-50"
           />
           <button
@@ -186,7 +188,7 @@ export default function ChatPage() {
         </form>
       </div>
 
-      <p className="text-[11px] text-slate-500 text-center">
+      <p className={`text-[11px] text-slate-500 text-center ${floating ? 'pb-2' : ''}`}>
         AI 답변은 참고용입니다. 중요한 조치는 반드시 직접 확인 후 진행하세요.
       </p>
     </div>
