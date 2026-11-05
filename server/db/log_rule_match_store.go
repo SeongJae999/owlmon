@@ -60,17 +60,23 @@ func (s *LogRuleMatchStore) CountByRule(ctx context.Context, ruleID int64, windo
 	return n, err
 }
 
-// BatchInsertAndCount는 매칭을 INSERT하고 같은 트랜잭션에서 룰별 windowed COUNT를 반환한다.
+// RuleHost — threshold/cooldown 평가 단위 (호스트별로 따로 셈).
+type RuleHost struct {
+	RuleID int64
+	Host   string
+}
+
+// BatchInsertAndCount는 매칭을 INSERT하고 같은 트랜잭션에서 (룰, 호스트)별 windowed COUNT를 반환한다.
 // pgxpool 별도 connection의 commit visibility race를 회피 — INSERT 본인 row가 SELECT에 반드시 보임.
 //
-// windowByRule: rule_id → threshold_window(초). 없는 룰은 COUNT 안 함 (threshold 평가 불필요).
+// windows: (rule_id, host) → threshold_window(초). 없는 키는 COUNT 안 함 (threshold 평가 불필요).
 func (s *LogRuleMatchStore) BatchInsertAndCount(
 	ctx context.Context,
 	matches []LogRuleMatch,
-	windowByRule map[int64]int,
-) (map[int64]int, error) {
+	windows map[RuleHost]int,
+) (map[RuleHost]int, error) {
 	if len(matches) == 0 {
-		return map[int64]int{}, nil
+		return map[RuleHost]int{}, nil
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -96,19 +102,19 @@ func (s *LogRuleMatchStore) BatchInsertAndCount(
 		return nil, err
 	}
 
-	// 2) 룰별 COUNT (트랜잭션 안 — 본인 INSERT row 보장됨)
+	// 2) (룰, 호스트)별 COUNT (트랜잭션 안 — 본인 INSERT row 보장됨)
 	// timestamp를 Go 측에서 계산해서 직접 전달 — pgx의 int→text 변환 우회
-	counts := make(map[int64]int, len(windowByRule))
-	for ruleID, windowSec := range windowByRule {
+	counts := make(map[RuleHost]int, len(windows))
+	for key, windowSec := range windows {
 		threshold := time.Now().Add(-time.Duration(windowSec) * time.Second)
 		var c int
 		if err := tx.QueryRow(ctx, `
 			SELECT COUNT(*) FROM log_rule_matches
-			WHERE rule_id = $1 AND matched_at > $2`,
-			ruleID, threshold).Scan(&c); err != nil {
+			WHERE rule_id = $1 AND host = $2 AND matched_at > $3`,
+			key.RuleID, key.Host, threshold).Scan(&c); err != nil {
 			return nil, err
 		}
-		counts[ruleID] = c
+		counts[key] = c
 	}
 
 	if err := tx.Commit(ctx); err != nil {

@@ -115,13 +115,9 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 	defer cancel()
 
 	// 1. 매칭 수집
-	type triggerKey struct {
-		ruleID int64
-		host   string
-	}
 	var matches []db.LogRuleMatch
-	triggers := make(map[triggerKey]rules.Match)
-	windowByRule := make(map[int64]int) // 룰별 threshold_window (트랜잭션 COUNT 대상)
+	triggers := make(map[db.RuleHost]rules.Match)
+	windows := make(map[db.RuleHost]int) // threshold_window (트랜잭션 COUNT 대상)
 
 	for i, rec := range records {
 		for _, m := range h.rules.Evaluate(rec.Line) {
@@ -131,9 +127,10 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 				Host:     rec.Host,
 				Severity: m.Severity,
 			})
-			triggers[triggerKey{m.RuleID, rec.Host}] = m
+			key := db.RuleHost{RuleID: m.RuleID, Host: rec.Host}
+			triggers[key] = m
 			if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
-				windowByRule[m.RuleID] = m.ThresholdWindow
+				windows[key] = m.ThresholdWindow
 			}
 		}
 	}
@@ -142,16 +139,14 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 	}
 
 	// 2. 매칭 INSERT + 룰별 windowed COUNT (트랜잭션 안 — visibility race 회피)
-	var ruleCounts map[int64]int
+	counts := map[db.RuleHost]int{}
 	if h.matchStore != nil {
-		var err error
-		ruleCounts, err = h.matchStore.BatchInsertAndCount(ctx, matches, windowByRule)
+		c, err := h.matchStore.BatchInsertAndCount(ctx, matches, windows)
 		if err != nil {
-			log.Printf("[로그 룰] BatchInsertAndCount 실패 (매칭 %d건, 룰 %d개): %v", len(matches), len(windowByRule), err)
-			ruleCounts = map[int64]int{}
+			log.Printf("[로그 룰] BatchInsertAndCount 실패 (매칭 %d건, 대상 %d개): %v", len(matches), len(windows), err)
+		} else {
+			counts = c
 		}
-	} else {
-		ruleCounts = map[int64]int{}
 	}
 
 	// 3. 알림 트리거
@@ -159,26 +154,23 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 		return
 	}
 	for key, m := range triggers {
-		// cooldown
-		if !h.rules.CooldownPassed(ctx, key.ruleID, m.CooldownSeconds) {
+		// threshold (옵션) — 트랜잭션 안 COUNT라 신규 매칭 포함 보장
+		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 && counts[key] < m.ThresholdCount {
 			continue
 		}
-		// threshold (옵션) — 트랜잭션 안 COUNT라 신규 매칭 포함 보장
-		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
-			if ruleCounts[key.ruleID] < m.ThresholdCount {
-				continue
-			}
+		// cooldown — (룰, 호스트) 단위. 확인과 기록이 원자적이라 동시 ingest에도 중복 발송 없음
+		if !h.rules.TryAlert(key.RuleID, key.Host, m.CooldownSeconds) {
+			continue
 		}
-		subject := fmt.Sprintf("[OWLmon] %s — %s", key.host, m.Name)
+		subject := fmt.Sprintf("[OWLmon] %s — %s", key.Host, m.Name)
 		var detail string
 		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
 			detail = fmt.Sprintf(" (%d초 이내 %d회 이상 매칭)", m.ThresholdWindow, m.ThresholdCount)
 		}
 		body := fmt.Sprintf(
 			"호스트: %s\n룰: %s%s\n심각도: %s\n자세히: 웹 대시보드 → 로그 룰 / 로그 뷰어에서 확인.",
-			key.host, m.Name, detail, m.Severity)
-		h.sendAlert(key.host, "log_rule", m.Severity, subject, body)
-		_ = h.rules.RecordAlert(ctx, key.ruleID)
+			key.Host, m.Name, detail, m.Severity)
+		h.sendAlert(key.Host, "log_rule", m.Severity, subject, body)
 	}
 }
 
@@ -364,8 +356,9 @@ func (h *LogHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // Annotate POST /api/logs/{id}/annotate — 로그에 (원인, 조치) 라벨 부여
 //
 // 요청 body:
-//   { "category": "root_cause" | "action_taken" | "false_positive",
-//     "problem": "...", "solution": "...", "alert_id": 123 }
+//
+//	{ "category": "root_cause" | "action_taken" | "false_positive",
+//	  "problem": "...", "solution": "...", "alert_id": 123 }
 //
 // JWT 미들웨어에서 username을 추출해 annotator로 기록합니다.
 func (h *LogHandler) Annotate(w http.ResponseWriter, r *http.Request) {

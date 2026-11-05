@@ -24,8 +24,8 @@ type Rule struct {
 	ID              int64
 	Name            string
 	Severity        string
-	ThresholdCount  int    // 0이면 1회 매칭으로도 알림
-	ThresholdWindow int    // 초
+	ThresholdCount  int // 0이면 1회 매칭으로도 알림
+	ThresholdWindow int // 초
 	CooldownSeconds int
 	Category        string
 	Description     string
@@ -47,10 +47,13 @@ type Engine struct {
 	pool  *pgxpool.Pool
 	mu    sync.RWMutex
 	rules []Rule
+
+	cooldownMu sync.Mutex
+	lastAlert  map[string]time.Time // "ruleID|host" → 마지막 발송
 }
 
 func NewEngine(pool *pgxpool.Pool) *Engine {
-	return &Engine{pool: pool}
+	return &Engine{pool: pool, lastAlert: make(map[string]time.Time)}
 }
 
 // Reload는 DB에서 enabled 룰을 다시 로드하고 정규식을 컴파일한다.
@@ -126,27 +129,20 @@ func (e *Engine) Evaluate(line string) []Match {
 	return matches
 }
 
-// CooldownPassed는 룰의 cooldown이 만료됐는지 반환한다 (true면 알림 가능).
-// threshold 평가는 별도 — handler에서 트랜잭션 안 COUNT를 직접 비교.
-func (e *Engine) CooldownPassed(ctx context.Context, ruleID int64, cooldownSec int) bool {
-	var lastAt *time.Time
-	_ = e.pool.QueryRow(ctx,
-		`SELECT last_alerted_at FROM log_rule_alert_history WHERE rule_id = $1`,
-		ruleID).Scan(&lastAt)
-	if lastAt == nil {
-		return true
+// TryAlert는 (룰, 호스트)의 cooldown이 지났으면 지금을 발송 시각으로 기록하고 true를 반환한다.
+// ponytail: 메모리 보관이라 서버 재시작 시 cooldown 초기화 (재시작 직후 1회 중복 가능). 영속 필요 시 log_rule_alert_history에 host 컬럼 추가.
+func (e *Engine) TryAlert(ruleID int64, host string, cooldownSec int) bool {
+	key := fmt.Sprintf("%d|%s", ruleID, host)
+	e.cooldownMu.Lock()
+	defer e.cooldownMu.Unlock()
+	if e.lastAlert == nil {
+		e.lastAlert = make(map[string]time.Time)
 	}
-	return time.Since(*lastAt) >= time.Duration(cooldownSec)*time.Second
-}
-
-// RecordAlert는 알림 발송 시각을 갱신한다 (cooldown 평가용).
-func (e *Engine) RecordAlert(ctx context.Context, ruleID int64) error {
-	_, err := e.pool.Exec(ctx, `
-		INSERT INTO log_rule_alert_history (rule_id, last_alerted_at)
-		VALUES ($1, NOW())
-		ON CONFLICT (rule_id) DO UPDATE SET last_alerted_at = NOW()`,
-		ruleID)
-	return err
+	if last, ok := e.lastAlert[key]; ok && time.Since(last) < time.Duration(cooldownSec)*time.Second {
+		return false
+	}
+	e.lastAlert[key] = time.Now()
+	return true
 }
 
 // RuleCount는 현재 메모리에 로드된 enabled 룰 수.

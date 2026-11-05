@@ -87,3 +87,20 @@ func TestRuleCount(t *testing.T) {
 		t.Fatalf("RuleCount=2 기대, %d", got)
 	}
 }
+
+// cooldown은 (룰, 호스트) 단위 — web1 알림이 web2 알림을 막으면 안 됨.
+func TestTryAlert_PerHostCooldown(t *testing.T) {
+	e := &Engine{}
+	if !e.TryAlert(1, "web1", 300) {
+		t.Fatal("첫 알림은 통과")
+	}
+	if e.TryAlert(1, "web1", 300) {
+		t.Fatal("같은 호스트는 cooldown 중 억제")
+	}
+	if !e.TryAlert(1, "web2", 300) {
+		t.Fatal("다른 호스트는 독립적으로 통과해야 함")
+	}
+	if !e.TryAlert(1, "web1", 0) {
+		t.Fatal("cooldown 0이면 항상 통과")
+	}
+}
