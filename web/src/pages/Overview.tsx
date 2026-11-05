@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import HostOverview from '../components/HostOverview'
 import ActiveAlertsPanel from '../components/ActiveAlertsPanel'
+import HomeSummary from '../components/HomeSummary'
 import { 
   useHosts, 
   useAllHostStatuses, 
@@ -45,12 +46,19 @@ export default function OverviewPage() {
           <Monitor size={20} className="text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-100">시스템 상태 대시보드</h1>
+          <h1 className="text-xl font-bold text-slate-100">지금 상태</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            모든 호스트의 실시간 성능과 에이전트 연결 상태, 이상 탐지를 한눈에 확인합니다.
+            처리할 문제와 서버·네트워크·웹사이트·DB 상태를 한눈에 확인합니다.
           </p>
         </div>
       </div>
+
+      <HomeSummary
+        hosts={hosts}
+        hostStatuses={hostStatuses}
+        activeAlerts={activeAlerts}
+        maintenanceHosts={maintenanceHosts}
+      />
 
       <ActiveAlertsPanel
         alerts={activeAlerts}
