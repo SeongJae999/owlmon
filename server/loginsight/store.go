@@ -143,6 +143,24 @@ func (s *Store) ByTemplate(ctx context.Context, hash, host string, maxAge time.D
 	return s.getByID(ctx, id)
 }
 
+// History — 이 호스트에서 이 패턴의 첫 분석 시각과 분석 횟수 (이력 없으면 n=0).
+func (s *Store) History(ctx context.Context, hash, host string) (time.Time, int, error) {
+	if s == nil || s.pool == nil {
+		return time.Time{}, 0, errors.New("Store: pool 미설정")
+	}
+	var first *time.Time
+	var n int
+	err := s.pool.QueryRow(ctx, `
+		SELECT min(created_at), count(*) FROM log_insights
+		WHERE template_hash = $1 AND host_name = $2`,
+		hash, host,
+	).Scan(&first, &n)
+	if err != nil || first == nil {
+		return time.Time{}, 0, err
+	}
+	return *first, n, nil
+}
+
 // TouchTemplate — 같은 패턴이 또 등장했지만 LLM 호출은 건너뛸 때
 // hit_count + last_seen_at만 갱신.
 func (s *Store) TouchTemplate(ctx context.Context, hash string) error {

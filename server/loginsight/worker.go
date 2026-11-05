@@ -22,6 +22,7 @@ type storeIface interface {
 	Save(ctx context.Context, ins *Insight) error
 	ByTemplate(ctx context.Context, hash, host string, maxAge time.Duration) (*Insight, error)
 	TouchTemplate(ctx context.Context, hash string) error
+	History(ctx context.Context, hash, host string) (time.Time, int, error)
 }
 
 // Worker — log_insights 백그라운드 워커.
@@ -176,6 +177,9 @@ func (w *Worker) processGroups(ctx context.Context, groups []LogGroup) (int, err
 		if cached != nil {
 			_ = w.store.TouchTemplate(ctx, g.TemplateHash)
 			continue
+		}
+		if first, n, err := w.store.History(ctx, g.TemplateHash, g.HostName); err == nil {
+			g.FirstSeenAt, g.PriorAnalyses = first, n
 		}
 		ins, err := w.analyzer.Analyze(ctx, g)
 		if err != nil {

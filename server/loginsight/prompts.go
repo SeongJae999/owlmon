@@ -1,8 +1,10 @@
 package loginsight
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SystemPromptLogCluster — 클러스터링된 로그 그룹을 JSON으로 분석하라는 시스템 프롬프트.
@@ -71,6 +73,13 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
   아니라 애플리케이션/설정 문제일 가능성을 root_cause_ko에 반영하라.
 - 상태 블록이 없거나 "데이터 없음"이면 로그만으로 판단하되 과대평가하지 마라.
 
+패턴 이력 활용 (장기 미해결 감지):
+- 입력에 "[패턴 이력]"이 있으면 같은 문제가 그 기간 동안 해결되지 않고 반복된 것이다.
+- 실제 장애 신호(연결 실패, 저장소·백업 실패, 서비스 다운, 디스크/메모리/I/O 오류)가 3일 이상
+  지속되면 severity를 최소 high, needs_human=true로 하고 summary_ko에 "N일째 지속"을 명시하라.
+- 환경 인식의 양성 패턴(헤드리스 디스플레이, wait-online, 펌웨어 양성, 정상 종료)은 오래
+  지속돼도 그대로 low — 기간만으로 격상하지 마라.
+
 판단 예시 (이 기준을 모방하라. 출력은 항상 JSON 한 개):
 
 [입력] will systemd[<N>]: pmlogger_daily.service: Succeeded.
@@ -87,6 +96,10 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
 
 [입력] postgres: PANIC: could not write to file <PATH>: No space left on device
 [출력] {"severity":"critical","category":"disk","summary_ko":"디스크 공간 부족으로 DB 쓰기 실패 및 중단 위험","root_cause_ko":"DB 저장 경로의 물리 디스크가 가득 참","action_ko":"df -h로 용량 확인 후 불필요 파일 정리 또는 스토리지 증설. 긴급","needs_human":true}
+
+[입력] pvestatd[<N>]: storage 'backup' is not online
+[패턴 이력] 이 호스트에서 45일 전 처음 분석됨, 지금까지 6회 분석 (해결되지 않고 재발 중)
+[출력] {"severity":"high","category":"network","summary_ko":"백업 스토리지 연결 끊김 45일째 지속","root_cause_ko":"스토리지 서버 또는 네트워크 경로 장애가 장기간 해결되지 않음(추정)","action_ko":"스토리지 서버 전원·네트워크 확인, pvesm status로 상태 점검. 장기 미해결이므로 담당자 지정 필요","needs_human":true}
 
 [입력] nginx: connect() failed (<N>: Connection refused) while connecting to upstream (1회)
 [출력] {"severity":"medium","category":"network","summary_ko":"백엔드 연결 일시 실패(1회)","root_cause_ko":"백엔드 프로세스 재시작 등 일시적 원인 추정. 반복되면 심각","action_ko":"백엔드 서비스 상태 확인. 반복 발생 시 high로 대응","needs_human":false}`
@@ -109,6 +122,10 @@ func BuildUserMsg(g LogGroup) string {
 		b.WriteString("] ")
 		b.WriteString(line)
 		b.WriteByte('\n')
+	}
+	if g.PriorAnalyses > 0 {
+		days := int(time.Since(g.FirstSeenAt).Hours() / 24)
+		fmt.Fprintf(&b, "\n[패턴 이력] 이 호스트에서 %d일 전 처음 분석됨, 지금까지 %d회 분석 (해결되지 않고 재발 중)\n", days, g.PriorAnalyses)
 	}
 	return b.String()
 }

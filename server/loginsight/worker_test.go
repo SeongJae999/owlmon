@@ -13,12 +13,14 @@ import (
 
 type stubAnalyzer struct {
 	called   int
+	last     LogGroup
 	response Insight
 	err      error
 }
 
 func (s *stubAnalyzer) Analyze(ctx context.Context, g LogGroup) (*Insight, error) {
 	s.called++
+	s.last = g
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -41,10 +43,12 @@ func (s *stubAnalyzer) Analyze(ctx context.Context, g LogGroup) (*Insight, error
 }
 
 type stubStore struct {
-	saved   []Insight
-	cached  map[string]*Insight
-	touched []string
-	saveErr error
+	saved     []Insight
+	cached    map[string]*Insight
+	touched   []string
+	saveErr   error
+	histFirst time.Time
+	histN     int
 }
 
 func newStubStore() *stubStore {
@@ -69,6 +73,10 @@ func (s *stubStore) ByTemplate(ctx context.Context, hash, host string, maxAge ti
 func (s *stubStore) TouchTemplate(ctx context.Context, hash string) error {
 	s.touched = append(s.touched, hash)
 	return nil
+}
+
+func (s *stubStore) History(ctx context.Context, hash, host string) (time.Time, int, error) {
+	return s.histFirst, s.histN, nil
 }
 
 // === 인터페이스 호환성 ===
@@ -297,6 +305,18 @@ func TestHealth_FailThenRecover(t *testing.T) {
 	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "b", HostName: "web1"}})
 	if h := w.Health(); h.Failing() || h.LastSuccessAt == nil {
 		t.Fatalf("성공 후 복구돼야 함: %+v", h)
+	}
+}
+
+// 캐시 만료 후 재분석 시 과거 분석 이력이 analyzer에 전달돼야 장기 미해결을 판단할 수 있다.
+func TestProcessGroups_PassesHistory(t *testing.T) {
+	ana := &stubAnalyzer{}
+	st := newStubStore()
+	st.histFirst, st.histN = time.Now().Add(-120*24*time.Hour), 3
+	w := newTestWorker(ana, st, 10)
+	w.processGroups(context.Background(), []LogGroup{{TemplateHash: "a", HostName: "web1"}})
+	if ana.last.PriorAnalyses != 3 || !ana.last.FirstSeenAt.Equal(st.histFirst) {
+		t.Fatalf("이력이 전달되지 않음: %+v", ana.last)
 	}
 }
 

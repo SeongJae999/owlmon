@@ -23,6 +23,15 @@ func TestSystemPromptLogCluster_NormalExitGuard(t *testing.T) {
 	}
 }
 
+// BuildUserMsg가 붙이는 "[패턴 이력]" 블록을 시스템 프롬프트가 해석하는 지침이 있어야 한다.
+func TestSystemPromptLogCluster_History(t *testing.T) {
+	for _, kw := range []string{"[패턴 이력]", "N일째 지속", "기간만으로 격상하지 마라"} {
+		if !strings.Contains(SystemPromptLogCluster, kw) {
+			t.Errorf("SystemPromptLogCluster에 패턴 이력 키워드 %q 누락", kw)
+		}
+	}
+}
+
 // TestSystemPromptLogCluster_FewShot — few-shot 판단 예시가 살아있는지 검증.
 // 정상종료(low)·진짜장애(high/critical)·애매한 1회성(medium) 예시가
 // 모두 있어야 경계 케이스 판단이 일관된다.

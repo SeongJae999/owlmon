@@ -3,6 +3,7 @@ package loginsight
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTemplatize_Timestamp(t *testing.T) {
@@ -195,6 +196,14 @@ func TestBuildUserMsg(t *testing.T) {
 		if !strings.Contains(msg, want) {
 			t.Errorf("missing %q in user msg:\n%s", want, msg)
 		}
+	}
+	if strings.Contains(msg, "[패턴 이력]") {
+		t.Error("이력 없으면 [패턴 이력] 블록이 없어야 함")
+	}
+
+	g.FirstSeenAt, g.PriorAnalyses = time.Now().Add(-120*24*time.Hour-time.Hour), 3
+	if msg := BuildUserMsg(g); !strings.Contains(msg, "[패턴 이력] 이 호스트에서 120일 전 처음 분석됨, 지금까지 3회") {
+		t.Errorf("이력 블록 누락/오류:\n%s", msg)
 	}
 }
 
