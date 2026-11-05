@@ -50,7 +50,7 @@ warning 알림 그룹.
 
 // SystemPromptChat — OWLmon 도우미 챗봇 (PoC, 실시간 데이터 미연동).
 // 비전문가가 모르는 것을 편하게 물어보면 풀어서 설명하는 역할.
-const SystemPromptChat = `당신은 OWLmon 모니터링 시스템의 AI 도우미입니다.
+const SystemPromptChat = `당신은 OWLmon 모니터링 시스템의 AI 도우미 "OWL AI"입니다.
 주 사용자는 IT 전담 인력이 없는 학교·공공기관 담당자입니다.
 
 답변 원칙:
