@@ -3,7 +3,7 @@ import type { ActiveAlert } from '../api/alert'
 import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Zap, Cpu } from 'lucide-react'
 import { cn } from '../utils/cn'
 import { listHostSpecs, shortCPU, formatBytes, type HostSpec } from '../api/specs'
-import { getAlertConfig } from '../api/alert'
+import { getAlertConfig, thresholds } from '../api/alert'
 import { hostLabel } from '../config/hostLabels'
 
 interface HostMetrics {
@@ -96,8 +96,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
   // 디스크 임계치는 알림 설정과 동일하게 — 관리자가 임계치를 바꾸면 오버뷰 색상도 따라감
   // (queryKey ['alertConfig']는 다른 화면과 캐시 공유 → 추가 요청 거의 없음)
   const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
-  const diskWarn = alertCfg?.disk_warn ?? 85
-  const diskCrit = alertCfg?.disk_crit ?? 90
+  const th = thresholds(alertCfg)
 
   const counts = hosts.reduce(
     (acc, host) => {
@@ -111,8 +110,8 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
       const cpu = m?.cpu ?? 0
       const mem = m?.memory ?? 0
       const dsk = m?.disk ?? 0
-      const metricCritical = cpu >= 90 || mem >= 95 || dsk >= diskCrit
-      const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= diskWarn)
+      const metricCritical = cpu >= th.cpuCrit || mem >= th.memCrit || dsk >= th.diskCrit
+      const metricWarning  = !metricCritical && (cpu >= th.cpuWarn || mem >= th.memWarn || dsk >= th.diskWarn)
 
       if (offline || hasCritical || metricCritical) acc.fault++
       else if (hasWarning || metricWarning) acc.warning++
@@ -167,12 +166,12 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
             const inMaintenance = maintenanceSet.has(host)
 
             // 메트릭 임계 상태 — 알림이 아직 안 떴어도 시각적 경고
-            // (CPU 70/90, MEM 80/95, DISK 85/90)
+            // (기준값: 알림 설정 — thresholds())
             const cpu = metrics?.cpu ?? 0
             const mem = metrics?.memory ?? 0
             const dsk = metrics?.disk ?? 0
-            const metricCritical = cpu >= 90 || mem >= 95 || dsk >= diskCrit
-            const metricWarning  = !metricCritical && (cpu >= 70 || mem >= 80 || dsk >= diskWarn)
+            const metricCritical = cpu >= th.cpuCrit || mem >= th.memCrit || dsk >= th.diskCrit
+            const metricWarning  = !metricCritical && (cpu >= th.cpuWarn || mem >= th.memWarn || dsk >= th.diskWarn)
             const hasCritical = criticalAlertCount > 0 || metricCritical
             const hasWarning  = !hasCritical && (warningAlertCount > 0 || metricWarning)
 
@@ -249,9 +248,9 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
 
                 {/* Metrics Section — 항상 표시 (오프라인이면 placeholder) */}
                 <div className="space-y-2.5 mb-4 flex-1">
-                  <MetricBar label="CPU" value={metrics?.cpu ?? null} warning={70} critical={90} />
-                  <MetricBar label="메모리" value={metrics?.memory ?? null} warning={80} critical={95} />
-                  <MetricBar label="디스크" value={metrics?.disk ?? null} warning={diskWarn} critical={diskCrit} />
+                  <MetricBar label="CPU" value={metrics?.cpu ?? null} warning={th.cpuWarn} critical={th.cpuCrit} />
+                  <MetricBar label="메모리" value={metrics?.memory ?? null} warning={th.memWarn} critical={th.memCrit} />
+                  <MetricBar label="디스크" value={metrics?.disk ?? null} warning={th.diskWarn} critical={th.diskCrit} />
                 </div>
 
                 {/* Footer */}

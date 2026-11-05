@@ -7,7 +7,7 @@ import {
   useAnomalyData
 } from '../hooks/useMonitoring'
 import axios from 'axios'
-import { getAlertConfig } from '../api/alert'
+import { getAlertConfig, thresholds } from '../api/alert'
 import { useQuery } from '@tanstack/react-query'
 import { queryRange } from '../api/prometheus'
 import MetricCard from '../components/MetricCard'
@@ -29,6 +29,7 @@ export default function HostDetailPage() {
   const { data: serviceChecks = [] } = useServiceChecks(hostName)
   const { data: anomalyData } = useAnomalyData()
   const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
+  const th = thresholds(alertCfg)
 
   // Chart Data Queries
   const { data: cpuChart = [] } = useQuery({
@@ -167,8 +168,8 @@ export default function HostDetailPage() {
             value={metrics?.cpu ?? null}
             data={cpuChart}
             color="#4f46e5"
-            warning={alertCfg ? alertCfg.cpu_threshold * 0.8 : 70}
-            critical={alertCfg?.cpu_threshold ?? 90}
+            warning={th.cpuWarn}
+            critical={th.cpuCrit}
             anomaly={hostAnomalies.find(a => a.metric === 'cpu')}
           />
           <MetricCard
@@ -176,8 +177,8 @@ export default function HostDetailPage() {
             value={metrics?.memory ?? null}
             data={memChart}
             color="#8b5cf6"
-            warning={alertCfg ? alertCfg.mem_threshold * 0.85 : 80}
-            critical={alertCfg?.mem_threshold ?? 95}
+            warning={th.memWarn}
+            critical={th.memCrit}
             anomaly={hostAnomalies.find(a => a.metric === 'memory')}
             usedBytes={memUsedBytes}
             totalBytes={hostSpec?.memory_total_bytes}
@@ -189,8 +190,8 @@ export default function HostDetailPage() {
             value={metrics?.disk ?? null}
             data={diskChart}
             color="#10b981"
-            warning={alertCfg?.disk_warn ?? 85}
-            critical={alertCfg?.disk_crit ?? 90}
+            warning={th.diskWarn}
+            critical={th.diskCrit}
             anomaly={hostAnomalies.find(a => a.metric === 'disk')}
             diskPrediction={anomalyData?.disk_predictions.find(p => p.host === hostName)}
             subtitle="최고 사용률 · 마운트별 상세 아래 ↓"
@@ -207,8 +208,8 @@ export default function HostDetailPage() {
         </div>
         <DiskUsageBreakdown
           host={hostName}
-          warnThreshold={alertCfg?.disk_warn ?? 85}
-          critThreshold={alertCfg?.disk_crit ?? 90}
+          warnThreshold={th.diskWarn}
+          critThreshold={th.diskCrit}
         />
       </div>
 

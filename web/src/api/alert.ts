@@ -9,6 +9,17 @@ export interface AlertConfig {
   disk_crit: number
 }
 
+// 화면 경고/위험 기준 — 홈·상세가 같은 값을 쓰도록 단일 출처 (서버 알림 기준 = 위험, 경고는 그보다 낮게)
+export function thresholds(cfg?: AlertConfig) {
+  const cpu = cfg?.cpu_threshold ?? 90
+  const mem = cfg?.mem_threshold ?? 95
+  return {
+    cpuWarn: cpu * 0.8, cpuCrit: cpu,
+    memWarn: mem * 0.85, memCrit: mem,
+    diskWarn: cfg?.disk_warn ?? 85, diskCrit: cfg?.disk_crit ?? 90,
+  }
+}
+
 export async function getAlertConfig(): Promise<AlertConfig> {
   const res = await axios.get('/api/alert/config')
   return res.data
