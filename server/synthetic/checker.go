@@ -50,10 +50,11 @@ type Checker struct {
 	lister MonitorLister
 	saver  ResultSaver
 
-	mu     sync.RWMutex
-	latest map[int64]Result // monitor_id -> 최근 결과 (대시보드 빠른 조회용)
-	fails  map[int64]int    // monitor_id -> 연속 실패 횟수
-	stops  map[int64]chan struct{}
+	mu      sync.RWMutex
+	latest  map[int64]Result // monitor_id -> 최근 결과 (대시보드 빠른 조회용)
+	fails   map[int64]int    // monitor_id -> 연속 실패 횟수
+	stops   map[int64]chan struct{}
+	running map[int64]Monitor // 루프가 사용 중인 설정 — 수정 감지용
 
 	// 알림 콜백 (3회 연속 실패/복구 시 호출)
 	onDown     func(m Monitor, r Result, consecutive int)
@@ -63,11 +64,12 @@ type Checker struct {
 // NewChecker는 Checker를 생성합니다.
 func NewChecker(lister MonitorLister, saver ResultSaver) *Checker {
 	return &Checker{
-		lister: lister,
-		saver:  saver,
-		latest: make(map[int64]Result),
-		fails:  make(map[int64]int),
-		stops:  make(map[int64]chan struct{}),
+		lister:  lister,
+		saver:   saver,
+		latest:  make(map[int64]Result),
+		fails:   make(map[int64]int),
+		stops:   make(map[int64]chan struct{}),
+		running: make(map[int64]Monitor),
 	}
 }
 
@@ -96,6 +98,9 @@ func (c *Checker) Start(ctx context.Context) {
 }
 
 // syncMonitors는 등록된 모니터와 실행 중인 루프를 동기화합니다.
+// Sync는 모니터 추가/수정/삭제 직후 즉시 동기화합니다 (5분 주기를 기다리지 않음).
+func (c *Checker) Sync(ctx context.Context) { c.syncMonitors(ctx) }
+
 func (c *Checker) syncMonitors(ctx context.Context) {
 	monitors, err := c.lister.List(ctx)
 	if err != nil {
@@ -112,9 +117,15 @@ func (c *Checker) syncMonitors(ctx context.Context) {
 		}
 		active[m.ID] = true
 		if _, ok := c.stops[m.ID]; !ok {
+		// 설정(URL·주기 등)이 바뀌면 기존 루프를 멈추고 새 설정으로 재시작
+		if stop, ok := c.stops[m.ID]; ok && c.running[m.ID] != m {
+			close(stop)
+			delete(c.stops, m.ID)
+		}
 			stop := make(chan struct{})
 			c.stops[m.ID] = stop
 			go c.runMonitor(m, stop)
+			c.running[m.ID] = m
 		}
 	}
 	// 비활성/삭제된 모니터 루프 정리
@@ -123,6 +134,7 @@ func (c *Checker) syncMonitors(ctx context.Context) {
 			close(stop)
 			delete(c.stops, id)
 			delete(c.latest, id)
+			delete(c.running, id)
 			delete(c.fails, id)
 		}
 	}

@@ -57,6 +57,7 @@ func (h *SyntheticHandler) AddMonitor(w http.ResponseWriter, r *http.Request) {
 	// 백그라운드 즉시 1회 체크 + 루프 동기화
 	go func() {
 		h.checker.TriggerOne(created)
+		h.checker.Sync(context.Background())
 	}()
 
 	w.WriteHeader(http.StatusCreated)
@@ -84,6 +85,7 @@ func (h *SyntheticHandler) UpdateMonitor(w http.ResponseWriter, r *http.Request)
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
+	go h.checker.Sync(context.Background())
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -98,6 +100,7 @@ func (h *SyntheticHandler) DeleteMonitor(w http.ResponseWriter, r *http.Request)
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
+	go h.checker.Sync(context.Background())
 	w.WriteHeader(http.StatusNoContent)
 }
 
