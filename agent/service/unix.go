@@ -6,11 +6,10 @@ package service
 const ServiceName = "OWLmon-Agent"
 
 // Run은 Unix에서 Windows 서비스를 지원하지 않으므로 즉시 run()을 실행합니다.
+// IsService가 항상 false라 실제로는 호출되지 않음 (종료 처리는 main의 시그널 대기가 담당).
 func Run(run func() func()) error {
-	stop := run()
+	run()
 	select {}
-	stop()
-	return nil
 }
 
 // IsService는 Unix에서 항상 false를 반환합니다.
