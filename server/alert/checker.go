@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/seongJae/owlmon/server/anomaly"
@@ -168,8 +167,8 @@ func (c *Checker) check() {
 		return
 	}
 
-	c.checkMetric("CPU", "max(system_cpu_usage_percent) by (host_name)", cfg.CPUThreshold, 0)
-	c.checkMetric("메모리", "max(system_memory_usage_percent) by (host_name)", cfg.MemThreshold, 0)
+	c.checkMetric("CPU", "cpu", "max(system_cpu_usage_percent) by (host_name)", cfg.CPUThreshold, 0)
+	c.checkMetric("메모리", "memory", "max(system_memory_usage_percent) by (host_name)", cfg.MemThreshold, 0)
 	c.checkDisk(cfg.DiskWarn, cfg.DiskCrit)
 	c.checkRapidGrowth()
 	c.checkServerDown()
@@ -202,7 +201,8 @@ func (c *Checker) promHealthy() bool {
 }
 
 // checkMetric은 단일 메트릭 임계값을 체크합니다.
-func (c *Checker) checkMetric(name, promql string, critical, warning float64) {
+// category는 /api/alert/status·ack와 같은 키여야 화면의 [확인]이 메일 억제에 반영됨
+func (c *Checker) checkMetric(name, category, promql string, critical, warning float64) {
 	results, err := c.query(promql)
 	if err != nil {
 		return
@@ -215,14 +215,14 @@ func (c *Checker) checkMetric(name, promql string, critical, warning float64) {
 			if c.state.ShouldAlert(key) {
 				subject := fmt.Sprintf("[심각] %s %s 위험 (%.1f%%)", host, name, val)
 				body := fmt.Sprintf("호스트: %s\n항목: %s 사용률\n현재 값: %.1f%%\n임계값: %.0f%%\n\n즉시 확인이 필요합니다.", host, name, val, critical)
-				c.sendAlert(host, strings.ToLower(name), "critical", subject, body)
+				c.sendAlert(host, category, "critical", subject, body)
 			}
 		} else {
 			if c.state.ClearIfFiring(key) {
-				c.state.ClearAck(host, strings.ToLower(name), "critical")
+				c.state.ClearAck(host, category, "critical")
 				subject := fmt.Sprintf("[복구] %s %s 정상 복구 (%.1f%%)", host, name, val)
 				body := fmt.Sprintf("호스트: %s\n항목: %s 사용률\n현재 값: %.1f%%\n\n정상 범위로 돌아왔습니다.", host, name, val)
-				c.sendAlert(host, strings.ToLower(name), "info", subject, body)
+				c.sendAlert(host, category, "info", subject, body)
 			}
 		}
 	}
