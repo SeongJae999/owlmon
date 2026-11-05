@@ -37,13 +37,21 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
-// 401 응답 시 자동 로그아웃
+// 401 → 자동 로그아웃 (로그인 요청 자체의 401은 제외 — 새로고침되면 실패 안내가 사라짐)
+// 403 → 조회 전용 계정의 변경 시도. 버튼마다 권한 분기를 두지 않고 여기서 한 번에 안내
+export const FORBIDDEN_EVENT = 'owlmon:forbidden'
 axios.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status
+    if (status === 401 && !err.config?.url?.endsWith('/api/auth/login')) {
       removeToken()
       window.location.href = '/'
+    }
+    if (status === 403) {
+      window.dispatchEvent(new CustomEvent(FORBIDDEN_EVENT, {
+        detail: typeof err.response.data === 'string' ? err.response.data.trim() : '권한이 없습니다',
+      }))
     }
     return Promise.reject(err)
   }
