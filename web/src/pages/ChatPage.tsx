@@ -5,14 +5,21 @@ import { useQuery } from '@tanstack/react-query'
 import { Sparkles, Send, User, Bot, AlertCircle } from 'lucide-react'
 
 const SUGGESTIONS = [
-  'QMP 통신 지연이 뭐야?',
+  '서버 응답이 느릴 때 뭘 먼저 확인해?',
   '디스크가 가득 차면 어떻게 대처해?',
   'SSH 무차별 대입 공격을 막으려면?',
   'nginx 502 오류는 보통 왜 생겨?',
 ]
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  // 메뉴 이동 후 돌아와도 대화 유지 (탭을 닫으면 초기화)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('owlmon-chat') || '[]')
+    } catch {
+      return []
+    }
+  })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -23,6 +30,14 @@ export default function ChatPage() {
     queryFn: getLLMStatus,
     staleTime: 5 * 60_000,
   })
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('owlmon-chat', JSON.stringify(messages))
+    } catch {
+      // 저장 실패(용량·사생활 보호 모드)는 무시 — 대화 자체는 계속 동작
+    }
+  }, [messages])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -82,7 +97,7 @@ export default function ChatPage() {
 
       {/* Chat window */}
       <div className="bg-slate-900 rounded-2xl border border-slate-800 flex flex-col h-[calc(100vh-260px)] min-h-[420px]">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div ref={scrollRef} aria-live="polite" className="flex-1 overflow-y-auto p-5 space-y-4">
           {messages.length === 0 && !loading && (
             <div className="h-full flex flex-col items-center justify-center text-center gap-5">
               <Bot size={40} className="text-slate-600" />
@@ -101,7 +116,7 @@ export default function ChatPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-slate-500">
                 ⚠ 실시간 서버 상태·수치는 아직 조회할 수 없어요. 그런 정보는 각 대시보드 메뉴를 봐주세요.
               </p>
             </div>
@@ -156,6 +171,7 @@ export default function ChatPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             disabled={disabled || loading}
+            aria-label="AI 도우미에게 질문"
             placeholder={disabled ? 'AI 도우미 비활성화 상태' : '질문을 입력하세요…'}
             className="flex-1 bg-slate-800 text-slate-100 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-slate-700 focus:border-indigo-500 transition-colors disabled:opacity-50"
           />
@@ -169,7 +185,7 @@ export default function ChatPage() {
         </form>
       </div>
 
-      <p className="text-[11px] text-slate-600 text-center">
+      <p className="text-[11px] text-slate-500 text-center">
         AI 답변은 참고용입니다. 중요한 조치는 반드시 직접 확인 후 진행하세요.
       </p>
     </div>

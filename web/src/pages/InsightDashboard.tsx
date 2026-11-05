@@ -8,12 +8,15 @@ import {
   type Category,
 } from '../api/insights'
 import { cn } from '../utils/cn'
+import { TONES } from '../utils/severity'
 
+// 앱 공통 3톤(rose/amber/slate)에 맞춤 — high는 별도 색 대신 rose + 라벨로 구분
+const tone = (t: keyof typeof TONES, label: string) => ({ bg: `${TONES[t].bg} ${TONES[t].border}`, text: TONES[t].text, label })
 const SEVERITY_STYLE: Record<Severity, { bg: string; text: string; label: string }> = {
-  critical: { bg: 'bg-rose-500/15 border-rose-500/40',   text: 'text-rose-300',   label: '심각' },
-  high:     { bg: 'bg-orange-500/15 border-orange-500/40', text: 'text-orange-300', label: '높음' },
-  medium:   { bg: 'bg-amber-500/15 border-amber-500/40',  text: 'text-amber-300',  label: '중간' },
-  low:      { bg: 'bg-slate-700/30 border-slate-600/40',  text: 'text-slate-400',  label: '낮음' },
+  critical: tone('rose', '심각'),
+  high:     tone('rose', '높음'),
+  medium:   tone('amber', '중간'),
+  low:      tone('slate', '낮음'),
 }
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -234,14 +237,13 @@ export default function InsightDashboard() {
                         </p>
                       </div>
                     )}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 pt-2 border-t border-slate-700/30">
-                      <span>모델: {ins.model_name}</span>
-                      {ins.latency_ms !== undefined && ins.latency_ms > 0 && (
-                        <span>지연: {ins.latency_ms}ms</span>
-                      )}
-                      <span>템플릿: {ins.template_hash.slice(0, 8)}</span>
+                    {/* 모델·지연·템플릿은 운영자에겐 노이즈 — 마우스를 올리면 보이게 */}
+                    <div
+                      className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 pt-2 border-t border-slate-700/30"
+                      title={`모델: ${ins.model_name}${ins.latency_ms ? ` · 지연: ${ins.latency_ms}ms` : ''} · 템플릿: ${ins.template_hash.slice(0, 8)}`}
+                    >
                       {ins.sample_log_ids?.length > 0 && (
-                        <span>샘플: {ins.sample_log_ids.length}건</span>
+                        <span>근거 로그 {ins.sample_log_ids.length}건</span>
                       )}
                     </div>
                   </div>
