@@ -35,6 +35,7 @@ type Insight struct {
 	TemplateHash string  `json:"template_hash"`
 	SampleLogIDs []int64 `json:"sample_log_ids"`
 	HostName     string  `json:"host_name,omitempty"`
+	IncidentKey  string  `json:"incident_key,omitempty"` // 화면에서 같은 원인 카드를 합치는 키
 
 	// LLM이 JSON으로 채우는 필드
 	Severity    Severity `json:"severity"`

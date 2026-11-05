@@ -15,6 +15,7 @@ export interface Insight {
   template_hash: string
   sample_log_ids: number[]
   host_name?: string
+  incident_key?: string
   severity: Severity
   category: Category
   summary_ko: string

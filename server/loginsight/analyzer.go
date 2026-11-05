@@ -106,6 +106,7 @@ func (a *Analyzer) Analyze(ctx context.Context, g LogGroup) (*Insight, error) {
 	// 메타데이터 — DB 저장 직전 호출자가 추가로 덮어쓸 수 있음.
 	ins.TemplateHash = g.TemplateHash
 	ins.HostName = g.HostName
+	ins.IncidentKey = g.IncidentKey
 	ins.SampleLogIDs = g.SampleLogIDs
 	ins.ModelName = a.provider.Name()
 	ins.LatencyMs = int(latency.Milliseconds())

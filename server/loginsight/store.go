@@ -44,8 +44,8 @@ func (s *Store) Save(ctx context.Context, ins *Insight) error {
 		INSERT INTO log_insights
 			(template_hash, sample_log_ids, host_name, severity, category,
 			 summary_ko, root_cause_ko, action_ko, needs_human,
-			 model_name, prompt_tokens, output_tokens, latency_ms, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+			 model_name, prompt_tokens, output_tokens, latency_ms, created_at, incident_key)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING id`,
 		ins.TemplateHash,
 		ins.SampleLogIDs, // pgx가 []int64 → BIGINT[] 자동 변환
@@ -61,6 +61,7 @@ func (s *Store) Save(ctx context.Context, ins *Insight) error {
 		nullInt(ins.OutputTokens),
 		nullInt(ins.LatencyMs),
 		ins.CreatedAt,
+		nullStr(ins.IncidentKey),
 	).Scan(&ins.ID)
 	if err != nil {
 		return err
@@ -189,7 +190,7 @@ func buildListQuery(f Filter) (string, []any) {
 	             COALESCE(prompt_tokens, 0),
 	             COALESCE(output_tokens, 0),
 	             COALESCE(latency_ms, 0),
-	             created_at
+	             created_at, COALESCE(incident_key,'')
 	      FROM log_insights
 	      WHERE 1=1`
 	var args []any
@@ -226,7 +227,7 @@ func (s *Store) getByID(ctx context.Context, id int64) (*Insight, error) {
 		       COALESCE(root_cause_ko,''), COALESCE(action_ko,''),
 		       needs_human, model_name,
 		       COALESCE(prompt_tokens, 0), COALESCE(output_tokens, 0),
-		       COALESCE(latency_ms, 0), created_at
+		       COALESCE(latency_ms, 0), created_at, COALESCE(incident_key,'')
 		FROM log_insights WHERE id = $1`, id)
 	ins, err := scanInsight(row)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -252,7 +253,7 @@ func scanInsight(r rowScanner) (Insight, error) {
 		&ins.RootCauseKo, &ins.ActionKo,
 		&ins.NeedsHuman, &ins.ModelName,
 		&ins.PromptTokens, &ins.OutputTokens, &ins.LatencyMs,
-		&ins.CreatedAt,
+		&ins.CreatedAt, &ins.IncidentKey,
 	)
 	if err != nil {
 		return Insight{}, err

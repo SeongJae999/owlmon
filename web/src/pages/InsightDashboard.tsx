@@ -6,6 +6,7 @@ import {
   getInsightStatus,
   type Severity,
   type Category,
+  type Insight,
 } from '../api/insights'
 import { cn } from '../utils/cn'
 import { TONES } from '../utils/severity'
@@ -37,6 +38,30 @@ function formatTime(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+interface InsightGroup {
+  latest: Insight
+  hosts: string[]
+  count: number
+  firstAt: string
+}
+
+// 같은 원인(incident_key) 또는 같은 호스트·패턴의 반복 분석은 최신 카드 1장으로 — 매일 재분석돼도 목록이 쌓이지 않게
+function groupInsights(items: Insight[]): InsightGroup[] {
+  const groups = new Map<string, InsightGroup>()
+  for (const ins of items) {
+    const key = ins.incident_key || `${ins.host_name ?? ''}|${ins.template_hash}`
+    const g = groups.get(key)
+    if (!g) {
+      groups.set(key, { latest: ins, hosts: ins.host_name ? [ins.host_name] : [], count: 1, firstAt: ins.created_at })
+      continue
+    }
+    g.count++
+    g.firstAt = ins.created_at // API가 최신순이라 뒤에 올수록 과거
+    if (ins.host_name && !g.hosts.includes(ins.host_name)) g.hosts.push(ins.host_name)
+  }
+  return [...groups.values()]
 }
 
 export default function InsightDashboard() {
@@ -71,7 +96,7 @@ export default function InsightDashboard() {
     })
   }
 
-  const items = listResult?.items ?? []
+  const groups = groupInsights(listResult?.items ?? [])
 
   return (
     <div className="space-y-6">
@@ -147,7 +172,7 @@ export default function InsightDashboard() {
           onChange={e => setHostFilter(e.target.value)}
           className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-1 min-w-[200px]"
         />
-        <span className="text-xs text-slate-500 font-medium">총 {items.length}건</span>
+        <span className="text-xs text-slate-500 font-medium">총 {groups.length}건</span>
       </div>
 
       {/* List */}
@@ -157,7 +182,7 @@ export default function InsightDashboard() {
         <div role="alert" className="text-center py-12 rounded-xl bg-slate-900 border border-rose-500/30 text-rose-300 text-sm">
           인사이트 목록을 불러오지 못했습니다. 잠시 후 새로고침하세요.
         </div>
-      ) : items.length === 0 ? (
+      ) : groups.length === 0 ? (
         <div className="text-center py-16 rounded-xl bg-slate-900 border border-slate-800">
           <Sparkles size={32} className="mx-auto text-slate-700 mb-3" />
           <p className="text-slate-400">분석된 인사이트가 없습니다</p>
@@ -167,7 +192,7 @@ export default function InsightDashboard() {
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map(ins => {
+          {groups.map(({ latest: ins, hosts, count, firstAt }) => {
             const style = SEVERITY_STYLE[ins.severity]
             const isOpen = expanded.has(ins.id)
             return (
@@ -196,9 +221,14 @@ export default function InsightDashboard() {
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-slate-400">
                         {CATEGORY_LABEL[ins.category] ?? ins.category}
                       </span>
-                      {ins.host_name && (
+                      {hosts.length > 0 && (
                         <span className="text-xs text-slate-400 font-semibold">
-                          {ins.host_name}
+                          {hosts.length > 1 ? `서버 ${hosts.length}대 · ${hosts.join(', ')}` : hosts[0]}
+                        </span>
+                      )}
+                      {count > 1 && (
+                        <span className="text-xs text-slate-500">
+                          {count}회 분석 · 처음 {formatTime(firstAt)}
                         </span>
                       )}
                       {ins.needs_human && (
