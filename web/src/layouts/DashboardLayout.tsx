@@ -1,6 +1,7 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, Outlet } from 'react-router-dom'
-import { logout } from '../api/auth'
+import { logout, getMe, FORBIDDEN_EVENT } from '../api/auth'
 import { useAlertStatus } from '../hooks/useMonitoring'
 import {
   LayoutGrid,
@@ -14,6 +15,8 @@ import {
   FileBarChart,
   Server,
   LogOut,
+  Users,
+  KeyRound,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -25,9 +28,10 @@ import {
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
 import ChatWidget from '../components/ChatWidget'
+import PasswordModal from '../components/PasswordModal'
 
 // 기능 나열 대신 "문제 확인 → 장비 → 분석 → 설정" 흐름 순서. 경로(path)는 기존 그대로 (북마크 호환)
-const NAV_SECTIONS: { title?: string; collapsible?: boolean; items: { id: string; path: string; icon: any; label: string; match?: string[] }[] }[] = [
+const NAV_SECTIONS: { title?: string; collapsible?: boolean; adminOnly?: boolean; items: { id: string; path: string; icon: any; label: string; match?: string[] }[] }[] = [
   { items: [
     { id: 'overview', path: '/', icon: LayoutGrid, label: '지금 상태', match: ['/detail'] },
   ] },
@@ -45,10 +49,11 @@ const NAV_SECTIONS: { title?: string; collapsible?: boolean; items: { id: string
     { id: 'logs', path: '/logs', icon: FileText, label: '로그 검색' },
     { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서' },
   ] },
-  { title: '설정', collapsible: true, items: [
+  { title: '설정', collapsible: true, adminOnly: true, items: [
     { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 받는 사람·기준' },
     { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 감지 규칙', match: ['/rules/stats'] },
     { id: 'assets', path: '/assets', icon: Server, label: '장비 목록' },
+    { id: 'users', path: '/users', icon: Users, label: '사용자 관리' },
     { id: 'audit', path: '/audit', icon: ShieldCheck, label: '사용 기록' },
   ] },
 ]
@@ -57,6 +62,22 @@ export default function DashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [forbidden, setForbidden] = useState<string | null>(null)
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
+  const isViewer = me?.role === 'viewer'
+
+  useEffect(() => {
+    const onForbidden = (e: Event) => setForbidden((e as CustomEvent<string>).detail)
+    window.addEventListener(FORBIDDEN_EVENT, onForbidden)
+    return () => window.removeEventListener(FORBIDDEN_EVENT, onForbidden)
+  }, [])
+  useEffect(() => {
+    if (!forbidden) return
+    const t = setTimeout(() => setForbidden(null), 4000)
+    return () => clearTimeout(t)
+  }, [forbidden])
   const location = useLocation()
   const { data: activeAlerts = [] } = useAlertStatus()
 
@@ -97,7 +118,7 @@ export default function DashboardLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-6 space-y-6 scrollbar-hide">
-          {NAV_SECTIONS.map(section => {
+          {NAV_SECTIONS.filter(s => !(s.adminOnly && isViewer)).map(section => {
             const isActive = (it: { path: string; match?: string[] }) =>
               location.pathname === it.path || !!it.match?.includes(location.pathname)
             // 설정은 평소 접어 둠 — 설정 화면에 있거나 사이드바가 아이콘 모드면 펼침
@@ -203,13 +224,36 @@ export default function DashboardLayout() {
                 )}
               </Link>
               <div className="w-px h-5 bg-slate-700 mx-0.5" />
-              <button className="flex items-center gap-2 pl-1.5 pr-2 py-1 hover:bg-slate-700 rounded-md transition-colors group" aria-label="관리자 메뉴">
-                <div className="w-7 h-7 bg-slate-700 rounded-md flex items-center justify-center text-slate-300 text-xs font-semibold group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-colors">관</div>
-                <div className="hidden lg:block text-left">
-                  <p className="text-xs font-semibold text-slate-200 leading-none">관리자</p>
-                  <p className="text-xs font-medium text-slate-500 leading-none mt-0.5">슈퍼유저</p>
-                </div>
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen(o => !o)}
+                  aria-expanded={userMenuOpen}
+                  aria-label="내 계정 메뉴"
+                  className="flex items-center gap-2 pl-1.5 pr-2 py-1 hover:bg-slate-700 rounded-md transition-colors group"
+                >
+                  <div className="w-7 h-7 bg-slate-700 rounded-md flex items-center justify-center text-slate-300 text-xs font-semibold uppercase group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-colors">
+                    {me?.username?.[0] ?? '·'}
+                  </div>
+                  <div className="hidden lg:block text-left">
+                    <p className="text-xs font-semibold text-slate-200 leading-none">{me?.username ?? ''}</p>
+                    <p className="text-xs font-medium text-slate-500 leading-none mt-0.5">{isViewer ? '조회 전용' : '관리자'}</p>
+                  </div>
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-xl py-1 z-50" onMouseLeave={() => setUserMenuOpen(false)}>
+                    <p className="px-3 py-2 text-xs text-slate-500 lg:hidden">{me?.username} · {isViewer ? '조회 전용' : '관리자'}</p>
+                    {me?.multi_user && (
+                      <button type="button" onClick={() => { setUserMenuOpen(false); setPasswordOpen(true) }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">
+                        <KeyRound size={15} /> 비밀번호 변경
+                      </button>
+                    )}
+                    <button type="button" onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">
+                      <LogOut size={15} /> 로그아웃
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -237,6 +281,12 @@ export default function DashboardLayout() {
         </main>
       </div>
       <ChatWidget />
+      {passwordOpen && <PasswordModal onClose={() => setPasswordOpen(false)} />}
+      {forbidden && (
+        <div role="alert" className="fixed z-[70] top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-slate-900 text-amber-300 text-sm shadow-xl">
+          {forbidden}
+        </div>
+      )}
     </div>
   )
 }

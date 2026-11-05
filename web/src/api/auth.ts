@@ -23,6 +23,21 @@ export async function login(username: string, password: string): Promise<void> {
   setToken(res.data.token)
 }
 
+export interface Me {
+  username: string
+  role: 'admin' | 'viewer'
+  multi_user: boolean
+}
+
+export async function getMe(): Promise<Me> {
+  const res = await axios.get('/api/auth/me')
+  return res.data
+}
+
+export async function changePassword(current: string, next: string): Promise<void> {
+  await axios.post('/api/auth/password', { current, new: next })
+}
+
 export function logout() {
   removeToken()
   window.location.href = '/'

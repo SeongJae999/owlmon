@@ -21,6 +21,7 @@ const RuleStatsPage = lazy(() => import('./pages/RuleStatsPage'))
 const TrendsPage = lazy(() => import('./pages/TrendsPage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
 
 export default function App() {
   const authenticated = isLoggedIn()
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/assets" element={<AssetManagement />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
+        <Route path="/users" element={<UsersPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
