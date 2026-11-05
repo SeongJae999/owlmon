@@ -229,6 +229,7 @@ func (h *LLMHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Messages []chatMessage `json:"messages"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 대용량 body로 메모리 소모 방지 (클라이언트가 전체 히스토리를 보내므로 여유 있게)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "잘못된 요청", http.StatusBadRequest)
 		return
