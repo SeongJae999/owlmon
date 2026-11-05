@@ -270,3 +270,51 @@ func TestTemplatize_BareHexID(t *testing.T) {
 		t.Errorf("영단어·순수 숫자는 HEX로 바꾸지 않아야 함: %q", got)
 	}
 }
+
+// 운영 실로그 기준 — 같은 원인(대상 IP·systemd 유닛)이면 문구가 달라도 같은 키, 출발지 IP는 묶지 않음.
+func TestIncidentKey(t *testing.T) {
+	cases := map[string]string{
+		"pbs-willdev: error fetching datastores - 500 Can't connect to 192.168.0.50:8007 (No route to host)": "target:192.168.0.50",
+		"storage 'nas' is not online - unable to connect to 192.168.0.50":                                    "target:192.168.0.50",
+		"connection to 192.168.0.50 timed out":                                                               "target:192.168.0.50",
+		"Timeout before authentication for 203.0.113.9 port 4444":                                            "",
+		"Connection closed by 203.0.113.9 port 22 [preauth]":                                                 "",
+		"snap.firmware-updater.firmware-notifier.service: Failed with result 'exit-code'.":                   "unit:snap.firmware-updater.firmware-notifier.service",
+		"Failed to start snap.firmware-updater.firmware-notifier.service - Service for snap application":     "unit:snap.firmware-updater.firmware-notifier.service",
+		"run-u123.service: Failed with result 'exit-code'.":                                                  "unit:run-uN.service",
+		"kernel: Out of memory: Killed process 123 (mysqld)":                                                 "",
+	}
+	for line, want := range cases {
+		if got := IncidentKey(line); got != want {
+			t.Errorf("IncidentKey(%q) = %q, want %q", line, got, want)
+		}
+	}
+}
+
+// systemd가 실패 1번에 남기는 여러 줄이 한 그룹이 되고, 반복 샘플 대신 다른 종류 줄도 샘플에 들어가야 한다.
+func TestCluster_IncidentGroupsDistinctSamples(t *testing.T) {
+	var lines []LogLine
+	for i := 0; i < 5; i++ {
+		lines = append(lines, LogLine{ID: int64(i), HostName: "hi-solution", Message: "snap.firmware-updater.firmware-notifier.service: Failed with result 'exit-code'."})
+	}
+	lines = append(lines,
+		LogLine{ID: 10, HostName: "hi-solution", Message: "Failed to start snap.firmware-updater.firmware-notifier.service - Service for snap application"},
+		LogLine{ID: 11, HostName: "willdev", Message: "pbs-willdev: error fetching datastores - 500 Can't connect to 192.168.0.50:8007 (No route to host)"},
+		LogLine{ID: 12, HostName: "willdev", Message: "nfs: server 192.168.0.50 not responding, timed out connecting to 192.168.0.50"},
+		LogLine{ID: 13, HostName: "willkomo", Message: "connection to 192.168.0.50 timed out"},
+	)
+	groups := Cluster(lines, 3)
+	if len(groups) != 3 {
+		t.Fatalf("hi-solution 유닛 1 + willdev 대상 1 + willkomo 대상 1 = 3그룹이어야 함, got %d: %+v", len(groups), groups)
+	}
+	fw := groups[0]
+	if fw.Count != 6 || fw.IncidentKey != "unit:snap.firmware-updater.firmware-notifier.service" {
+		t.Fatalf("firmware 그룹 오류: %+v", fw)
+	}
+	if !strings.Contains(strings.Join(fw.SampleLines, "\n"), "Failed to start") {
+		t.Errorf("다른 종류 줄(Failed to start)이 샘플에 있어야 함: %v", fw.SampleLines)
+	}
+	if groups[1].Count != 2 || groups[1].HostName != "willdev" || groups[2].HostName != "willkomo" {
+		t.Errorf("대상 IP 그룹은 호스트별로 분리돼야 함: %+v / %+v", groups[1], groups[2])
+	}
+}

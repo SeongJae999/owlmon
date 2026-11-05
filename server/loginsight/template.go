@@ -34,6 +34,28 @@ var (
 	reUserEq = regexp.MustCompile(`(?i)\b(user=)([^\s,;:]+)`)
 )
 
+// 원인 묶기 — 템플릿이 달라도 같은 원인(같은 대상 IP 연결 실패, 같은 systemd 유닛)이면 한 그룹으로.
+var (
+	reConnFail = regexp.MustCompile(`(?i)timed? ?out|refused|no route to host|unreachable|can'?t connect|cannot connect|could not connect|unable to connect|failed to connect|not online|not responding`)
+	// "to <IP>"만 대상으로 본다 — "from/by <IP>"는 공격 출발지 등이라 원인으로 묶으면 안 됨
+	reTargetIP = regexp.MustCompile(`(?i)\bto\s+['"]?((?:\d{1,3}\.){3}\d{1,3})\b`)
+	reUnit     = regexp.MustCompile(`\b[A-Za-z0-9@_.-]+\.(?:service|timer|socket|mount)\b`)
+	reDigits   = regexp.MustCompile(`\d+`)
+)
+
+// IncidentKey — 원인 묶기 키 ("target:<IP>" 또는 "unit:<유닛>"). 해당 없으면 "".
+func IncidentKey(line string) string {
+	if reConnFail.MatchString(line) {
+		if m := reTargetIP.FindStringSubmatch(line); m != nil {
+			return "target:" + m[1]
+		}
+	}
+	if u := reUnit.FindString(line); u != "" {
+		return "unit:" + reDigits.ReplaceAllString(u, "N") // run-u123.service 같은 일회성 유닛도 한 키로
+	}
+	return ""
+}
+
 // Templatize — 로그 한 줄에서 가변 부분을 placeholder로 치환한 템플릿 문자열을 반환.
 //
 // 치환 순서:
@@ -88,7 +110,7 @@ type LogLine struct {
 	Message  string
 }
 
-// Cluster — 입력 로그를 (호스트, 템플릿 해시) 기준으로 그룹화한다.
+// Cluster — 입력 로그를 (호스트, 원인 키 또는 템플릿 해시) 기준으로 그룹화한다.
 //
 // 같은 호스트 + 같은 템플릿 = 하나의 LogGroup.
 // 호스트가 다르면 같은 패턴이라도 별도 그룹 (운영자가 호스트별 대응 필요).
@@ -102,12 +124,22 @@ func Cluster(lines []LogLine, maxSamples int) []LogGroup {
 	type key struct {
 		host, hash string
 	}
+	type sampling struct {
+		seen map[string]bool // 이미 샘플에 있는 템플릿
+		dups []int           // 같은 템플릿이 반복된 샘플 위치 (새 템플릿이 오면 교체 대상)
+	}
 	groups := map[key]*LogGroup{}
+	samples := map[key]*sampling{}
 	order := []key{}
 
 	for _, l := range lines {
 		tpl := Templatize(l.Message)
-		h := Hash(tpl)
+		th := Hash(tpl)
+		ik := IncidentKey(l.Message)
+		h := th
+		if ik != "" {
+			h = Hash(ik)
+		}
 		k := key{host: l.HostName, hash: h}
 		g, ok := groups[k]
 		if !ok {
@@ -115,14 +147,28 @@ func Cluster(lines []LogLine, maxSamples int) []LogGroup {
 				TemplateHash:    h,
 				TemplateExample: tpl,
 				HostName:        l.HostName,
+				IncidentKey:     ik,
 			}
 			groups[k] = g
+			samples[k] = &sampling{seen: map[string]bool{}}
 			order = append(order, k)
 		}
 		g.Count++
-		if len(g.SampleLines) < maxSamples {
+		sp := samples[k]
+		switch {
+		case len(g.SampleLines) < maxSamples:
+			if sp.seen[th] {
+				sp.dups = append(sp.dups, len(g.SampleLines))
+			}
+			sp.seen[th] = true
 			g.SampleLines = append(g.SampleLines, l.Message)
 			g.SampleLogIDs = append(g.SampleLogIDs, l.ID)
+		case !sp.seen[th] && len(sp.dups) > 0:
+			// 묶인 그룹의 다른 종류 로그도 LLM이 보도록 반복 샘플을 교체
+			i := sp.dups[len(sp.dups)-1]
+			sp.dups = sp.dups[:len(sp.dups)-1]
+			sp.seen[th] = true
+			g.SampleLines[i], g.SampleLogIDs[i] = l.Message, l.ID
 		}
 	}
 

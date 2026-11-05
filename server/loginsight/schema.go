@@ -82,6 +82,7 @@ type LogGroup struct {
 	Count           int      // 5분 윈도우 내 발생 수
 	SampleLines     []string // 원문 샘플 (최대 3건)
 	SampleLogIDs    []int64  // logs 테이블 PK 배열
+	IncidentKey     string   // 원인 묶기 키 (target:IP / unit:이름), 없으면 ""
 
 	FirstSeenAt   time.Time // 이 호스트에서 이 패턴을 처음 분석한 시각 (이력 없으면 zero)
 	PriorAnalyses int       // 이전 분석 횟수 (0이면 이력 없음)
