@@ -66,20 +66,31 @@ type Poller struct {
 	mu       sync.RWMutex
 	statuses map[int64]*DeviceStatus  // device ID → 최신 상태
 	counters map[string]*ifCounter    // "deviceID:ifIndex" → 이전 카운터
+	inflight map[int64]bool           // 폴링 진행 중인 장비 (느린 장비 중복 폴링 → 고루틴 누적 방지)
 }
 
 func NewPoller() *Poller {
 	return &Poller{
 		statuses: make(map[int64]*DeviceStatus),
+		inflight: make(map[int64]bool),
 		counters: make(map[string]*ifCounter),
 	}
 }
 
 // Poll은 단일 장비를 폴링하고 내부 상태를 갱신합니다.
 func (p *Poller) Poll(dev Device) {
+	p.mu.Lock()
+	if p.inflight[dev.ID] {
+		p.mu.Unlock()
+		return // 이전 폴링이 아직 진행 중 — 이번 주기는 건너뜀
+	}
+	p.inflight[dev.ID] = true
+	p.mu.Unlock()
+
 	status := p.poll(dev)
 	p.mu.Lock()
 	p.statuses[dev.ID] = status
+	delete(p.inflight, dev.ID)
 	p.mu.Unlock()
 }
 
