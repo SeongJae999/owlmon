@@ -76,10 +76,10 @@ export default function DashboardLayout() {
       >
         {/* Brand */}
         <div className="h-16 flex items-center px-5 gap-3 border-b border-slate-800/50">
-          <img src="/favicon.svg" alt="Willkomo OWLmon" title="Willkomo · OWLmon" className="w-9 h-9 shrink-0 rounded-xl" />
+          <img src="/favicon.svg" alt="OWLmon" title="OWLmon" className="w-9 h-9 shrink-0 rounded-xl" />
           {!sidebarCollapsed && (
             <div className="overflow-hidden whitespace-nowrap">
-              <p className="font-bold text-white text-lg">Willkomo</p>
+              <p className="font-bold text-white text-lg">OWLmon</p>
               <p className="text-xs text-slate-500 font-medium">통합 모니터링</p>
             </div>
           )}
@@ -213,7 +213,7 @@ export default function DashboardLayout() {
           {/* Global Footer in Main Area */}
           <footer className="w-full mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 pb-8">
             <div className="flex items-center gap-2 text-slate-500">
-              <img src="/favicon.svg" alt="Willkomo OWLmon" className="w-5 h-5 rounded-md" />
+              <img src="/favicon.svg" alt="OWLmon" className="w-5 h-5 rounded-md" />
               <span className="text-xs font-medium">OWLmon v1.2</span>
             </div>
             <div className="flex gap-6">

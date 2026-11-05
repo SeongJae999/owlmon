@@ -45,10 +45,10 @@ export default function LoginPage({ onLogin }: Props) {
             <div className="flex flex-col items-center text-center mb-10">
               <img
                 src="/favicon.svg"
-                alt="Willkomo OWLmon"
+                alt="OWLmon"
                 className="w-14 h-14 mb-4 shadow-xl shadow-indigo-500/30 rounded-2xl hover:scale-105 hover:shadow-indigo-500/50 transition-all duration-300"
               />
-              <h1 className="text-2xl font-bold text-slate-100 mb-1">Willkomo</h1>
+              <h1 className="text-2xl font-bold text-slate-100 mb-1">OWLmon</h1>
               <p className="text-sm font-medium text-slate-400">통합 모니터링</p>
             </div>
 
