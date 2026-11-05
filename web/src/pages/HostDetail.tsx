@@ -4,8 +4,10 @@ import {
   useAllHostStatuses,
   useHostMetrics,
   useServiceChecks,
-  useAnomalyData
+  useAnomalyData,
+  useAlertStatus
 } from '../hooks/useMonitoring'
+import ActiveAlertsPanel from '../components/ActiveAlertsPanel'
 import axios from 'axios'
 import { getAlertConfig, thresholds } from '../api/alert'
 import { useQuery } from '@tanstack/react-query'
@@ -30,6 +32,7 @@ export default function HostDetailPage() {
   const { data: anomalyData } = useAnomalyData()
   const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
   const th = thresholds(alertCfg)
+  const { data: activeAlerts = [], refetch: refetchAlerts } = useAlertStatus()
 
   // Chart Data Queries
   const { data: cpuChart = [] } = useQuery({
@@ -122,7 +125,7 @@ export default function HostDetailPage() {
 
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-end">
-            <span className="text-xs font-medium text-slate-500">활성 알림</span>
+            <span className="text-xs font-medium text-slate-500">이상 탐지</span>
             <span className={cn(
               "text-base font-bold tabular-nums",
               hostAnomalies.length > 0 ? "text-rose-400" : "text-slate-500"
@@ -145,6 +148,10 @@ export default function HostDetailPage() {
             <p className="text-xs font-medium opacity-80 mt-0.5">에이전트로부터 응답이 없습니다. 마지막으로 수집된 캐시 데이터를 표시합니다.</p>
           </div>
         </div>
+      )}
+
+      {hostName && (
+        <ActiveAlertsPanel alerts={activeAlerts} onChanged={refetchAlerts} host={hostName} />
       )}
 
       {/* Metric Cards Grid */}

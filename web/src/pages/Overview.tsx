@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import HostOverview from '../components/HostOverview'
+import ActiveAlertsPanel from '../components/ActiveAlertsPanel'
 import { 
   useHosts, 
   useAllHostStatuses, 
@@ -50,6 +51,12 @@ export default function OverviewPage() {
           </p>
         </div>
       </div>
+
+      <ActiveAlertsPanel
+        alerts={activeAlerts}
+        onChanged={refetchAlerts}
+        onSelectHost={(host) => navigate(`/detail?host=${host}`)}
+      />
 
       <HostOverview
         hosts={hosts}
