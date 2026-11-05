@@ -98,14 +98,14 @@ func (r *Reporter) Generate(year int, month time.Month) (*MonthlyReport, error) 
 			return v
 		}
 
-		hr.CPUAvg = q(fmt.Sprintf(`avg_over_time(system_cpu_usage_percent{host_name="%s"}[%s])`, host, duration))
-		hr.CPUMax = q(fmt.Sprintf(`max_over_time(system_cpu_usage_percent{host_name="%s"}[%s])`, host, duration))
-		hr.MemAvg = q(fmt.Sprintf(`avg_over_time(system_memory_usage_percent{host_name="%s"}[%s])`, host, duration))
-		hr.MemMax = q(fmt.Sprintf(`max_over_time(system_memory_usage_percent{host_name="%s"}[%s])`, host, duration))
-		hr.DiskMax = q(fmt.Sprintf(`max(max_over_time(system_disk_usage_percent{host_name="%s"}[%s]))`, host, duration))
+		hr.CPUAvg = q(fmt.Sprintf(`avg_over_time(system_cpu_usage_percent{host_name=%q}[%s])`, host, duration))
+		hr.CPUMax = q(fmt.Sprintf(`max_over_time(system_cpu_usage_percent{host_name=%q}[%s])`, host, duration))
+		hr.MemAvg = q(fmt.Sprintf(`avg_over_time(system_memory_usage_percent{host_name=%q}[%s])`, host, duration))
+		hr.MemMax = q(fmt.Sprintf(`max_over_time(system_memory_usage_percent{host_name=%q}[%s])`, host, duration))
+		hr.DiskMax = q(fmt.Sprintf(`max(max_over_time(system_disk_usage_percent{host_name=%q}[%s]))`, host, duration))
 
 		// 가동률: 실제 샘플 수 / 예상 샘플 수 (30초 간격)
-		count := q(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name="%s"}[%s])`, host, duration))
+		count := q(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name=%q}[%s])`, host, duration))
 		expectedSamples := float64(days * 24 * 120) // 30초 간격 = 분당 2회 = 시간당 120회
 		if expectedSamples > 0 && count > 0 {
 			hr.UptimePct = min(count/expectedSamples*100, 100)

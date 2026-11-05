@@ -274,7 +274,7 @@ func (c *Checker) checkServerDown() {
 		return
 	}
 	for _, host := range hosts {
-		results, err := c.query(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name="%s"}[2m])`, host))
+		results, err := c.query(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name=%q}[2m])`, host))
 		if err != nil {
 			continue
 		}

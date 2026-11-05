@@ -264,9 +264,9 @@ func buildHostContext(prometheusURL string, detector *anomaly.Detector, host str
 		}
 		return rs[0].Value, true
 	}
-	cpu, okC := q(`system_cpu_usage_percent{host_name="%s"}`)
-	mem, okM := q(`system_memory_usage_percent{host_name="%s"}`)
-	dsk, okD := q(`max(system_disk_usage_percent{host_name="%s"})`)
+	cpu, okC := q(`system_cpu_usage_percent{host_name=%q}`)
+	mem, okM := q(`system_memory_usage_percent{host_name=%q}`)
+	dsk, okD := q(`max(system_disk_usage_percent{host_name=%q})`)
 
 	var b strings.Builder
 	b.WriteString("[현재 호스트 상태]\n")

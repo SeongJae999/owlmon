@@ -157,7 +157,7 @@ func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	// 서버 다운 (2분 내 데이터 없음)
 	if hosts, err := h.labelValues("host_name"); err == nil {
 		for _, host := range hosts {
-			results, err := h.query(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name="%s"}[2m])`, host))
+			results, err := h.query(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name=%q}[2m])`, host))
 			if err == nil && len(results) == 0 {
 				alerts = append(alerts, ActiveAlert{
 					Host:     host,
@@ -209,7 +209,7 @@ func (h *StatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
 	result := make(map[string]float64)
 	for _, host := range hosts {
 		results, err := h.query(fmt.Sprintf(
-			`count_over_time(system_cpu_usage_percent{host_name="%s"}[%s])`,
+			`count_over_time(system_cpu_usage_percent{host_name=%q}[%s])`,
 			host, durationStr,
 		))
 		if err != nil || len(results) == 0 {
