@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -207,13 +208,13 @@ func (h *RulesHandler) MatchStats(w http.ResponseWriter, r *http.Request) {
 // 룰별 1h/24h/7d/30d 매칭 + 알림 발사 카운트 + 마지막 매칭 시각.
 // 룰 매칭 통계 페이지의 데이터 소스.
 type RuleStatDetail struct {
-	RuleID        int64     `json:"rule_id"`
-	Matches1h     int       `json:"matches_1h"`
-	Matches24h    int       `json:"matches_24h"`
-	Matches7d     int       `json:"matches_7d"`
-	Matches30d   int       `json:"matches_30d"`
-	AlertsFired  int       `json:"alerts_fired"`         // alert_history(category='log_rule')에 룰 이름으로 발사된 카운트 (전 기간)
-	LastMatchAt  *string   `json:"last_match_at,omitempty"`
+	RuleID      int64   `json:"rule_id"`
+	Matches1h   int     `json:"matches_1h"`
+	Matches24h  int     `json:"matches_24h"`
+	Matches7d   int     `json:"matches_7d"`
+	Matches30d  int     `json:"matches_30d"`
+	AlertsFired int     `json:"alerts_fired"` // alert_history(category='log_rule')에 룰 이름으로 발사된 카운트 (전 기간)
+	LastMatchAt *string `json:"last_match_at,omitempty"`
 }
 
 func (h *RulesHandler) MatchStatsDetailed(w http.ResponseWriter, r *http.Request) {
@@ -279,7 +280,9 @@ func (h *RulesHandler) MatchStatsDetailed(w http.ResponseWriter, r *http.Request
 func (h *RulesHandler) reloadEngine() {
 	if h.engine != nil {
 		go func() {
-			_ = h.engine.Reload(context.Background())
+			if err := h.engine.Reload(context.Background()); err != nil {
+				log.Printf("[로그 룰] 엔진 리로드 실패 — 이전 룰로 계속 동작: %v", err)
+			}
 		}()
 	}
 }

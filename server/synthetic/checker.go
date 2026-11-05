@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -97,10 +98,10 @@ func (c *Checker) Start(ctx context.Context) {
 	}()
 }
 
-// syncMonitors는 등록된 모니터와 실행 중인 루프를 동기화합니다.
 // Sync는 모니터 추가/수정/삭제 직후 즉시 동기화합니다 (5분 주기를 기다리지 않음).
 func (c *Checker) Sync(ctx context.Context) { c.syncMonitors(ctx) }
 
+// syncMonitors는 등록된 모니터와 실행 중인 루프를 동기화합니다.
 func (c *Checker) syncMonitors(ctx context.Context) {
 	monitors, err := c.lister.List(ctx)
 	if err != nil {
@@ -116,16 +117,16 @@ func (c *Checker) syncMonitors(ctx context.Context) {
 			continue
 		}
 		active[m.ID] = true
-		if _, ok := c.stops[m.ID]; !ok {
 		// 설정(URL·주기 등)이 바뀌면 기존 루프를 멈추고 새 설정으로 재시작
 		if stop, ok := c.stops[m.ID]; ok && c.running[m.ID] != m {
 			close(stop)
 			delete(c.stops, m.ID)
 		}
+		if _, ok := c.stops[m.ID]; !ok {
 			stop := make(chan struct{})
 			c.stops[m.ID] = stop
-			go c.runMonitor(m, stop)
 			c.running[m.ID] = m
+			go c.runMonitor(m, stop)
 		}
 	}
 	// 비활성/삭제된 모니터 루프 정리
@@ -133,8 +134,8 @@ func (c *Checker) syncMonitors(ctx context.Context) {
 		if !active[id] {
 			close(stop)
 			delete(c.stops, id)
-			delete(c.latest, id)
 			delete(c.running, id)
+			delete(c.latest, id)
 			delete(c.fails, id)
 		}
 	}
@@ -162,7 +163,9 @@ func (c *Checker) runMonitor(m Monitor, stop chan struct{}) {
 // executeOnce는 1회 체크 후 결과 저장과 알림 처리를 수행합니다.
 func (c *Checker) executeOnce(m Monitor) {
 	r := Check(m)
-	_ = c.saver.SaveResult(context.Background(), r)
+	if err := c.saver.SaveResult(context.Background(), r); err != nil {
+		log.Printf("[synthetic] 결과 저장 실패 (%s): %v", m.Name, err)
+	}
 
 	c.mu.Lock()
 	c.latest[m.ID] = r

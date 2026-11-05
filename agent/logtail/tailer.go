@@ -37,6 +37,7 @@ type Tailer struct {
 	wal      *WAL
 	mu       sync.Mutex
 	buffer   []LogEntry
+	dropped  int // 버퍼가 가득 차 버린 라인 수 (flush 때 로그로 알림)
 }
 
 // NewTailer는 새 Tailer를 생성합니다.
@@ -202,6 +203,8 @@ func (t *Tailer) drainNewLines(reader *bufio.Reader, cfg config.TailConfig, pend
 		t.mu.Lock()
 		if len(t.buffer) < maxBufferSize {
 			t.buffer = append(t.buffer, entry)
+		} else {
+			t.dropped++
 		}
 		t.mu.Unlock()
 	}
@@ -232,7 +235,12 @@ func (t *Tailer) flush() {
 	}
 	entries := t.buffer
 	t.buffer = nil
+	dropped := t.dropped
+	t.dropped = 0
 	t.mu.Unlock()
+	if dropped > 0 {
+		log.Printf("⚠️ 로그 버퍼 가득 참 — %d건 유실 (서버 전송 지연 또는 로그 폭주)", dropped)
+	}
 
 	if err := t.sender.Send(entries); err != nil {
 		log.Printf("로그 전송 실패 (%d건): %v", len(entries), err)

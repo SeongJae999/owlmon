@@ -131,9 +131,13 @@ func (p *Poller) pollOnce(inst Instance) {
 		return
 	}
 
-	_ = p.saver.SaveMetrics(ctx, result.Metrics)
+	if err := p.saver.SaveMetrics(ctx, result.Metrics); err != nil {
+		log.Printf("DPM: 메트릭 저장 실패 (%s): %v", inst.Name, err)
+	}
 	if len(result.TopQueries) > 0 {
-		_ = p.saver.SaveQueryStats(ctx, result.TopQueries)
+		if err := p.saver.SaveQueryStats(ctx, result.TopQueries); err != nil {
+			log.Printf("DPM: 쿼리 통계 저장 실패 (%s): %v", inst.Name, err)
+		}
 	}
 
 	p.mu.Lock()
