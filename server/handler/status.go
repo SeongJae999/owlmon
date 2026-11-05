@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"runtime"
@@ -53,7 +54,8 @@ func (h *StatusHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		if err := h.dbPool.Ping(ctx); err != nil {
-			checks["postgres"] = "error: " + err.Error()
+			log.Printf("[health] postgres: %v", err) // 공개 엔드포인트라 내부 주소·원인은 로그에만
+			checks["postgres"] = "error"
 			status = "error"
 		} else {
 			checks["postgres"] = "ok"
@@ -64,7 +66,8 @@ func (h *StatusHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Prometheus 체크
 	if _, err := h.labelValues("host_name"); err != nil {
-		checks["prometheus"] = "error: " + err.Error()
+		log.Printf("[health] prometheus: %v", err)
+		checks["prometheus"] = "error"
 		status = "error"
 	} else {
 		checks["prometheus"] = "ok"

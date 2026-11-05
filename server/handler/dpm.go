@@ -55,7 +55,7 @@ func (h *DPMHandler) AddInstance(w http.ResponseWriter, r *http.Request) {
 	// 평문 비밀번호를 암호화
 	encrypted, err := h.poller.Cipher().Encrypt(inst.Password)
 	if err != nil {
-		http.Error(w, "비밀번호 암호화 실패: "+err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "비밀번호 암호화 실패", err)
 		return
 	}
 	inst.PasswordEnc = encrypted

@@ -90,7 +90,7 @@ func (h *LLMHandler) ExplainLog(w http.ResponseWriter, r *http.Request) {
 
 	text, err := h.provider.Complete(ctx, llm.SystemPromptLogExplain, masked)
 	if err != nil {
-		http.Error(w, "LLM 호출 실패: "+err.Error(), http.StatusBadGateway)
+		respondError(w, http.StatusBadGateway, "LLM 호출 실패", err)
 		return
 	}
 	h.cache.Set(cacheKey, text)
@@ -131,7 +131,7 @@ func (h *LLMHandler) SummarizeAlerts(w http.ResponseWriter, r *http.Request) {
 		Limit: 500,
 	})
 	if err != nil {
-		http.Error(w, "알림 히스토리 조회 실패: "+err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "알림 히스토리 조회 실패", err)
 		return
 	}
 
@@ -196,7 +196,7 @@ func (h *LLMHandler) SummarizeAlerts(w http.ResponseWriter, r *http.Request) {
 
 	text, err := h.provider.Complete(ctx, llm.SystemPromptAlertSummary, userPrompt)
 	if err != nil {
-		http.Error(w, "LLM 호출 실패: "+err.Error(), http.StatusBadGateway)
+		respondError(w, http.StatusBadGateway, "LLM 호출 실패", err)
 		return
 	}
 	h.cache.Set(cacheKey, text)
@@ -272,7 +272,7 @@ func (h *LLMHandler) Chat(w http.ResponseWriter, r *http.Request) {
 
 	text, err := h.provider.Complete(ctx, llm.SystemPromptChat, userPrompt)
 	if err != nil {
-		http.Error(w, "AI 호출 실패: "+err.Error(), http.StatusBadGateway)
+		respondError(w, http.StatusBadGateway, "AI 호출 실패", err)
 		return
 	}
 

@@ -76,7 +76,7 @@ func (h *InsightHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	items, err := h.store.List(r.Context(), f)
 	if err != nil {
-		http.Error(w, "조회 실패: "+err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "조회 실패", err)
 		return
 	}
 	if items == nil {
@@ -104,7 +104,7 @@ func (h *InsightHandler) ByTemplate(w http.ResponseWriter, r *http.Request) {
 
 	ins, err := h.store.ByTemplate(r.Context(), hash, 24*time.Hour)
 	if err != nil {
-		http.Error(w, "조회 실패: "+err.Error(), http.StatusInternalServerError)
+		respondError(w, http.StatusInternalServerError, "조회 실패", err)
 		return
 	}
 	if ins == nil {
