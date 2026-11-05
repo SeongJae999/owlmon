@@ -3,6 +3,7 @@ import { fetchAssets, upsertAsset, deleteAsset, type Asset } from '../api/asset'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Server, MapPin, Calendar, Edit2, Trash2, Plus, X, Save, RefreshCcw, Info } from 'lucide-react'
 import { cn } from '../utils/cn'
+import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
 
 const emptyForm = (): Omit<Asset, 'id' | 'updated_at'> => ({
@@ -83,17 +84,7 @@ export default function AssetManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Page Actions */}
-      <div className="flex justify-between items-center bg-slate-900 p-4 rounded-3xl border border-slate-800 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-            <Server size={20} />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-100 leading-tight">IT 자산 관리</h3>
-            <p className="text-xs text-slate-500 font-medium">등록된 호스트 및 네트워크 장비 목록</p>
-          </div>
-        </div>
+      <PageToolbar icon={Server} title="장비 목록" description="등록된 서버와 네트워크 장비의 위치·담당자 등 관리 정보">
         {!editing && (
           <button 
             className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
@@ -103,7 +94,7 @@ export default function AssetManagement() {
             새 자산 등록
           </button>
         )}
-      </div>
+      </PageToolbar>
 
       {/* Editor Form */}
       {editing && (

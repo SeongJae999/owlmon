@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Power, X, AlertTriangle, AlertCircle, Info, CheckCircle2, XCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Power, X, AlertTriangle, AlertCircle, Info, CheckCircle2, XCircle, ListChecks } from 'lucide-react'
 import {
   listRules, createRule, updateRule, toggleRule, deleteRule, getRuleStats,
   severityLabel, categoryLabel,
@@ -8,6 +8,7 @@ import {
 } from '../api/rules'
 import { cn } from '../utils/cn'
 import ConfirmDialog from '../components/ConfirmDialog'
+import PageToolbar from '../components/PageToolbar'
 import { RuleStatsContent } from './RuleStatsPage'
 
 const EMPTY_INPUT: LogRuleInput = {
@@ -59,14 +60,11 @@ export default function RulesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100">로그 룰</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            정규식 기반 로그 패턴 매칭 — {rules.length}개 등록 / {rules.filter(r => r.enabled).length}개 활성
-          </p>
-        </div>
+      <PageToolbar
+        icon={ListChecks}
+        title="로그 감지 규칙"
+        description={`특정 문구가 로그에 나타나면 알림을 보냅니다 — ${rules.length}개 등록 / ${rules.filter(r => r.enabled).length}개 사용 중`}
+      >
         {tab === 'rules' && (
           <button
             onClick={() => setCreating(true)}
@@ -75,7 +73,7 @@ export default function RulesPage() {
             <Plus size={16} /> 룰 추가
           </button>
         )}
-      </div>
+      </PageToolbar>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 w-fit">

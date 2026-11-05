@@ -9,6 +9,7 @@ import {
   type Insight,
 } from '../api/insights'
 import { cn } from '../utils/cn'
+import PageToolbar from '../components/PageToolbar'
 import { TONES } from '../utils/severity'
 
 // 앱 공통 3톤(rose/amber/slate)에 맞춤 — high는 별도 색 대신 rose + 라벨로 구분
@@ -100,19 +101,7 @@ export default function InsightDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center">
-            <Sparkles size={20} className="text-indigo-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-100">AI 로그 인사이트</h1>
-            <p className="text-sm text-slate-500">
-              5분마다 이상 로그(ERROR/WARN)를 LLM이 자동 분석한 결과
-            </p>
-          </div>
-        </div>
+      <PageToolbar icon={Sparkles} title="AI 분석 결과" description="5분마다 오류·경고 로그를 AI가 읽고 원인과 조치를 정리합니다">
         <button
           onClick={() => refetch()}
           disabled={isFetching}
@@ -121,7 +110,7 @@ export default function InsightDashboard() {
           <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
           새로고침
         </button>
-      </div>
+      </PageToolbar>
 
       {/* Status banner — 비활성 시만 표시 */}
       {status && !status.enabled && (

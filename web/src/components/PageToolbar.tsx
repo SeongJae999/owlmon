@@ -17,19 +17,20 @@ interface Props {
  */
 export default function PageToolbar({ icon: Icon, title, description, children }: Props) {
   return (
-    <div className="flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-indigo-500/15 text-indigo-400 rounded-lg border border-indigo-500/20">
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="p-2 bg-indigo-500/15 text-indigo-400 rounded-lg border border-indigo-500/20 shrink-0">
           <Icon size={18} />
         </div>
         <div>
-          <h3 className="font-bold text-sm text-slate-100 leading-tight">{title}</h3>
+          <h1 className="font-bold text-sm text-slate-100 leading-tight">{title}</h1>
           {description && (
             <p className="text-xs text-slate-500 font-medium mt-0.5">{description}</p>
           )}
         </div>
       </div>
-      {children && <div className="flex gap-2">{children}</div>}
+      {/* 모바일에선 제목 아래로 내려가고 버튼이 많으면 줄바꿈 */}
+      {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>
   )
 }
