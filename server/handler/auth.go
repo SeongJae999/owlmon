@@ -1,26 +1,40 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/auth"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// userBackend — *db.UserStore가 만족. nil이면 환경변수 단일 계정 모드 (DB 없이 실행할 때).
+type userBackend interface {
+	ForLogin(ctx context.Context, username string) (hash, role string, disabled bool, err error)
+	SetPassword(ctx context.Context, username, hash string) error
+}
 
 type AuthHandler struct {
 	username     string
 	passwordHash string // bcrypt 해시
 	jwtSecret    string
 	auditStore   *audit.Store
+	users        userBackend
 
-	// brute-force 방어 (ISMS-P: 연속 실패 시 잠금). 계정이 하나라 전역 카운터로 충분.
-	mu          sync.Mutex
+	// brute-force 방어 (ISMS-P: 연속 실패 시 잠금). 계정별 — 한 계정이 잠겨도 다른 사람은 로그인 가능
+	mu    sync.Mutex
+	locks map[string]*loginLock
+}
+
+type loginLock struct {
 	failures    int
 	lockedUntil time.Time
 }
@@ -28,33 +42,8 @@ type AuthHandler struct {
 const (
 	maxLoginFailures = 5
 	loginLockout     = 10 * time.Minute
+	maxTrackedLocks  = 1000 // 없는 아이디를 무작위로 대입해 맵이 무한히 커지는 것 방지
 )
-
-// lockRemaining — 잠금 중이면 남은 시간, 아니면 0.
-func (h *AuthHandler) lockRemaining() time.Duration {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return time.Until(h.lockedUntil)
-}
-
-// recordFailure — 실패 누적, 임계치 도달 시 잠금 시작. 잠금이 걸렸으면 true.
-func (h *AuthHandler) recordFailure() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.failures++
-	if h.failures >= maxLoginFailures {
-		h.failures = 0
-		h.lockedUntil = time.Now().Add(loginLockout)
-		return true
-	}
-	return false
-}
-
-func (h *AuthHandler) resetFailures() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.failures = 0
-}
 
 func NewAuthHandler(username, passwordHash, jwtSecret string, auditStore *audit.Store) *AuthHandler {
 	return &AuthHandler{
@@ -62,7 +51,54 @@ func NewAuthHandler(username, passwordHash, jwtSecret string, auditStore *audit.
 		passwordHash: passwordHash,
 		jwtSecret:    jwtSecret,
 		auditStore:   auditStore,
+		locks:        make(map[string]*loginLock),
 	}
+}
+
+// WithUsers — 다중 계정 모드. 설정 후엔 환경변수 계정 대신 users 테이블로 로그인.
+func (h *AuthHandler) WithUsers(u userBackend) *AuthHandler {
+	h.users = u
+	return h
+}
+
+func (h *AuthHandler) lockRemaining(user string) time.Duration {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if l := h.locks[user]; l != nil {
+		return time.Until(l.lockedUntil)
+	}
+	return 0
+}
+
+// recordFailure — 실패 누적, 임계치 도달 시 잠금 시작. 잠금이 걸렸으면 true.
+func (h *AuthHandler) recordFailure(user string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	l := h.locks[user]
+	if l == nil {
+		if len(h.locks) >= maxTrackedLocks {
+			for k, v := range h.locks {
+				if time.Now().After(v.lockedUntil) {
+					delete(h.locks, k)
+				}
+			}
+		}
+		l = &loginLock{}
+		h.locks[user] = l
+	}
+	l.failures++
+	if l.failures >= maxLoginFailures {
+		l.failures = 0
+		l.lockedUntil = time.Now().Add(loginLockout)
+		return true
+	}
+	return false
+}
+
+func (h *AuthHandler) resetFailures(user string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.locks, user)
 }
 
 type loginRequest struct {
@@ -92,6 +128,28 @@ func extractIP(r *http.Request) string {
 	return addr
 }
 
+// verify — 아이디·비밀번호 확인. 실패 시 감사 로그용 사유 반환.
+func (h *AuthHandler) verify(ctx context.Context, username, password string) (role, reason string) {
+	hash, role := h.passwordHash, auth.RoleAdmin
+	if h.users != nil {
+		var disabled bool
+		var err error
+		hash, role, disabled, err = h.users.ForLogin(ctx, username)
+		if err != nil {
+			return "", "unknown_user"
+		}
+		if disabled {
+			return "", "disabled"
+		}
+	} else if username != h.username {
+		return "", "unknown_user"
+	}
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
+		return "", "bad_password"
+	}
+	return role, ""
+}
+
 // Login은 아이디/비밀번호를 확인하고 JWT를 발급합니다.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
@@ -102,74 +160,114 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	ip := extractIP(r)
 	ua := r.UserAgent()
-
-	// 잠금 중에는 비밀번호가 맞아도 거부해야 무차별 대입이 무의미해짐
-	if left := h.lockRemaining(); left > 0 {
+	save := func(action, result string, details map[string]any) {
 		h.auditStore.Save(r.Context(), audit.Entry{
 			Actor: req.Username, IP: ip, UserAgent: ua,
-			Action: "auth.login", Result: "failure",
-			Details: map[string]any{"reason": "locked"},
+			Action: action, Result: result, Details: details,
 		})
+	}
+
+	// 잠금 중에는 비밀번호가 맞아도 거부해야 무차별 대입이 무의미해짐
+	if left := h.lockRemaining(req.Username); left > 0 {
+		save("auth.login", "failure", map[string]any{"reason": "locked"})
 		mins := int(left.Minutes()) + 1
 		http.Error(w, fmt.Sprintf("로그인 %d회 실패로 잠겼습니다. %d분 후 다시 시도하세요", maxLoginFailures, mins), http.StatusTooManyRequests)
 		return
 	}
 
-	// 아이디 확인
-	if req.Username != h.username {
-		h.auditStore.Save(r.Context(), audit.Entry{
-			Actor:     req.Username,
-			IP:        ip,
-			UserAgent: ua,
-			Action:    "auth.login",
-			Result:    "failure",
-			Details:   map[string]any{"reason": "unknown_user"},
-		})
-		h.failLogin(w, r, req.Username, ip, ua)
+	if _, reason := h.verify(r.Context(), req.Username, req.Password); reason != "" {
+		save("auth.login", "failure", map[string]any{"reason": reason})
+		if h.recordFailure(req.Username) {
+			save("auth.lockout", "failure", map[string]any{"failures": maxLoginFailures, "minutes": int(loginLockout.Minutes())})
+		}
+		// 사유(없는 아이디/중지/비밀번호)를 구분해 알려주면 계정 존재 여부가 노출됨
+		http.Error(w, "아이디 또는 비밀번호가 올바르지 않습니다", http.StatusUnauthorized)
 		return
 	}
 
-	// 비밀번호 확인 (bcrypt)
-	if err := bcrypt.CompareHashAndPassword([]byte(h.passwordHash), []byte(req.Password)); err != nil {
-		h.auditStore.Save(r.Context(), audit.Entry{
-			Actor:     req.Username,
-			IP:        ip,
-			UserAgent: ua,
-			Action:    "auth.login",
-			Result:    "failure",
-			Details:   map[string]any{"reason": "bad_password"},
-		})
-		h.failLogin(w, r, req.Username, ip, ua)
-		return
-	}
-
-	h.resetFailures()
+	h.resetFailures(req.Username)
 	token, err := auth.GenerateToken(req.Username, h.jwtSecret)
 	if err != nil {
 		http.Error(w, "토큰 생성 실패", http.StatusInternalServerError)
 		return
 	}
-
-	h.auditStore.Save(r.Context(), audit.Entry{
-		Actor:     req.Username,
-		IP:        ip,
-		UserAgent: ua,
-		Action:    "auth.login",
-		Result:    "success",
-	})
+	save("auth.login", "success", nil)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(loginResponse{Token: token})
 }
 
-// failLogin — 실패 응답 + 누적. 이번 실패로 잠기면 감사 로그에 남김.
-func (h *AuthHandler) failLogin(w http.ResponseWriter, r *http.Request, user, ip, ua string) {
-	if h.recordFailure() {
-		h.auditStore.Save(r.Context(), audit.Entry{
-			Actor: user, IP: ip, UserAgent: ua,
-			Action: "auth.lockout", Result: "failure",
-			Details: map[string]any{"failures": maxLoginFailures, "minutes": int(loginLockout.Minutes())},
-		})
+// Me GET /api/auth/me — 화면이 역할에 따라 메뉴·버튼을 숨기는 데 사용
+func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, map[string]any{
+		"username":   auth.UsernameFromContext(r.Context()),
+		"role":       auth.RoleFromContext(r.Context()),
+		"multi_user": h.users != nil,
+	})
+}
+
+// ChangePassword POST /api/auth/password — 본인 비밀번호 변경
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if h.users == nil {
+		http.Error(w, "환경변수로 설정된 계정은 화면에서 비밀번호를 바꿀 수 없습니다", http.StatusBadRequest)
+		return
 	}
-	http.Error(w, "아이디 또는 비밀번호가 올바르지 않습니다", http.StatusUnauthorized)
+	var req struct {
+		Current string `json:"current"`
+		New     string `json:"new"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "잘못된 요청입니다", http.StatusBadRequest)
+		return
+	}
+	user := auth.UsernameFromContext(r.Context())
+	if _, reason := h.verify(r.Context(), user, req.Current); reason != "" {
+		audit.LogFailure(r.Context(), "user.password_change", reason)
+		http.Error(w, "현재 비밀번호가 올바르지 않습니다", http.StatusBadRequest)
+		return
+	}
+	if msg := passwordPolicy(req.New); msg != "" {
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.New), bcrypt.DefaultCost)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	if err := h.users.SetPassword(r.Context(), user, string(hash)); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, "계정을 찾을 수 없습니다", http.StatusNotFound)
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	audit.Log(r.Context(), "user.password_change", "user", user, nil)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// passwordPolicy — 9자 이상 + 영문·숫자·특수문자 중 2종 이상 (공공기관 지침에서 흔한 기준)
+func passwordPolicy(pw string) string {
+	var letter, digit, special bool
+	for _, c := range pw {
+		switch {
+		case c >= '0' && c <= '9':
+			digit = true
+		case (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'):
+			letter = true
+		default:
+			special = true
+		}
+	}
+	kinds := 0
+	for _, b := range []bool{letter, digit, special} {
+		if b {
+			kinds++
+		}
+	}
+	if len([]rune(pw)) < 9 || kinds < 2 {
+		return "비밀번호는 9자 이상, 영문·숫자·특수문자 중 2종류 이상을 섞어야 합니다"
+	}
+	return ""
 }

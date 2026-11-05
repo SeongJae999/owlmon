@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"log"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/audit"
 	"github.com/seongJae/owlmon/server/auth"
+	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/handler"
 	"github.com/seongJae/owlmon/server/llm"
 	"github.com/seongJae/owlmon/server/report"
@@ -19,6 +23,22 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 	r.Use(middleware.Recoverer)
 
 	authHandler := handler.NewAuthHandler(username, passwordHash, jwtSecret, appCtx.AuditStore)
+
+	// 다중 계정 — DB가 있으면 users 테이블로 로그인 (첫 실행 시 환경변수 관리자를 그대로 옮겨 기존 로그인 유지).
+	// DB 없이 실행하면 예전처럼 환경변수 단일 관리자 계정.
+	var userCheck auth.UserCheck
+	var usersHandler *handler.UsersHandler
+	if appCtx.DBPool != nil {
+		users := db.NewUserStore(appCtx.DBPool)
+		if err := users.EnsureTable(context.Background(), username, passwordHash); err != nil {
+			log.Printf("⚠️ users 테이블 준비 실패 — 환경변수 단일 계정으로 동작: %v", err)
+		} else {
+			authHandler.WithUsers(users)
+			userCheck = users.Current
+			usersHandler = handler.NewUsersHandler(users)
+			log.Println("다중 계정 모드 (users 테이블) — 이후 비밀번호 변경은 화면에서")
+		}
+	}
 	proxyHandler, _ := handler.NewProxyHandler(prometheusURL)
 	alertHandler := handler.NewAlertHandler(appCtx.ConfigStore, checker, appCtx.EmailConfig)
 	statusHandler := handler.NewStatusHandler(prometheusURL, appCtx.ConfigStore, checker, appCtx.DBPool)
@@ -51,16 +71,26 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 	// 스펙 조회는 관리자(JWT) 그룹
 	if specsHandler != nil {
 		r.Group(func(r chi.Router) {
-			r.Use(auth.JWTMiddleware(jwtSecret))
+			r.Use(auth.JWTMiddleware(jwtSecret, userCheck))
 			r.Get("/api/agent/specs", specsHandler.List)
 			r.Get("/api/agent/specs/{host}", specsHandler.Get)
 		})
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Use(auth.JWTMiddleware(jwtSecret))
+		r.Use(auth.JWTMiddleware(jwtSecret, userCheck))
 		r.Use(audit.Middleware(appCtx.AuditStore))
+		r.Use(auth.ReadOnlyGuard)
 		r.Handle("/api/v1/*", proxyHandler)
+
+		// 계정
+		r.Get("/api/auth/me", authHandler.Me)
+		r.Post("/api/auth/password", authHandler.ChangePassword)
+		if usersHandler != nil {
+			r.With(auth.RequireAdmin).Get("/api/users", usersHandler.List)
+			r.With(auth.RequireAdmin).Post("/api/users", usersHandler.Create)
+			r.With(auth.RequireAdmin).Patch("/api/users/{id}", usersHandler.Update)
+		}
 
 		// Alert
 		r.Get("/api/alert/config", alertHandler.GetConfig)
