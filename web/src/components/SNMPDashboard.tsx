@@ -103,12 +103,12 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
         <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-start gap-3 text-rose-200 text-xs font-medium">
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <div className="space-y-1 min-w-0">
-            <p className="font-bold">SNMP 응답 없음</p>
+            <p className="font-bold">장비 응답 없음</p>
             {status.LastError ? (
               <p className="text-[11px] text-rose-300/90 break-words font-mono">{status.LastError}</p>
             ) : (
               <p className="text-[11px] text-rose-300/80">
-                다음 폴링(30초 주기)을 기다리거나, 장비의 SNMP 활성화/community/방화벽을 확인하세요.
+                30초마다 다시 확인합니다. 계속 응답이 없으면 장비의 SNMP 기능이 켜져 있는지, 접속 암호(Community)와 방화벽 설정을 확인하세요.
               </p>
             )}
           </div>
@@ -276,7 +276,7 @@ export default function SNMPDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageToolbar icon={Network} title="네트워크 장비 (SNMP)" description="스위치 및 라우터 인터페이스 모니터링">
+      <PageToolbar icon={Network} title="네트워크 장비" description="스위치·공유기의 연결 상태와 포트별 사용량 (SNMP 방식)">
         <button
           className={cn(
             "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg",
@@ -312,7 +312,7 @@ export default function SNMPDashboard() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">SNMP Community</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">접속 암호 (SNMP Community)</label>
               <input
                 className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
                 placeholder="public"
@@ -428,7 +428,7 @@ export default function SNMPDashboard() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">SNMP Community</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">접속 암호 (SNMP Community)</label>
                 <input
                   className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
                   value={editing.Community}

@@ -7,13 +7,13 @@ import SummaryCard from '../components/SummaryCard'
 import PageToolbar from '../components/PageToolbar'
 
 /**
- * 룰 매칭 통계 페이지
- * - 룰별 1h/24h/7d/30d 매칭 카운트
+ * 규칙 매칭 통계 페이지
+ * - 규칙별 1h/24h/7d/30d 매칭 카운트
  * - 알림 발사 카운트 (전 기간)
  * - 마지막 매칭 시각
- * - 가장 시끄러운 룰 / 매칭 0건 룰 식별
+ * - 가장 시끄러운 규칙 / 매칭 0건 규칙 식별
  */
-// 룰 통계 콘텐츠 — RulesPage 탭에서도 재사용
+// 규칙 통계 콘텐츠 — RulesPage 탭에서도 재사용
 export function RuleStatsContent() {
   const { data: rules = [] } = useQuery({ queryKey: ['log-rules-all'], queryFn: listRules })
   const { data: stats = {} } = useQuery({
@@ -22,7 +22,7 @@ export function RuleStatsContent() {
     refetchInterval: 30_000,
   })
 
-  // 룰 + 통계 결합
+  // 규칙 + 통계 결합
   const rows = useMemo(() => {
     return rules.map(r => ({
       ...r,
@@ -47,8 +47,8 @@ export function RuleStatsContent() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        <SummaryCard icon={Filter}        label="전체 룰"       value={summary.total} color="indigo" />
-        <SummaryCard icon={CheckCircle2}  label="매칭된 룰"     value={summary.matched} color="emerald" suffix={`/ ${summary.total}`} />
+        <SummaryCard icon={Filter}        label="전체 규칙"       value={summary.total} color="indigo" />
+        <SummaryCard icon={CheckCircle2}  label="매칭된 규칙"     value={summary.matched} color="emerald" suffix={`/ ${summary.total}`} />
         <SummaryCard icon={AlertTriangle} label="매칭 0건"      value={summary.silent} color="slate" />
         <SummaryCard icon={TrendingUp}    label="총 매칭 (30d)" value={summary.totalMatches30d.toLocaleString()} color="amber" />
         <SummaryCard icon={AlertTriangle} label="총 알림 발사"   value={summary.totalAlerts.toLocaleString()} color="rose" />
@@ -60,7 +60,7 @@ export function RuleStatsContent() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-800/50 border-b border-slate-800">
               <tr>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">룰 이름</th>
+                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">규칙 이름</th>
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">카테고리</th>
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">심각도</th>
                 <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">1h</th>
@@ -149,7 +149,7 @@ export function RuleStatsContent() {
         </div>
         <div className="px-4 py-3 bg-slate-800/30 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
           <div className="flex items-center gap-3">
-            <span>총 {rows.length}개 룰</span>
+            <span>총 {rows.length}개 규칙</span>
             <span className="text-slate-600">·</span>
             <span>30초 자동 갱신</span>
           </div>
@@ -169,8 +169,8 @@ export default function RuleStatsPage() {
     <div className="space-y-6">
       <PageToolbar
         icon={BarChart3}
-        title="룰 매칭 통계"
-        description="어떤 룰이 시끄러운가, 어떤 룰이 한 번도 안 잡혔는가 — 운영자가 룰을 다듬는 도구"
+        title="감지 규칙 통계"
+        description="어떤 규칙이 시끄러운가, 어떤 규칙이 한 번도 안 잡혔는가 — 운영자가 규칙을 다듬는 도구"
       />
       <RuleStatsContent />
     </div>

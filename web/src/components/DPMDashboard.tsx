@@ -67,7 +67,7 @@ function InstanceCard({
           </span>
           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={onCheck} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="즉시 점검" aria-label="즉시 점검"><RefreshCcw size={14} /></button>
-            <button onClick={onShowQueries} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="슬로우 쿼리" aria-label="슬로우 쿼리"><Zap size={14} /></button>
+            <button onClick={onShowQueries} className="p-1 rounded-md text-slate-400 hover:bg-slate-800 hover:text-indigo-400 transition-all" title="느린 쿼리" aria-label="느린 쿼리"><Zap size={14} /></button>
             <button onClick={onDelete} className="p-1 rounded-md text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-all" title="삭제" aria-label="삭제"><Trash2 size={14} /></button>
           </div>
         </div>
@@ -135,9 +135,9 @@ function InstanceCard({
             <div className="bg-sky-500/10 border border-sky-500/20 rounded-lg p-2.5 flex items-start gap-2 text-[11px]">
               <Info size={12} className="shrink-0 text-sky-400 mt-0.5" />
               <div className="space-y-0.5 min-w-0">
-                <div className="text-sky-300 font-bold">쿼리 분석 기능 OFF</div>
+                <div className="text-sky-300 font-bold">느린 쿼리 분석 꺼짐</div>
                 <div className="text-sky-300/80 leading-relaxed">
-                  기본 모니터링은 정상. 슬로우 쿼리 찾기 기능을 쓰려면 <code className="bg-slate-900 px-1 py-0.5 rounded text-[10px]">pg_stat_statements</code> 확장 설치가 필요합니다.{' '}
+                  기본 모니터링은 정상입니다. 느린 쿼리 찾기를 쓰려면 <code className="bg-slate-900 px-1 py-0.5 rounded text-[10px]">pg_stat_statements</code> 확장 설치가 필요합니다.{' '}
                   <Link to="/support#troubleshoot" className="text-indigo-300 hover:text-indigo-200 underline underline-offset-2">설치 방법 →</Link>
                 </div>
               </div>
@@ -211,7 +211,7 @@ function AddInstanceForm({ onAdd }: { onAdd: () => void }) {
         <Zap size={18} className="text-amber-400 mt-0.5 shrink-0" />
         <div className="space-y-1">
           <p className="text-xs font-bold text-amber-200">성능 분석 권장 설정</p>
-          <p className="text-[11px] text-amber-300 leading-relaxed font-medium">슬로우 쿼리 수집을 위해 대상 DB에 <code className="bg-slate-900 px-1 rounded border border-amber-500/30">pg_stat_statements</code> 확장이 활성화되어야 합니다. 또한 읽기 전용 계정 사용을 권장합니다.</p>
+          <p className="text-[11px] text-amber-300 leading-relaxed font-medium">느린 쿼리 수집을 위해 대상 DB에 <code className="bg-slate-900 px-1 rounded border border-amber-500/30">pg_stat_statements</code> 확장이 활성화되어야 합니다. 또한 읽기 전용 계정 사용을 권장합니다.</p>
         </div>
       </div>
 
@@ -289,7 +289,7 @@ function QueriesModal({ instanceId, name, onClose }: { instanceId: number; name:
             <div className="p-2 bg-slate-900 rounded-xl shadow-sm"><Zap size={20} className="text-amber-500" /></div>
             <div>
               <h3 className="font-bold text-lg leading-tight">{name}</h3>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wide mt-0.5">슬로우 쿼리 분석 · 상위 {queries.length}건</p>
+              <p className="text-[10px] font-bold text-slate-400 tracking-wide mt-0.5">느린 쿼리 · 상위 {queries.length}건</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-900 rounded-full hover:text-slate-100 transition-all border border-transparent hover:border-slate-800">
@@ -303,7 +303,7 @@ function QueriesModal({ instanceId, name, onClose }: { instanceId: number; name:
           ) : queries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 border border-slate-800 border-dashed rounded-3xl">
               <Zap size={48} className="mb-4 opacity-10" />
-              <p className="font-bold text-slate-500">슬로우 쿼리 내역이 없습니다.</p>
+              <p className="font-bold text-slate-500">느린 쿼리 내역이 없습니다.</p>
               <p className="text-[10px] font-bold text-slate-400 tracking-wide mt-1">pg_stat_statements 확장 설치 필요</p>
             </div>
           ) : (
@@ -311,11 +311,11 @@ function QueriesModal({ instanceId, name, onClose }: { instanceId: number; name:
               <table className="w-full text-left border-separate border-spacing-y-1.5">
                 <thead>
                   <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    <th className="px-4 pb-2">Query Statement</th>
-                    <th className="px-4 pb-2 text-right">Calls</th>
-                    <th className="px-4 pb-2 text-right">Avg Time</th>
-                    <th className="px-4 pb-2 text-right">Max Time</th>
-                    <th className="px-4 pb-2 text-right">Total Time</th>
+                    <th className="px-4 pb-2">쿼리</th>
+                    <th className="px-4 pb-2 text-right">실행 횟수</th>
+                    <th className="px-4 pb-2 text-right">평균 시간</th>
+                    <th className="px-4 pb-2 text-right">최대 시간</th>
+                    <th className="px-4 pb-2 text-right">누적 시간</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -383,7 +383,7 @@ export default function DPMDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageToolbar icon={Database} title="데이터베이스 성능 (DPM)" description="PostgreSQL 실시간 상태 및 슬로우 쿼리 분석">
+      <PageToolbar icon={Database} title="데이터베이스" description="PostgreSQL 접속 수·용량과 느린 쿼리 확인">
         <button
           className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-sm"
           onClick={() => refetch()}

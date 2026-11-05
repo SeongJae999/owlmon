@@ -241,7 +241,7 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
             </FAQItem>
 
             <FAQItem q="SNMP 장비 (스위치/라우터)도 모니터링 가능한가요?">
-              <p>가능합니다. SNMP v2c 지원 장비를 등록하면 트래픽/CPU/메모리 폴링합니다. 망분리 환경에선 에이전트가 SNMP 프록시 역할도 합니다.</p>
+              <p>가능합니다. SNMP v2c 지원 장비를 등록하면 트래픽/CPU/메모리를 주기적으로 수집합니다. 망분리 환경에선 에이전트가 SNMP 프록시 역할도 합니다.</p>
             </FAQItem>
           </Section>
 

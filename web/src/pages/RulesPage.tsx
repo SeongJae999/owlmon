@@ -55,7 +55,7 @@ export default function RulesPage() {
   const deleteMut = useMutation({ mutationFn: deleteRule, onSuccess: invalidate })
 
   if (isLoading) {
-    return <div className="text-slate-500 text-sm">룰 불러오는 중…</div>
+    return <div className="text-slate-500 text-sm">규칙 불러오는 중…</div>
   }
 
   return (
@@ -70,7 +70,7 @@ export default function RulesPage() {
             onClick={() => setCreating(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold transition-colors"
           >
-            <Plus size={16} /> 룰 추가
+            <Plus size={16} /> 규칙 추가
           </button>
         )}
       </PageToolbar>
@@ -78,7 +78,7 @@ export default function RulesPage() {
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 w-fit">
         {([
-          { id: 'rules', label: '룰 관리' },
+          { id: 'rules', label: '규칙 관리' },
           { id: 'stats', label: '매칭 통계' },
         ] as const).map(t => (
           <button
@@ -138,7 +138,7 @@ export default function RulesPage() {
           />
         ))}
         {filtered.length === 0 && (
-          <div className="text-center text-slate-500 text-sm py-12">조건에 맞는 룰이 없습니다.</div>
+          <div className="text-center text-slate-500 text-sm py-12">조건에 맞는 규칙이 없습니다.</div>
         )}
       </div>
       </>}
@@ -154,8 +154,8 @@ export default function RulesPage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="룰 삭제"
-        message={`'${deleteTarget?.name}' 룰을 삭제하시겠습니까?`}
+        title="규칙 삭제"
+        message={`'${deleteTarget?.name}' 규칙을 삭제하시겠습니까?`}
         onConfirm={() => {
           if (deleteTarget) deleteMut.mutate(deleteTarget.id)
           setDeleteTarget(null)
@@ -166,7 +166,7 @@ export default function RulesPage() {
   )
 }
 
-// ─── 룰 한 줄 카드 ────────────────────────────────────
+// ─── 규칙 한 줄 카드 ────────────────────────────────────
 
 function RuleRow({ rule, matchCount, onToggle, onEdit, onDelete }: {
   rule: LogRule, matchCount: number,
@@ -210,7 +210,7 @@ function RuleRow({ rule, matchCount, onToggle, onEdit, onDelete }: {
             )
           ) : (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-500"
-              title="이 룰은 비활성화 상태 — 매칭/알림 동작 안 함">
+              title="이 규칙은 비활성화 상태 — 매칭/알림 동작 안 함">
               비활성
             </span>
           )}
@@ -243,7 +243,7 @@ function IconBtn({ children, onClick, title, className }: {
 
 // ─── 편집/추가 모달 ──────────────────────────────────
 
-// 자주 쓰는 룰 프리셋 — 학교/공공기관 시스템 흔한 패턴
+// 자주 쓰는 규칙 프리셋 — 학교/공공기관 시스템 흔한 패턴
 const PRESETS = [
   { label: '메모리 부족',  pattern: '(?i)(out of memory|outofmemory|OOM)', category: 'system',   severity: 'critical' as const },
   { label: 'DB 연결 실패', pattern: '(?i)(connection refused|connection timeout|too many connections|conn.*failed)', category: 'app', severity: 'critical' as const },
@@ -327,14 +327,14 @@ function RuleEditor({ initial, onClose, onSaved }: {
       <div onClick={e => e.stopPropagation()}
         className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <h2 className="text-lg font-bold text-slate-100">{isEdit ? '룰 편집' : '룰 추가'}</h2>
+          <h2 className="text-lg font-bold text-slate-100">{isEdit ? '규칙 편집' : '규칙 추가'}</h2>
           <button onClick={onClose} className="p-1 rounded hover:bg-slate-800 text-slate-400"><X size={18} /></button>
         </div>
 
         <div className="p-6 space-y-4">
           {!isEdit && (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5">자주 쓰는 룰 (클릭 시 자동 채움)</label>
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5">자주 쓰는 규칙 (클릭 시 자동 채움)</label>
               <div className="flex flex-wrap gap-1.5">
                 {PRESETS.map(p => (
                   <button
@@ -405,7 +405,7 @@ function RuleEditor({ initial, onClose, onSaved }: {
               )}
             </Field>
           ) : (
-            <Field label="정규식 패턴 *" hint="Go RE2 문법. 예: Failed password.*from / (?i)error">
+            <Field label="정규식 패턴 *" hint="고급 사용자용 패턴 문법. 예: Failed password.*from / (?i)error">
               <input value={form.pattern} onChange={e => setForm({ ...form, pattern: e.target.value })}
                 placeholder="(?i)(out of memory|OOM)"
                 className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm font-mono text-slate-200" />
@@ -450,7 +450,7 @@ function RuleEditor({ initial, onClose, onSaved }: {
             </Field>
           </div>
 
-          <Field label="알림 재발송 최소 간격 (초)" hint="같은 룰이 N초 안에 또 매칭돼도 알림 한 번만">
+          <Field label="알림 재발송 최소 간격 (초)" hint="같은 규칙이 N초 안에 또 매칭돼도 알림 한 번만">
             <input type="number" value={form.cooldown_seconds}
               onChange={e => setForm({ ...form, cooldown_seconds: parseInt(e.target.value) || 300 })}
               className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-slate-200" />
