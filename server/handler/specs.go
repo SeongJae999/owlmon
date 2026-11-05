@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -78,7 +77,7 @@ func (h *SpecsHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		Arch:             p.Arch,
 	}
 
-	if err := h.store.Upsert(context.Background(), spec); err != nil {
+	if err := h.store.Upsert(r.Context(), spec); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
@@ -88,7 +87,7 @@ func (h *SpecsHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 
 // List GET /api/agent/specs — 모든 호스트 스펙
 func (h *SpecsHandler) List(w http.ResponseWriter, r *http.Request) {
-	specs, err := h.store.List(context.Background())
+	specs, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -108,7 +107,7 @@ func (h *SpecsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	spec, err := h.store.Get(context.Background(), host)
+	spec, err := h.store.Get(r.Context(), host)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			http.Error(w, "해당 호스트 스펙 없음", http.StatusNotFound)

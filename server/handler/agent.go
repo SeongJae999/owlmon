@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -35,7 +34,7 @@ func (h *AgentHandler) Register(w http.ResponseWriter, r *http.Request) {
 	rand.Read(b)
 	key := hex.EncodeToString(b)
 
-	if err := h.store.Upsert(context.Background(), req.Name, key); err != nil {
+	if err := h.store.Upsert(r.Context(), req.Name, key); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
@@ -49,7 +48,7 @@ func (h *AgentHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 // List GET /api/agents — 관리자용 에이전트 목록
 func (h *AgentHandler) List(w http.ResponseWriter, r *http.Request) {
-	agents, err := h.store.List(context.Background())
+	agents, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return

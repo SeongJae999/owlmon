@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -24,7 +23,7 @@ func NewDPMHandler(store *db.DPMStore, poller *dpm.Poller) *DPMHandler {
 
 // ListInstances GET /api/dpm/instances — 비밀번호는 제외하고 반환
 func (h *DPMHandler) ListInstances(w http.ResponseWriter, r *http.Request) {
-	instances, err := h.store.List(context.Background())
+	instances, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -61,7 +60,7 @@ func (h *DPMHandler) AddInstance(w http.ResponseWriter, r *http.Request) {
 	inst.PasswordEnc = encrypted
 	inst.Password = ""
 
-	created, err := h.store.Add(context.Background(), inst)
+	created, err := h.store.Add(r.Context(), inst)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -82,7 +81,7 @@ func (h *DPMHandler) DeleteInstance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 ID", http.StatusBadRequest)
 		return
 	}
-	if err := h.store.Delete(context.Background(), id); err != nil {
+	if err := h.store.Delete(r.Context(), id); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
@@ -97,7 +96,7 @@ type DPMStatusItem struct {
 
 // GetStatus GET /api/dpm/status — 모든 인스턴스의 최근 메트릭
 func (h *DPMHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	instances, err := h.store.List(context.Background())
+	instances, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -124,7 +123,7 @@ func (h *DPMHandler) GetQueries(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 ID", http.StatusBadRequest)
 		return
 	}
-	queries, err := h.store.LatestQueryStats(context.Background(), id)
+	queries, err := h.store.LatestQueryStats(r.Context(), id)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -146,7 +145,7 @@ func (h *DPMHandler) GetMetricsHistory(w http.ResponseWriter, r *http.Request) {
 	if hours <= 0 || hours > 168 {
 		hours = 1
 	}
-	history, err := h.store.MetricsHistory(context.Background(), id, hours)
+	history, err := h.store.MetricsHistory(r.Context(), id, hours)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -164,7 +163,7 @@ func (h *DPMHandler) TriggerCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 ID", http.StatusBadRequest)
 		return
 	}
-	instances, err := h.store.List(context.Background())
+	instances, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return

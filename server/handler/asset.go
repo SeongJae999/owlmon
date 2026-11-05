@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -21,7 +20,7 @@ func NewAssetHandler(store *db.AssetStore) *AssetHandler {
 // List는 모든 자산 정보를 반환합니다.
 // GET /api/assets
 func (h *AssetHandler) List(w http.ResponseWriter, r *http.Request) {
-	assets, err := h.store.List(context.Background())
+	assets, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -45,7 +44,7 @@ func (h *AssetHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "host_name은 필수입니다", http.StatusBadRequest)
 		return
 	}
-	result, err := h.store.Upsert(context.Background(), a)
+	result, err := h.store.Upsert(r.Context(), a)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -63,7 +62,7 @@ func (h *AssetHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 ID", http.StatusBadRequest)
 		return
 	}
-	if err := h.store.Delete(context.Background(), id); err != nil {
+	if err := h.store.Delete(r.Context(), id); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}

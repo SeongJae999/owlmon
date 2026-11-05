@@ -23,7 +23,7 @@ func NewSSLHandler(store *db.SSLDomainStore, checker *ssl.CertChecker) *SSLHandl
 
 // ListDomains GET /api/ssl/domains
 func (h *SSLHandler) ListDomains(w http.ResponseWriter, r *http.Request) {
-	domains, err := h.store.List(context.Background())
+	domains, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -54,7 +54,7 @@ func (h *SSLHandler) AddDomain(w http.ResponseWriter, r *http.Request) {
 		req.Port = 443
 	}
 
-	domain, err := h.store.Add(context.Background(), db.SSLDomain{
+	domain, err := h.store.Add(r.Context(), db.SSLDomain{
 		Domain: req.Domain,
 		Port:   req.Port,
 		Memo:   req.Memo,
@@ -91,7 +91,7 @@ func (h *SSLHandler) UpdateDomain(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 요청", http.StatusBadRequest)
 		return
 	}
-	if err := h.store.UpdateMemo(context.Background(), id, req.Memo); err != nil {
+	if err := h.store.UpdateMemo(r.Context(), id, req.Memo); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
@@ -106,7 +106,7 @@ func (h *SSLHandler) DeleteDomain(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 ID", http.StatusBadRequest)
 		return
 	}
-	if err := h.store.Delete(context.Background(), id); err != nil {
+	if err := h.store.Delete(r.Context(), id); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
@@ -125,7 +125,7 @@ func (h *SSLHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 
 // TriggerCheck POST /api/ssl/check — 수동 즉시 체크
 func (h *SSLHandler) TriggerCheck(w http.ResponseWriter, r *http.Request) {
-	domains, err := h.store.List(context.Background())
+	domains, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return

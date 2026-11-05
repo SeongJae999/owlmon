@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -26,7 +25,7 @@ func NewSNMPHandler(store *db.SNMPDeviceStore, poller *snmp.Poller, prometheusUR
 
 // ListDevices GET /api/snmp/devices
 func (h *SNMPHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
-	devices, err := h.store.List(context.Background())
+	devices, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
@@ -57,7 +56,7 @@ func (h *SNMPHandler) AddDevice(w http.ResponseWriter, r *http.Request) {
 		req.Port = 161
 	}
 
-	dev, err := h.store.Add(context.Background(), snmp.Device{
+	dev, err := h.store.Add(r.Context(), snmp.Device{
 		Name:      req.Name,
 		IP:        req.IP,
 		Community: req.Community,
@@ -101,7 +100,7 @@ func (h *SNMPHandler) UpdateDevice(w http.ResponseWriter, r *http.Request) {
 		req.Port = 161
 	}
 	dev := snmp.Device{ID: id, Name: req.Name, IP: req.IP, Community: req.Community, Port: req.Port}
-	if err := h.store.Update(context.Background(), dev); err != nil {
+	if err := h.store.Update(r.Context(), dev); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
@@ -119,7 +118,7 @@ func (h *SNMPHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 ID", http.StatusBadRequest)
 		return
 	}
-	if err := h.store.Delete(context.Background(), id); err != nil {
+	if err := h.store.Delete(r.Context(), id); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
@@ -133,7 +132,7 @@ func (h *SNMPHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 //
 // 기존 응답 구조와 호환 — 클라이언트 SNMPDashboard.tsx의 DeviceStatus 형식.
 func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	devices, _ := h.store.List(context.Background())
+	devices, _ := h.store.List(r.Context())
 
 	// 응답 — 클라이언트가 사용하는 DeviceStatus 형식과 호환
 	type ifStat struct {
