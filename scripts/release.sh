@@ -36,7 +36,7 @@ s = re.sub(r"\n    build:\n(      .*\n)+", "\n", s)
 open(sys.argv[1], "w").write(s)
 PY
 grep -q "build:" "$OUT/docker-compose.yml" && { echo "compose에 build: 가 남음"; exit 1; }
-cp .env.example scripts/install.sh "$OUT/"
+cp .env.example scripts/install.sh scripts/restore-postgres.sh scripts/uninstall.sh "$OUT/"
 cp -r infra/prometheus infra/otel infra/postgres "$OUT/infra/"
 echo "$VERSION" > "$OUT/VERSION"
 git rev-parse --short HEAD > "$OUT/COMMIT" 2>/dev/null || true

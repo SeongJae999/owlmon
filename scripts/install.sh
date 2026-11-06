@@ -19,7 +19,7 @@ mkdir -p "$TARGET/infra" "$TARGET/data/prometheus" "$TARGET/data/owlmon-server"
 # 컨테이너가 root가 아닌 사용자로 돌기 때문에 데이터 폴더 소유자를 맞춤 (prometheus=nobody, server=owlmon)
 chown 65534:65534 "$TARGET/data/prometheus"
 chown 100:101 "$TARGET/data/owlmon-server"
-cp "$BUNDLE/docker-compose.yml" "$BUNDLE/.env.example" "$TARGET/"
+cp "$BUNDLE/docker-compose.yml" "$BUNDLE/.env.example" "$BUNDLE/restore-postgres.sh" "$BUNDLE/uninstall.sh" "$TARGET/"
 cp -r "$BUNDLE/infra/." "$TARGET/infra/"
 cd "$TARGET"
 
