@@ -10,7 +10,12 @@ interface Props {
 export default function LoginPage({ onLogin }: Props) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  // 자동 로그아웃 사유는 한 번만 보여줌
+  const [error, setError] = useState(() => {
+    const reason = sessionStorage.getItem('owlmon-logout-reason') ?? ''
+    sessionStorage.removeItem('owlmon-logout-reason')
+    return reason
+  })
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {

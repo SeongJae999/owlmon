@@ -68,6 +68,25 @@ export default function DashboardLayout() {
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
   const isViewer = me?.role === 'viewer'
 
+  // 공공기관 보안 지침: 일정 시간 미사용 시 세션 종료. 토큰(8시간)과 별개로 30분 무조작이면 로그아웃
+  useEffect(() => {
+    const IDLE_MS = 30 * 60_000
+    let last = Date.now()
+    const touch = () => { last = Date.now() }
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'] as const
+    events.forEach(e => window.addEventListener(e, touch, { passive: true }))
+    const timer = setInterval(() => {
+      if (Date.now() - last > IDLE_MS) {
+        sessionStorage.setItem('owlmon-logout-reason', '30분 동안 사용하지 않아 자동으로 로그아웃되었습니다')
+        logout()
+      }
+    }, 60_000)
+    return () => {
+      events.forEach(e => window.removeEventListener(e, touch))
+      clearInterval(timer)
+    }
+  }, [])
+
   useEffect(() => {
     const onForbidden = (e: Event) => setForbidden((e as CustomEvent<string>).detail)
     window.addEventListener(FORBIDDEN_EVENT, onForbidden)
