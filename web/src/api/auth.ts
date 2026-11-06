@@ -39,7 +39,16 @@ export async function changePassword(current: string, next: string): Promise<voi
 }
 
 export function logout() {
+  const token = getToken()
   removeToken()
+  // 바로 페이지를 옮겨도 요청이 끝까지 전달되도록 keepalive. 실패해도 이 브라우저에선 로그아웃됨
+  if (token) {
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      keepalive: true,
+    }).catch(() => {})
+  }
   window.location.href = '/'
 }
 

@@ -2,10 +2,12 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/seongJae/owlmon/server/auth"
@@ -17,6 +19,7 @@ type stubUsers struct {
 		hash, role string
 		disabled   bool
 	}
+	sessions map[string]bool
 }
 
 func (s *stubUsers) ForLogin(_ context.Context, name string) (string, string, bool, error) {
@@ -26,7 +29,18 @@ func (s *stubUsers) ForLogin(_ context.Context, name string) (string, string, bo
 	}
 	return u.hash, u.role, u.disabled, nil
 }
-func (s *stubUsers) SetPassword(context.Context, string, string) error { return nil }
+func (s *stubUsers) SetPassword(context.Context, string, string, string) error { return nil }
+func (s *stubUsers) CreateSession(_ context.Context, id, _ string, _ time.Time) error {
+	if s.sessions == nil {
+		s.sessions = map[string]bool{}
+	}
+	s.sessions[id] = true
+	return nil
+}
+func (s *stubUsers) DeleteSession(_ context.Context, id string) error {
+	delete(s.sessions, id)
+	return nil
+}
 
 func newMultiUserHandler(t *testing.T) *AuthHandler {
 	t.Helper()
@@ -80,8 +94,8 @@ func TestReadOnlyGuard(t *testing.T) {
 	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	g := auth.ReadOnlyGuard(ok)
 	call := func(role, method, path string) int {
-		mw := auth.JWTMiddleware("s", func(context.Context, string) (string, bool) { return role, true })
-		tok, _ := auth.GenerateToken("u", "s")
+		mw := auth.JWTMiddleware("s", func(context.Context, string, string) (string, bool) { return role, true })
+		tok, _ := auth.GenerateToken("u", "sid", "s")
 		req := httptest.NewRequest(method, path, nil)
 		req.Header.Set("Authorization", "Bearer "+tok)
 		rec := httptest.NewRecorder()
@@ -96,6 +110,7 @@ func TestReadOnlyGuard(t *testing.T) {
 		{auth.RoleViewer, http.MethodPost, "/api/alert/config", 403},
 		{auth.RoleViewer, http.MethodPost, "/api/alert/ack", 200},     // 알림 확인은 허용
 		{auth.RoleViewer, http.MethodPost, "/api/auth/password", 200}, // 내 비밀번호 변경 허용
+		{auth.RoleViewer, http.MethodPost, "/api/auth/logout", 200},   // 로그아웃 허용
 		{auth.RoleViewer, http.MethodDelete, "/api/snmp/devices/1", 403},
 		{auth.RoleAdmin, http.MethodPost, "/api/alert/config", 200},
 	}
@@ -108,14 +123,52 @@ func TestReadOnlyGuard(t *testing.T) {
 
 // 사용 중지된 계정은 이미 받은 토큰으로도 접근 못 해야 함
 func TestJWTMiddleware_DisabledTokenRejected(t *testing.T) {
-	mw := auth.JWTMiddleware("s", func(context.Context, string) (string, bool) { return "", false })
-	tok, _ := auth.GenerateToken("u", "s")
+	mw := auth.JWTMiddleware("s", func(context.Context, string, string) (string, bool) { return "", false })
+	tok, _ := auth.GenerateToken("u", "sid", "s")
 	req := httptest.NewRequest(http.MethodGet, "/api/x", nil)
 	req.Header.Set("Authorization", "Bearer "+tok)
 	rec := httptest.NewRecorder()
 	mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {})).ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("중지 계정 토큰 거부 기대, got %d", rec.Code)
+	}
+}
+
+// 로그아웃한 토큰은 만료 전이어도 거부되고, 다른 세션은 유지돼야 함
+func TestLogout_EndsOnlyThisSession(t *testing.T) {
+	h := newMultiUserHandler(t)
+	st := h.users.(*stubUsers)
+	login := func() string {
+		rec := httptest.NewRecorder()
+		h.Login(rec, httptest.NewRequest(http.MethodPost, "/api/auth/login",
+			strings.NewReader(`{"username":"admin","password":"right"}`)))
+		var res loginResponse
+		if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
+			t.Fatal(err)
+		}
+		return res.Token
+	}
+	mw := auth.JWTMiddleware("secret", func(_ context.Context, _, sid string) (string, bool) {
+		return auth.RoleAdmin, st.sessions[sid]
+	})
+	call := func(tok string, next http.HandlerFunc) int {
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		mw(next).ServeHTTP(rec, req)
+		return rec.Code
+	}
+	noop := func(http.ResponseWriter, *http.Request) {}
+
+	a, b := login(), login()
+	if c := call(a, h.Logout); c != http.StatusNoContent {
+		t.Fatalf("로그아웃 응답=%d", c)
+	}
+	if c := call(a, noop); c != http.StatusUnauthorized {
+		t.Fatalf("로그아웃한 토큰 거부 기대, got %d", c)
+	}
+	if c := call(b, noop); c != http.StatusOK {
+		t.Fatalf("다른 세션은 유지 기대, got %d", c)
 	}
 }
 

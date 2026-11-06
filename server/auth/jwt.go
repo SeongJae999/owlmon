@@ -12,12 +12,16 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// GenerateToken은 JWT 토큰을 생성합니다. (유효기간 8시간 - 공공기관 업무시간 기준)
-func GenerateToken(username, secret string) (string, error) {
+// TokenTTL — 공공기관 업무시간 기준
+const TokenTTL = 8 * time.Hour
+
+// GenerateToken은 JWT 토큰을 생성합니다.
+func GenerateToken(username, sessionID, secret string) (string, error) {
 	claims := &Claims{
 		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(8 * time.Hour)),
+			ID:        sessionID,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}

@@ -129,7 +129,11 @@ func (h *UsersHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err == nil {
-			err = h.store.SetPassword(r.Context(), name, string(hash))
+			keep := ""
+			if name == auth.UsernameFromContext(r.Context()) { // 자기 비밀번호를 초기화해도 지금 화면은 유지
+				keep = auth.SessionFromContext(r.Context())
+			}
+			err = h.store.SetPassword(r.Context(), name, string(hash), keep)
 		}
 		if err != nil {
 			respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)

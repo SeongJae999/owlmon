@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +20,9 @@ import (
 // userBackend — *db.UserStore가 만족. nil이면 환경변수 단일 계정 모드 (DB 없이 실행할 때).
 type userBackend interface {
 	ForLogin(ctx context.Context, username string) (hash, role string, disabled bool, err error)
-	SetPassword(ctx context.Context, username, hash string) error
+	SetPassword(ctx context.Context, username, hash, keepSession string) error
+	CreateSession(ctx context.Context, id, username string, expiresAt time.Time) error
+	DeleteSession(ctx context.Context, id string) error
 }
 
 type AuthHandler struct {
@@ -186,7 +189,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.resetFailures(req.Username)
-	token, err := auth.GenerateToken(req.Username, h.jwtSecret)
+	sessionID := rand.Text()
+	if h.users != nil {
+		if err := h.users.CreateSession(r.Context(), sessionID, req.Username, time.Now().Add(auth.TokenTTL)); err != nil {
+			respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+			return
+		}
+	}
+	token, err := auth.GenerateToken(req.Username, sessionID, h.jwtSecret)
 	if err != nil {
 		http.Error(w, "토큰 생성 실패", http.StatusInternalServerError)
 		return
@@ -195,6 +205,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(loginResponse{Token: token})
+}
+
+// Logout POST /api/auth/logout — 이 세션만 끊음 (같은 계정을 쓰는 다른 PC·상황판은 유지)
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	if h.users != nil {
+		if err := h.users.DeleteSession(r.Context(), auth.SessionFromContext(r.Context())); err != nil {
+			respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Me GET /api/auth/me — 화면이 역할에 따라 메뉴·버튼을 숨기는 데 사용
@@ -235,7 +256,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}
-	if err := h.users.SetPassword(r.Context(), user, string(hash)); err != nil {
+	if err := h.users.SetPassword(r.Context(), user, string(hash), auth.SessionFromContext(r.Context())); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			http.Error(w, "계정을 찾을 수 없습니다", http.StatusNotFound)
 			return

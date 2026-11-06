@@ -11,6 +11,7 @@ type contextKey string
 const (
 	usernameKey contextKey = "username"
 	roleKey     contextKey = "role"
+	sessionKey  contextKey = "session"
 
 	RoleAdmin  = "admin"
 	RoleViewer = "viewer"
@@ -28,8 +29,13 @@ func RoleFromContext(ctx context.Context) string {
 	return v
 }
 
-// UserCheck는 현재 역할과 사용 여부를 돌려준다. nil이면(DB 없는 단일 계정 모드) 항상 관리자.
-type UserCheck func(ctx context.Context, username string) (role string, active bool)
+func SessionFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(sessionKey).(string)
+	return v
+}
+
+// UserCheck는 현재 역할과 세션·계정 유효 여부를 돌려준다. nil이면(DB 없는 단일 계정 모드) 항상 관리자.
+type UserCheck func(ctx context.Context, username, sessionID string) (role string, active bool)
 
 // JWTMiddleware는 Authorization 헤더의 Bearer 토큰을 검증합니다.
 func JWTMiddleware(secret string, check UserCheck) func(http.Handler) http.Handler {
@@ -51,14 +57,15 @@ func JWTMiddleware(secret string, check UserCheck) func(http.Handler) http.Handl
 			role := RoleAdmin
 			if check != nil {
 				var active bool
-				if role, active = check(r.Context(), claims.Username); !active {
-					http.Error(w, "사용이 중지되었거나 없는 계정입니다", http.StatusUnauthorized)
+				if role, active = check(r.Context(), claims.Username, claims.ID); !active {
+					http.Error(w, "로그인이 만료되었거나 사용할 수 없는 계정입니다", http.StatusUnauthorized)
 					return
 				}
 			}
 
 			ctx := context.WithValue(r.Context(), usernameKey, claims.Username)
 			ctx = context.WithValue(ctx, roleKey, role)
+			ctx = context.WithValue(ctx, sessionKey, claims.ID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -71,6 +78,7 @@ var viewerAllowedWrites = map[string]bool{
 	"/api/llm/explain":   true,
 	"/api/llm/summary":   true,
 	"/api/auth/password": true,
+	"/api/auth/logout":   true,
 }
 
 // ReadOnlyGuard는 조회 전용 계정의 변경 요청을 막는다. 화면마다 권한 코드를 두지 않고 여기 한 곳에서 처리.
