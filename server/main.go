@@ -1,24 +1,38 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/service"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
+	// 설치 스크립트용: 표준입력 비밀번호 → bcrypt 해시 (설치 PC에 Go가 없어도 이미지로 해시 생성)
+	if len(os.Args) > 1 && os.Args[1] == "hash-password" {
+		pw, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		h, err := bcrypt.GenerateFromPassword([]byte(strings.TrimRight(pw, "\r\n")), bcrypt.DefaultCost)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(string(h))
+		return
+	}
 	if service.IsService() {
 		// 서비스 모드: 로그를 파일로 저장
 		logFile, err := os.OpenFile(`C:\owlmon-server\service.log`,
@@ -53,6 +67,9 @@ func startServer() func() {
 
 	if passwordHash == "" {
 		log.Fatal("OWLMON_PASSWORD_HASH 환경변수가 설정되지 않았습니다.")
+	}
+	if k := getEnv("OWLMON_AGENT_KEY", ""); k == "owlmon-dev-key" || (k != "" && len(k) < 16) {
+		log.Println("⚠️ OWLMON_AGENT_KEY가 예시값이거나 너무 짧습니다 — 누구나 로그를 넣을 수 있습니다. openssl rand -hex 16 으로 바꾸세요")
 	}
 
 	// 1. JWT Secret Persistent Logic

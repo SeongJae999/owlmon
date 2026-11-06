@@ -55,6 +55,7 @@ services:
 
   # OWLmon API 서버 (Go) — server/ 디렉토리 멀티스테이지 빌드
   owlmon-server:
+    image: owlmon-server:${OWLMON_VERSION:-latest}
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -97,6 +98,7 @@ services:
 
   # OWLmon 웹 (정적 파일 + /api 프록시)
   owlmon-web:
+    image: owlmon-web:${OWLMON_VERSION:-latest}
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -110,7 +112,13 @@ services:
   # 일일 PostgreSQL 자동 백업 (매일 03:00 KST, 30일 rolling)
   # 백업 파일: ./data/backups/owlmon-YYYYMMDD-HHMMSS.sql.gz
   owlmon-backup:
-    image: postgres:16-alpine
+    image: owlmon-backup:${OWLMON_VERSION:-latest}
+    # 폐쇄망에선 실행 중 apk 설치가 안 되므로 openssl을 이미지에 미리 넣음
+    build:
+      context: ./infra
+      dockerfile_inline: |
+        FROM postgres:16-alpine
+        RUN apk add --no-cache openssl
     container_name: owlmon-backup
     environment:
       - PGHOST=postgres
@@ -129,11 +137,6 @@ services:
       - -c
       - |
         set -eu
-        # openssl 설치 (postgres alpine에 없음)
-        if ! command -v openssl >/dev/null 2>&1; then
-          echo "[backup] openssl 설치 중..."
-          apk add --no-cache openssl >/dev/null 2>&1
-        fi
         mkdir -p /backups
         chmod 700 /backups
         RETAIN=$${BACKUP_RETENTION_DAYS:-30}

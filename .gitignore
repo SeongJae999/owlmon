@@ -75,3 +75,4 @@ data/
 .claude/settings.json
 .claude/.DS_Store
 .claude/worktrees/
+release/
