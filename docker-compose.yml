@@ -87,6 +87,7 @@ services:
       - OWLMON_OPENAI_MODEL=${OWLMON_OPENAI_MODEL:-gpt-4o-mini}
       - OWLMON_OLLAMA_URL=${OWLMON_OLLAMA_URL:-http://host.docker.internal:11434}
       - OWLMON_OLLAMA_MODEL=${OWLMON_OLLAMA_MODEL:-qwen2.5:7b}
+      - OWLMON_LOGINSIGHT_ENABLED=${OWLMON_LOGINSIGHT_ENABLED:-false}
     volumes:
       - ./data/owlmon-server:/app/data   # JWT secret 등 영속화
     depends_on:
