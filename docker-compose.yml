@@ -71,6 +71,8 @@ services:
       - OWLMON_JWT_SECRET=${OWLMON_JWT_SECRET:-}
       # 에이전트 로그 수집 인증 키 (모든 에이전트 config.yaml의 agent_key와 일치해야 함)
       - OWLMON_AGENT_KEY=${OWLMON_AGENT_KEY:-}
+      # 이 컨테이너에서 온 요청의 X-Real-IP만 신뢰 (8080 직접 접속으로 접속 기록 IP를 위조하지 못하게)
+      - OWLMON_TRUSTED_PROXY=owlmon-web
       # SMTP (선택 — .env에 비워두면 알림 비활성)
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}

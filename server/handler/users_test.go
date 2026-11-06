@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -226,6 +227,50 @@ func TestHeartbeat(t *testing.T) {
 	}
 	if claims, err := auth.ValidateToken(res.Token, "secret"); err != nil || claims.ID != "sid" {
 		t.Fatalf("연장 토큰은 같은 세션이어야 함: %v %+v", err, claims)
+	}
+}
+
+// 남이 일부러 틀려도 다른 곳의 정상 사용자는 잠기지 않아야 함 (계정 잠금 DoS 방지)
+func TestLogin_LockoutDoesNotBlockOtherIP(t *testing.T) {
+	h := newMultiUserHandler(t)
+	from := func(ip, user, pw string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/login",
+			strings.NewReader(`{"username":"`+user+`","password":"`+pw+`"}`))
+		req.RemoteAddr = ip + ":1234"
+		rec := httptest.NewRecorder()
+		h.Login(rec, req)
+		return rec.Code
+	}
+	for i := 0; i < maxLoginFailures; i++ {
+		from("10.0.0.66", "admin", "wrong")
+	}
+	if c := from("10.0.0.66", "admin", "right"); c != http.StatusTooManyRequests {
+		t.Fatalf("공격 IP는 잠겨야 함: %d", c)
+	}
+	if c := from("10.0.0.7", "admin", "right"); c != http.StatusOK {
+		t.Fatalf("다른 IP의 관리자는 로그인돼야 함: %d", c)
+	}
+}
+
+// 한 IP에서 계정을 바꿔 가며 대입하면 IP 단위로 잠겨야 함
+func TestLogin_LockoutPerIP(t *testing.T) {
+	h := newMultiUserHandler(t)
+	from := func(ip, user, pw string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/login",
+			strings.NewReader(`{"username":"`+user+`","password":"`+pw+`"}`))
+		req.RemoteAddr = ip + ":1234"
+		rec := httptest.NewRecorder()
+		h.Login(rec, req)
+		return rec.Code
+	}
+	for i := 0; i < maxIPFailures; i++ {
+		from("10.0.0.66", "user"+strconv.Itoa(i), "wrong")
+	}
+	if c := from("10.0.0.66", "viewer", "right"); c != http.StatusTooManyRequests {
+		t.Fatalf("IP 한도 초과 시 다른 계정도 잠겨야 함: %d", c)
+	}
+	if c := from("10.0.0.7", "viewer", "right"); c != http.StatusOK {
+		t.Fatalf("다른 IP는 영향 없어야 함: %d", c)
 	}
 }
 

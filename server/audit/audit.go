@@ -15,8 +15,11 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
-	"strings"
+	"os"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -138,7 +141,7 @@ func Middleware(store *Store) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			info := &Info{
 				Actor:     extractActor(r),
-				IP:        extractIP(r),
+				IP:        ClientIP(r),
 				UserAgent: r.UserAgent(),
 				Store:     store,
 			}
@@ -191,24 +194,39 @@ func extractActor(r *http.Request) string {
 	return "anonymous"
 }
 
-func extractIP(r *http.Request) string {
-	// X-Forwarded-For 우선 (proxy 뒤에 있을 때)
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// 첫 번째 IP만
-		if i := strings.Index(xff, ","); i > 0 {
-			return strings.TrimSpace(xff[:i])
-		}
-		return strings.TrimSpace(xff)
+// ClientIP는 접속자 IP를 돌려준다. 헤더는 누구나 보낼 수 있으므로 nginx(OWLMON_TRUSTED_PROXY)에서 온 요청일 때만 믿음.
+// nginx는 X-Real-IP를 항상 실제 접속 IP로 덮어쓰기 때문에 X-Forwarded-For는 쓰지 않음
+func ClientIP(r *http.Request) string {
+	peer, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		peer = r.RemoteAddr
 	}
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+	if xri := r.Header.Get("X-Real-IP"); xri != "" && isTrustedProxy(peer) {
 		return xri
 	}
-	// 직접 연결 — host:port에서 port 제거
-	addr := r.RemoteAddr
-	if i := strings.LastIndex(addr, ":"); i > 0 {
-		return addr[:i]
+	return peer
+}
+
+var (
+	lookupProxy = net.LookupHost // 테스트에서 교체
+	proxyMu     sync.Mutex
+	proxyIPs    []string
+	proxyAt     time.Time
+)
+
+// 컨테이너를 다시 만들면 nginx IP가 바뀔 수 있어 이름으로 찾음. 요청마다 DNS를 타지 않도록 잠깐 저장
+func isTrustedProxy(peer string) bool {
+	host := os.Getenv("OWLMON_TRUSTED_PROXY")
+	if host == "" {
+		return false
 	}
-	return addr
+	proxyMu.Lock()
+	defer proxyMu.Unlock()
+	if time.Since(proxyAt) > 30*time.Second {
+		proxyIPs, _ = lookupProxy(host)
+		proxyAt = time.Now()
+	}
+	return slices.Contains(proxyIPs, peer)
 }
 
 // ──── 조회 ────

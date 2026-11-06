@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,18 +33,21 @@ type AuthHandler struct {
 	auditStore   *audit.Store
 	users        userBackend
 
-	// brute-force 방어 (ISMS-P: 연속 실패 시 잠금). 계정별 — 한 계정이 잠겨도 다른 사람은 로그인 가능
+	// brute-force 방어 (ISMS-P: 연속 실패 시 잠금). 계정+IP 단위라 남이 일부러 틀려도 정상 사용자는 잠기지 않음.
+	// IP 단위 한도를 함께 두어 한 곳에서 여러 계정을 대입하는 것도 막음
 	mu    sync.Mutex
 	locks map[string]*loginLock
 }
 
 type loginLock struct {
 	failures    int
+	lastFailure time.Time
 	lockedUntil time.Time
 }
 
 const (
 	maxLoginFailures = 5
+	maxIPFailures    = 20
 	loginLockout     = 10 * time.Minute
 	maxTrackedLocks  = 1000 // 없는 아이디를 무작위로 대입해 맵이 무한히 커지는 것 방지
 )
@@ -66,44 +68,63 @@ func (h *AuthHandler) WithUsers(u userBackend) *AuthHandler {
 	return h
 }
 
-func (h *AuthHandler) lockRemaining(user string) time.Duration {
+func accountKey(user, ip string) string { return user + "\x00" + ip }
+
+// lockRemaining — 계정+IP 잠금과 IP 잠금 중 더 오래 남은 시간
+func (h *AuthHandler) lockRemaining(user, ip string) time.Duration {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if l := h.locks[user]; l != nil {
-		return time.Until(l.lockedUntil)
+	var left time.Duration
+	for _, key := range []string{accountKey(user, ip), ip} {
+		if l := h.locks[key]; l != nil {
+			left = max(left, time.Until(l.lockedUntil))
+		}
 	}
-	return 0
+	return left
 }
 
 // recordFailure — 실패 누적, 임계치 도달 시 잠금 시작. 잠금이 걸렸으면 true.
-func (h *AuthHandler) recordFailure(user string) bool {
+func (h *AuthHandler) recordFailure(user, ip string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	l := h.locks[user]
+	accountLocked := h.bump(accountKey(user, ip), maxLoginFailures)
+	ipLocked := h.bump(ip, maxIPFailures)
+	return accountLocked || ipLocked
+}
+
+func (h *AuthHandler) bump(key string, limit int) bool {
+	now := time.Now()
+	l := h.locks[key]
 	if l == nil {
 		if len(h.locks) >= maxTrackedLocks {
 			for k, v := range h.locks {
-				if time.Now().After(v.lockedUntil) {
+				if now.After(v.lockedUntil) && now.Sub(v.lastFailure) > loginLockout {
 					delete(h.locks, k)
 				}
 			}
 		}
 		l = &loginLock{}
-		h.locks[user] = l
+		h.locks[key] = l
 	}
-	l.failures++
-	if l.failures >= maxLoginFailures {
+	// 오래전 실패까지 쌓이면 학교처럼 IP 하나를 함께 쓰는 곳이 언젠가 잠기므로 시간이 지나면 초기화
+	if now.Sub(l.lastFailure) > loginLockout {
 		l.failures = 0
-		l.lockedUntil = time.Now().Add(loginLockout)
+	}
+	l.lastFailure = now
+	l.failures++
+	if l.failures >= limit {
+		l.failures = 0
+		l.lockedUntil = now.Add(loginLockout)
 		return true
 	}
 	return false
 }
 
-func (h *AuthHandler) resetFailures(user string) {
+// IP 카운터는 지우지 않음 — 아무 계정으로 한 번 로그인해 대입 한도를 초기화하지 못하게
+func (h *AuthHandler) resetFailures(user, ip string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	delete(h.locks, user)
+	delete(h.locks, accountKey(user, ip))
 }
 
 type loginRequest struct {
@@ -113,24 +134,6 @@ type loginRequest struct {
 
 type loginResponse struct {
 	Token string `json:"token"`
-}
-
-// extractIP — proxy header 또는 RemoteAddr.
-func extractIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if i := strings.Index(xff, ","); i > 0 {
-			return strings.TrimSpace(xff[:i])
-		}
-		return strings.TrimSpace(xff)
-	}
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
-	}
-	addr := r.RemoteAddr
-	if i := strings.LastIndex(addr, ":"); i > 0 {
-		return addr[:i]
-	}
-	return addr
 }
 
 // verify — 아이디·비밀번호 확인. 실패 시 감사 로그용 사유 반환.
@@ -163,7 +166,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip := extractIP(r)
+	ip := audit.ClientIP(r)
 	ua := r.UserAgent()
 	save := func(action, result string, details map[string]any) {
 		h.auditStore.Save(r.Context(), audit.Entry{
@@ -173,25 +176,25 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 잠금 중에는 비밀번호가 맞아도 거부해야 무차별 대입이 무의미해짐
-	if left := h.lockRemaining(req.Username); left > 0 {
+	if left := h.lockRemaining(req.Username, ip); left > 0 {
 		save("auth.login", "failure", map[string]any{"reason": "locked"})
 		mins := int(left.Minutes()) + 1
-		http.Error(w, fmt.Sprintf("로그인 %d회 실패로 잠겼습니다. %d분 후 다시 시도하세요", maxLoginFailures, mins), http.StatusTooManyRequests)
+		http.Error(w, fmt.Sprintf("로그인 실패가 많아 잠겼습니다. %d분 후 다시 시도하세요", mins), http.StatusTooManyRequests)
 		return
 	}
 
 	role, reason := h.verify(r.Context(), req.Username, req.Password)
 	if reason != "" {
 		save("auth.login", "failure", map[string]any{"reason": reason})
-		if h.recordFailure(req.Username) {
-			save("auth.lockout", "failure", map[string]any{"failures": maxLoginFailures, "minutes": int(loginLockout.Minutes())})
+		if h.recordFailure(req.Username, ip) {
+			save("auth.lockout", "failure", map[string]any{"minutes": int(loginLockout.Minutes())})
 		}
 		// 사유(없는 아이디/중지/비밀번호)를 구분해 알려주면 계정 존재 여부가 노출됨
 		http.Error(w, "아이디 또는 비밀번호가 올바르지 않습니다", http.StatusUnauthorized)
 		return
 	}
 
-	h.resetFailures(req.Username)
+	h.resetFailures(req.Username, ip)
 	sessionID := rand.Text()
 	ttl := auth.TokenTTL(role)
 	if h.users != nil {
