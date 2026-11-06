@@ -6,11 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/auth"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -223,6 +225,41 @@ func TestHeartbeat(t *testing.T) {
 	}
 	if claims, err := auth.ValidateToken(res.Token, "secret"); err != nil || claims.ID != "sid" {
 		t.Fatalf("연장 토큰은 같은 세션이어야 함: %v %+v", err, claims)
+	}
+}
+
+// 조회 전용에게는 알림 수신자 이메일을 보여주지 않음
+func TestAlertConfig_HidesRecipientsFromViewer(t *testing.T) {
+	store := alert.NewConfigStore(filepath.Join(t.TempDir(), "alert.json"))
+	cfg := store.Get()
+	cfg.Recipients = []string{"ops@example.com"}
+	if err := store.Set(cfg); err != nil {
+		t.Fatal(err)
+	}
+	h := &AlertHandler{store: store}
+	get := func(role string) string {
+		mw := auth.JWTMiddleware("s", func(context.Context, string, string) (string, error) { return role, nil })
+		tok, _ := auth.GenerateToken("u", "sid", "s", time.Hour)
+		req := httptest.NewRequest(http.MethodGet, "/api/alert/config", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(h.GetConfig)).ServeHTTP(rec, req)
+		return rec.Body.String()
+	}
+	if strings.Contains(get(auth.RoleViewer), "ops@example.com") {
+		t.Fatal("조회 전용 응답에 수신자가 있으면 안 됨")
+	}
+	if !strings.Contains(get(auth.RoleAdmin), "ops@example.com") {
+		t.Fatal("관리자는 수신자를 봐야 함")
+	}
+}
+
+func TestMaskKey(t *testing.T) {
+	if got := maskKey("abcdef123456"); got != "abcd****" {
+		t.Fatalf("got %q", got)
+	}
+	if got := maskKey("abc"); got != "****" {
+		t.Fatalf("got %q", got)
 	}
 }
 

@@ -188,10 +188,10 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 		// Agents (Admin)
 		// register는 키 발급 엔드포인트 — 무인증이면 누구나 에이전트 행을 무한 생성 가능해 관리자 전용으로 이동
-		r.Post("/api/agent/register", agentHandler.Register)
-		r.Get("/api/agents", agentHandler.List)
-		r.Post("/api/agents/{id}/status", agentHandler.UpdateStatus)
-		r.Delete("/api/agents/{id}", agentHandler.Delete)
+		r.With(auth.RequireAdmin).Post("/api/agent/register", agentHandler.Register)
+		r.With(auth.RequireAdmin).Get("/api/agents", agentHandler.List)
+		r.With(auth.RequireAdmin).Post("/api/agents/{id}/status", agentHandler.UpdateStatus)
+		r.With(auth.RequireAdmin).Delete("/api/agents/{id}", agentHandler.Delete)
 
 		// 월간 보고서
 		r.Get("/api/report/preview", reportHandler.Preview)
@@ -214,8 +214,8 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 		// 감사 로그 (ISMS-P 변경 추적)
 		auditHandler := handler.NewAuditHandler(appCtx.AuditStore)
-		r.Get("/api/audit", auditHandler.List)
-		r.Get("/api/audit/export", auditHandler.Export)
+		r.With(auth.RequireAdmin).Get("/api/audit", auditHandler.List)
+		r.With(auth.RequireAdmin).Get("/api/audit/export", auditHandler.Export)
 
 		// Log Rules (Admin) — CRUD + 통계
 		if appCtx.DBPool != nil && appCtx.RulesEngine != nil {

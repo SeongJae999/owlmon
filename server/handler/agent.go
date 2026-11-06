@@ -46,12 +46,23 @@ func (h *AgentHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func maskKey(key string) string {
+	if len(key) <= 4 {
+		return "****"
+	}
+	return key[:4] + "****"
+}
+
 // List GET /api/agents — 관리자용 에이전트 목록
 func (h *AgentHandler) List(w http.ResponseWriter, r *http.Request) {
 	agents, err := h.store.List(r.Context())
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
+	}
+	// 키는 발급할 때 한 번만 보여줌. 분실하면 다시 발급
+	for i := range agents {
+		agents[i].Key = maskKey(agents[i].Key)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(agents)

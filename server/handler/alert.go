@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/seongJae/owlmon/server/alert"
+	"github.com/seongJae/owlmon/server/auth"
 )
 
 type AlertHandler struct {
@@ -53,6 +54,10 @@ func (h *AlertHandler) GetEmailStatus(w http.ResponseWriter, r *http.Request) {
 // GetConfig는 현재 알림 설정을 반환합니다.
 func (h *AlertHandler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	cfg := h.store.Get()
+	// 조회 전용 화면도 임계값은 필요하므로 API는 막지 않고 수신자 이메일만 뺌
+	if auth.RoleFromContext(r.Context()) != auth.RoleAdmin {
+		cfg.Recipients = []string{}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cfg)
 }
