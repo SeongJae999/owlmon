@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +21,8 @@ type stubUsers struct {
 		disabled   bool
 	}
 	sessions map[string]bool
+	touched  string
+	extended string
 }
 
 func (s *stubUsers) ForLogin(_ context.Context, name string) (string, string, bool, error) {
@@ -35,6 +38,14 @@ func (s *stubUsers) CreateSession(_ context.Context, id, _ string, _ time.Time) 
 		s.sessions = map[string]bool{}
 	}
 	s.sessions[id] = true
+	return nil
+}
+func (s *stubUsers) TouchSession(_ context.Context, id string) error {
+	s.touched = id
+	return nil
+}
+func (s *stubUsers) ExtendSession(_ context.Context, id string, _ time.Time) error {
+	s.extended = id
 	return nil
 }
 func (s *stubUsers) DeleteSession(_ context.Context, id string) error {
@@ -94,8 +105,8 @@ func TestReadOnlyGuard(t *testing.T) {
 	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	g := auth.ReadOnlyGuard(ok)
 	call := func(role, method, path string) int {
-		mw := auth.JWTMiddleware("s", func(context.Context, string, string) (string, bool) { return role, true })
-		tok, _ := auth.GenerateToken("u", "sid", "s")
+		mw := auth.JWTMiddleware("s", func(context.Context, string, string) (string, error) { return role, nil })
+		tok, _ := auth.GenerateToken("u", "sid", "s", time.Hour)
 		req := httptest.NewRequest(method, path, nil)
 		req.Header.Set("Authorization", "Bearer "+tok)
 		rec := httptest.NewRecorder()
@@ -123,14 +134,24 @@ func TestReadOnlyGuard(t *testing.T) {
 
 // 사용 중지된 계정은 이미 받은 토큰으로도 접근 못 해야 함
 func TestJWTMiddleware_DisabledTokenRejected(t *testing.T) {
-	mw := auth.JWTMiddleware("s", func(context.Context, string, string) (string, bool) { return "", false })
-	tok, _ := auth.GenerateToken("u", "sid", "s")
-	req := httptest.NewRequest(http.MethodGet, "/api/x", nil)
-	req.Header.Set("Authorization", "Bearer "+tok)
-	rec := httptest.NewRecorder()
-	mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {})).ServeHTTP(rec, req)
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("중지 계정 토큰 거부 기대, got %d", rec.Code)
+	cases := []struct {
+		err  error
+		want int
+	}{
+		{auth.ErrSessionEnded, http.StatusUnauthorized},
+		{auth.ErrIdle, http.StatusUnauthorized},
+		{errors.New("db down"), http.StatusServiceUnavailable}, // DB 장애로 로그아웃되면 안 됨
+	}
+	for _, c := range cases {
+		mw := auth.JWTMiddleware("s", func(context.Context, string, string) (string, error) { return "", c.err })
+		tok, _ := auth.GenerateToken("u", "sid", "s", time.Hour)
+		req := httptest.NewRequest(http.MethodGet, "/api/x", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {})).ServeHTTP(rec, req)
+		if rec.Code != c.want {
+			t.Errorf("%v: got %d, want %d", c.err, rec.Code, c.want)
+		}
 	}
 }
 
@@ -148,8 +169,11 @@ func TestLogout_EndsOnlyThisSession(t *testing.T) {
 		}
 		return res.Token
 	}
-	mw := auth.JWTMiddleware("secret", func(_ context.Context, _, sid string) (string, bool) {
-		return auth.RoleAdmin, st.sessions[sid]
+	mw := auth.JWTMiddleware("secret", func(_ context.Context, _, sid string) (string, error) {
+		if !st.sessions[sid] {
+			return "", auth.ErrSessionEnded
+		}
+		return auth.RoleAdmin, nil
 	})
 	call := func(tok string, next http.HandlerFunc) int {
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -169,6 +193,36 @@ func TestLogout_EndsOnlyThisSession(t *testing.T) {
 	}
 	if c := call(b, noop); c != http.StatusOK {
 		t.Fatalf("다른 세션은 유지 기대, got %d", c)
+	}
+}
+
+// 조회 전용만 토큰이 연장되고, 조작이 없으면 활동 시각을 갱신하면 안 됨
+func TestHeartbeat(t *testing.T) {
+	h := newMultiUserHandler(t)
+	st := h.users.(*stubUsers)
+	call := func(role, body string) *httptest.ResponseRecorder {
+		st.touched, st.extended = "", ""
+		mw := auth.JWTMiddleware("secret", func(context.Context, string, string) (string, error) { return role, nil })
+		tok, _ := auth.GenerateToken("u", "sid", "secret", time.Hour)
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/heartbeat", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		mw(http.HandlerFunc(h.Heartbeat)).ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := call(auth.RoleAdmin, `{"active":false}`); rec.Code != http.StatusNoContent || st.touched != "" || st.extended != "" {
+		t.Fatalf("관리자 무조작: code=%d touched=%q extended=%q", rec.Code, st.touched, st.extended)
+	}
+	if rec := call(auth.RoleAdmin, `{"active":true}`); rec.Code != http.StatusNoContent || st.touched != "sid" || st.extended != "" {
+		t.Fatalf("관리자 조작: code=%d touched=%q extended=%q", rec.Code, st.touched, st.extended)
+	}
+	rec := call(auth.RoleViewer, `{"active":false}`)
+	var res loginResponse
+	if err := json.NewDecoder(rec.Body).Decode(&res); err != nil || res.Token == "" || st.extended != "sid" {
+		t.Fatalf("조회 전용 연장: err=%v token=%q extended=%q", err, res.Token, st.extended)
+	}
+	if claims, err := auth.ValidateToken(res.Token, "secret"); err != nil || claims.ID != "sid" {
+		t.Fatalf("연장 토큰은 같은 세션이어야 함: %v %+v", err, claims)
 	}
 }
 

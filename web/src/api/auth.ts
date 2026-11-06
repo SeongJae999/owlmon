@@ -52,6 +52,11 @@ export function logout() {
   window.location.href = '/'
 }
 
+export async function heartbeat(active: boolean): Promise<void> {
+  const res = await axios.post('/api/auth/heartbeat', { active })
+  if (res.data?.token) setToken(res.data.token)
+}
+
 // axios 기본 헤더에 JWT 자동 추가
 axios.interceptors.request.use((config) => {
   const token = getToken()
@@ -69,6 +74,9 @@ axios.interceptors.response.use(
   (err) => {
     const status = err.response?.status
     if (status === 401 && !err.config?.url?.endsWith('/api/auth/login')) {
+      if (typeof err.response.data === 'string') {
+        sessionStorage.setItem('owlmon-logout-reason', err.response.data.trim())
+      }
       removeToken()
       window.location.href = '/'
     }

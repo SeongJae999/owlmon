@@ -23,6 +23,8 @@ type userBackend interface {
 	SetPassword(ctx context.Context, username, hash, keepSession string) error
 	CreateSession(ctx context.Context, id, username string, expiresAt time.Time) error
 	DeleteSession(ctx context.Context, id string) error
+	TouchSession(ctx context.Context, id string) error
+	ExtendSession(ctx context.Context, id string, expiresAt time.Time) error
 }
 
 type AuthHandler struct {
@@ -178,7 +180,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, reason := h.verify(r.Context(), req.Username, req.Password); reason != "" {
+	role, reason := h.verify(r.Context(), req.Username, req.Password)
+	if reason != "" {
 		save("auth.login", "failure", map[string]any{"reason": reason})
 		if h.recordFailure(req.Username) {
 			save("auth.lockout", "failure", map[string]any{"failures": maxLoginFailures, "minutes": int(loginLockout.Minutes())})
@@ -190,13 +193,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	h.resetFailures(req.Username)
 	sessionID := rand.Text()
+	ttl := auth.TokenTTL(role)
 	if h.users != nil {
-		if err := h.users.CreateSession(r.Context(), sessionID, req.Username, time.Now().Add(auth.TokenTTL)); err != nil {
+		if err := h.users.CreateSession(r.Context(), sessionID, req.Username, time.Now().Add(ttl)); err != nil {
 			respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 			return
 		}
 	}
-	token, err := auth.GenerateToken(req.Username, sessionID, h.jwtSecret)
+	token, err := auth.GenerateToken(req.Username, sessionID, h.jwtSecret, ttl)
 	if err != nil {
 		http.Error(w, "토큰 생성 실패", http.StatusInternalServerError)
 		return
@@ -216,6 +220,46 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Heartbeat POST /api/auth/heartbeat {active} — 화면이 1분마다 호출.
+// 대시보드 자동 조회는 조작이 아니므로 사람이 조작했는지는 화면이 active로 알려줌
+func (h *AuthHandler) Heartbeat(w http.ResponseWriter, r *http.Request) {
+	if h.users == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	var req struct {
+		Active bool `json:"active"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "잘못된 요청입니다", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	sessionID := auth.SessionFromContext(ctx)
+	if req.Active {
+		if err := h.users.TouchSession(ctx, sessionID); err != nil {
+			respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+			return
+		}
+	}
+	if auth.RoleFromContext(ctx) != auth.RoleViewer {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	// 조회 전용(상황판)은 계속 띄워 두므로 만료를 뒤로 미루고 토큰을 새로 줌
+	ttl := auth.TokenTTL(auth.RoleViewer)
+	if err := h.users.ExtendSession(ctx, sessionID, time.Now().Add(ttl)); err != nil {
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	token, err := auth.GenerateToken(auth.UsernameFromContext(ctx), sessionID, h.jwtSecret, ttl)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	writeJSON(w, loginResponse{Token: token})
 }
 
 // Me GET /api/auth/me — 화면이 역할에 따라 메뉴·버튼을 숨기는 데 사용

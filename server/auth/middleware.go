@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -34,8 +36,14 @@ func SessionFromContext(ctx context.Context) string {
 	return v
 }
 
-// UserCheck는 현재 역할과 세션·계정 유효 여부를 돌려준다. nil이면(DB 없는 단일 계정 모드) 항상 관리자.
-type UserCheck func(ctx context.Context, username, sessionID string) (role string, active bool)
+var (
+	ErrSessionEnded = errors.New("로그인이 만료되었거나 사용할 수 없는 계정입니다")
+	ErrIdle         = errors.New("30분 동안 사용하지 않아 자동으로 로그아웃되었습니다")
+)
+
+// UserCheck는 현재 역할을 돌려주고, 세션이 끝났으면 ErrSessionEnded·ErrIdle을 돌려준다.
+// nil이면(DB 없는 단일 계정 모드) 항상 관리자.
+type UserCheck func(ctx context.Context, username, sessionID string) (role string, err error)
 
 // JWTMiddleware는 Authorization 헤더의 Bearer 토큰을 검증합니다.
 func JWTMiddleware(secret string, check UserCheck) func(http.Handler) http.Handler {
@@ -56,9 +64,16 @@ func JWTMiddleware(secret string, check UserCheck) func(http.Handler) http.Handl
 
 			role := RoleAdmin
 			if check != nil {
-				var active bool
-				if role, active = check(r.Context(), claims.Username, claims.ID); !active {
-					http.Error(w, "로그인이 만료되었거나 사용할 수 없는 계정입니다", http.StatusUnauthorized)
+				var err error
+				role, err = check(r.Context(), claims.Username, claims.ID)
+				switch {
+				case errors.Is(err, ErrSessionEnded), errors.Is(err, ErrIdle):
+					http.Error(w, err.Error(), http.StatusUnauthorized)
+					return
+				case err != nil:
+					// DB 순간 장애로 401을 주면 상황판까지 전부 로그아웃되므로 일시 오류로 응답
+					log.Printf("세션 확인 실패: %v", err)
+					http.Error(w, "일시적인 오류입니다. 잠시 후 다시 시도하세요", http.StatusServiceUnavailable)
 					return
 				}
 			}
@@ -73,12 +88,13 @@ func JWTMiddleware(secret string, check UserCheck) func(http.Handler) http.Handl
 
 // 조회 전용 계정도 쓸 수 있는 POST — 상태를 바꾸지 않거나(AI 질문) 담당자가 해야 하는 일(알림 확인·내 비밀번호)
 var viewerAllowedWrites = map[string]bool{
-	"/api/alert/ack":     true,
-	"/api/chat":          true,
-	"/api/llm/explain":   true,
-	"/api/llm/summary":   true,
-	"/api/auth/password": true,
-	"/api/auth/logout":   true,
+	"/api/alert/ack":      true,
+	"/api/chat":           true,
+	"/api/llm/explain":    true,
+	"/api/llm/summary":    true,
+	"/api/auth/password":  true,
+	"/api/auth/logout":    true,
+	"/api/auth/heartbeat": true,
 }
 
 // ReadOnlyGuard는 조회 전용 계정의 변경 요청을 막는다. 화면마다 권한 코드를 두지 않고 여기 한 곳에서 처리.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/seongJae/owlmon/server/auth"
 )
 
 var ErrLastAdmin = errors.New("마지막 관리자 계정은 중지하거나 권한을 낮출 수 없습니다")
@@ -49,6 +50,10 @@ func (s *UserStore) EnsureTable(ctx context.Context, seedUser, seedHash string) 
 		)`); err != nil {
 		return err
 	}
+	if _, err := s.pool.Exec(ctx, `
+		ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`); err != nil {
+		return err
+	}
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO users (username, password_hash, role)
 		SELECT $1, $2, 'admin' WHERE NOT EXISTS (SELECT 1 FROM users)`,
@@ -64,16 +69,26 @@ func (s *UserStore) ForLogin(ctx context.Context, username string) (hash, role s
 }
 
 // 토큰은 8시간 유효하므로 요청마다 확인해야 로그아웃·사용 중지·역할 변경이 즉시 반영됨
-func (s *UserStore) Current(ctx context.Context, username, sessionID string) (role string, active bool) {
-	var disabled bool
-	if err := s.pool.QueryRow(ctx, `
-		SELECT u.role, u.disabled FROM users u
-		JOIN sessions s ON s.username = u.username
-		WHERE u.username = $1 AND s.id = $2 AND s.expires_at > NOW()`, username, sessionID,
-	).Scan(&role, &disabled); err != nil {
-		return "", false
+func (s *UserStore) Current(ctx context.Context, username, sessionID string) (string, error) {
+	var role string
+	var disabled, fresh bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT u.role, u.disabled, s.last_active_at > NOW() - make_interval(secs => $3)
+		FROM users u JOIN sessions s ON s.username = u.username
+		WHERE u.username = $1 AND s.id = $2 AND s.expires_at > NOW()`,
+		username, sessionID, auth.IdleTimeout.Seconds(),
+	).Scan(&role, &disabled, &fresh)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return "", auth.ErrSessionEnded
+	case err != nil:
+		return "", err
+	case disabled:
+		return "", auth.ErrSessionEnded
+	case role == auth.RoleAdmin && !fresh:
+		return "", auth.ErrIdle
 	}
-	return role, !disabled
+	return role, nil
 }
 
 // 만료된 세션은 별도 작업 없이 로그인할 때 함께 지움
@@ -81,6 +96,16 @@ func (s *UserStore) CreateSession(ctx context.Context, id, username string, expi
 	_, err := s.pool.Exec(ctx, `
 		WITH expired AS (DELETE FROM sessions WHERE expires_at <= NOW())
 		INSERT INTO sessions (id, username, expires_at) VALUES ($1, $2, $3)`, id, username, expiresAt)
+	return err
+}
+
+func (s *UserStore) TouchSession(ctx context.Context, id string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE sessions SET last_active_at = NOW() WHERE id = $1`, id)
+	return err
+}
+
+func (s *UserStore) ExtendSession(ctx context.Context, id string, expiresAt time.Time) error {
+	_, err := s.pool.Exec(ctx, `UPDATE sessions SET expires_at = $2 WHERE id = $1`, id, expiresAt)
 	return err
 }
 

@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/seongJae/owlmon/server/auth"
 )
 
 // 실제 PostgreSQL 필요 — OWLMON_TEST_PG_DSN이 없으면 건너뜀 (빈 테스트 DB를 가리킬 것: users 테이블을 지움)
@@ -21,6 +23,10 @@ func TestUserStore(t *testing.T) {
 	}
 	defer pool.Close()
 	_, _ = pool.Exec(ctx, `DROP TABLE IF EXISTS sessions, users`)
+	// last_active_at이 없던 이전 버전 테이블에서도 올라와야 함
+	if _, err := pool.Exec(ctx, `CREATE TABLE sessions (id TEXT PRIMARY KEY, username TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
 	s := NewUserStore(pool)
 
 	// 첫 실행: 환경변수 관리자가 첫 관리자로 들어감, 두 번째 실행엔 중복 안 들어감
@@ -63,8 +69,8 @@ func TestUserStore(t *testing.T) {
 	if err := s.Update(ctx, users[0].ID, "admin", true); err != nil {
 		t.Fatalf("관리자 2명일 때 중지 가능해야 함: %v", err)
 	}
-	if _, active := s.Current(ctx, "admin", "before-disable"); active {
-		t.Fatal("중지된 계정은 active=false")
+	if _, err := s.Current(ctx, "admin", "before-disable"); !errors.Is(err, auth.ErrSessionEnded) {
+		t.Fatalf("중지된 계정은 거부돼야 함: %v", err)
 	}
 	// 관리자 2명을 동시에 중지해도 최소 1명은 남아야 함 (FOR UPDATE 잠금)
 	if err := s.Update(ctx, users[0].ID, "admin", false); err != nil {
@@ -84,8 +90,8 @@ func TestUserStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	active := func(sid string) bool {
-		_, ok := s.Current(ctx, "viewer1", sid)
-		return ok
+		_, err := s.Current(ctx, "viewer1", sid)
+		return err == nil
 	}
 	for _, sid := range []string{"a", "b", "c"} {
 		if err := s.CreateSession(ctx, sid, "viewer1", future); err != nil {
@@ -95,8 +101,49 @@ func TestUserStore(t *testing.T) {
 	if active("없는세션") {
 		t.Fatal("없는 세션은 거부돼야 함")
 	}
-	if _, ok := s.Current(ctx, "admin", "a"); ok {
+	if _, err := s.Current(ctx, "admin", "a"); err == nil {
 		t.Fatal("다른 계정의 세션으로 통과하면 안 됨")
+	}
+	// 무조작 제한은 관리자만: 31분 지나면 관리자는 끊기고 조회 전용은 유지. 조작 신호가 오면 다시 유효
+	if err := s.CreateSession(ctx, "adm", "admin", future); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Current(ctx, "admin", "adm"); err != nil {
+		t.Fatalf("방금 로그인한 관리자는 유효: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE sessions SET last_active_at = NOW() - interval '31 minutes'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Current(ctx, "admin", "adm"); !errors.Is(err, auth.ErrIdle) {
+		t.Fatalf("관리자 무조작 끊김 기대: %v", err)
+	}
+	if !active("a") {
+		t.Fatal("조회 전용은 무조작이어도 유지돼야 함")
+	}
+	if err := s.TouchSession(ctx, "adm"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Current(ctx, "admin", "adm"); err != nil {
+		t.Fatalf("조작 후 유효 기대: %v", err)
+	}
+	// 연장하면 만료 시각이 지나도 유효
+	if _, err := pool.Exec(ctx, `UPDATE sessions SET expires_at = NOW() - interval '1 minute' WHERE id = 'a'`); err != nil {
+		t.Fatal(err)
+	}
+	if active("a") {
+		t.Fatal("만료된 세션은 거부돼야 함")
+	}
+	if err := s.ExtendSession(ctx, "a", future); err != nil {
+		t.Fatal(err)
+	}
+	if !active("a") {
+		t.Fatal("연장 후 유효 기대")
+	}
+	// DB 장애는 세션 종료가 아니라 일시 오류로 구분돼야 함
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := s.Current(cancelled, "admin", "adm"); err == nil || errors.Is(err, auth.ErrSessionEnded) {
+		t.Fatalf("일시 오류 기대: %v", err)
 	}
 	// 로그아웃: 그 세션만 끊김
 	if err := s.DeleteSession(ctx, "a"); err != nil {

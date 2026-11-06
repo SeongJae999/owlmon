@@ -87,6 +87,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Get("/api/auth/me", authHandler.Me)
 		r.Post("/api/auth/password", authHandler.ChangePassword)
 		r.Post("/api/auth/logout", authHandler.Logout)
+		r.Post("/api/auth/heartbeat", authHandler.Heartbeat)
 		if usersHandler != nil {
 			r.With(auth.RequireAdmin).Get("/api/users", usersHandler.List)
 			r.With(auth.RequireAdmin).Post("/api/users", usersHandler.Create)

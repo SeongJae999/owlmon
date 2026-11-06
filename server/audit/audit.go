@@ -175,11 +175,12 @@ func isMutating(m string) bool {
 	return m == http.MethodPost || m == http.MethodPut || m == http.MethodPatch || m == http.MethodDelete
 }
 
-// 상태를 바꾸지 않는 POST(AI 질문)는 자동 기록에서 제외 — 감사 로그가 질문으로 뒤덮이지 않게
+// 상태를 바꾸지 않거나 반복되는 POST는 자동 기록에서 제외 — 감사 로그가 뒤덮이지 않게
 var autoSkipPaths = map[string]bool{
-	"/api/chat":        true,
-	"/api/llm/explain": true,
-	"/api/llm/summary": true,
+	"/api/chat":           true,
+	"/api/llm/explain":    true,
+	"/api/llm/summary":    true,
+	"/api/auth/heartbeat": true, // 화면마다 1분에 한 번 호출
 }
 
 func extractActor(r *http.Request) string {
