@@ -1,12 +1,11 @@
-# OWLmon 통합 환경 (로컬 개발 + 단일 호스트 배포 공용)
-# 사용법:
-#   1) cp .env.example .env  →  비밀번호/SMTP 채우기
-#   2) docker compose up -d --build
+# OWLmon 통합 환경 (단일 호스트 배포)
+# 설치: scripts/release.sh로 만든 번들의 install.sh 사용 (폐쇄망 포함). 개발 중 소스 빌드는 dev.sh
 #
-# 외부 노출 포트 (운영):
+# 외부 노출 포트 — 이것만 연다:
 #   80     웹 UI (nginx)
-#   4317   에이전트 OTLP (gRPC)
-# 그 외(9090, 3000, 5433, 8080)는 로컬 개발 편의용으로 노출 — 운영에선 제거 가능
+#   4317   에이전트 메트릭 (OTLP gRPC)
+#   8080   에이전트 로그 수집·자동 업데이트 (API는 전부 인증 필요)
+# DB(5433)·Prometheus(9090)는 이 서버 안(127.0.0.1)에서만 접근 — 사내망에 열면 인증 없이 조회됨
 
 services:
   # 메트릭 저장소 (TSDB)
@@ -14,7 +13,7 @@ services:
     image: prom/prometheus:v2.51.0
     container_name: owlmon-prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./data/prometheus:/prometheus
@@ -24,29 +23,12 @@ services:
       - "--web.enable-remote-write-receiver"  # Remote Write 수신 활성화
     restart: unless-stopped
 
-  # 대시보드 (개발 중 시각화용)
-  grafana:
-    image: grafana/grafana:10.4.0
-    container_name: owlmon-grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./data/grafana:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=owlmon
-      - GF_USERS_ALLOW_SIGN_UP=false
-    restart: unless-stopped
-
   # OpenTelemetry Collector (에이전트 → Prometheus 중계)
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.96.0
     container_name: owlmon-otel-collector
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8888:8888"   # Collector 자체 메트릭
+      - "4317:4317"   # OTLP gRPC (에이전트). 인증 없는 HTTP(4318)·내부 메트릭(8888)은 열지 않음
     volumes:
       - ./infra/otel/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     restart: unless-stopped
@@ -56,12 +38,11 @@ services:
     image: postgres:16-alpine
     container_name: owlmon-postgres
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     environment:
       - POSTGRES_DB=owlmon
       - POSTGRES_USER=owlmon
-      - POSTGRES_PASSWORD=owlmon
-      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD를 .env에 설정하세요}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -79,13 +60,13 @@ services:
       dockerfile: Dockerfile
     container_name: owlmon-server
     ports:
-      - "8080:8080"   # 로컬 개발 편의용 (운영에선 nginx 통해서만 접근하면 됨)
+      - "8080:8080"   # 에이전트 로그 수집·자동 업데이트
     environment:
       - OWLMON_USERNAME=${OWLMON_USERNAME:-admin}
       - OWLMON_PASSWORD_HASH=${OWLMON_PASSWORD_HASH}
       - OWLMON_PROMETHEUS_URL=http://prometheus:9090
       - OWLMON_LISTEN=:8080
-      - POSTGRES_DSN=postgres://owlmon:owlmon@postgres:5432/owlmon?sslmode=disable
+      - POSTGRES_DSN=postgres://owlmon:${POSTGRES_PASSWORD}@postgres:5432/owlmon?sslmode=disable
       - OWLMON_JWT_SECRET=${OWLMON_JWT_SECRET:-}
       # 에이전트 로그 수집 인증 키 (모든 에이전트 config.yaml의 agent_key와 일치해야 함)
       - OWLMON_AGENT_KEY=${OWLMON_AGENT_KEY:-}
@@ -135,7 +116,7 @@ services:
       - PGHOST=postgres
       - PGUSER=owlmon
       - PGDATABASE=owlmon
-      - PGPASSWORD=owlmon
+      - PGPASSWORD=${POSTGRES_PASSWORD}
       - TZ=Asia/Seoul
       - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
       # 백업 암호화 (KISA AES-256-CBC + PBKDF2 100000 iter)

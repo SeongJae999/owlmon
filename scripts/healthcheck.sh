@@ -41,7 +41,7 @@ echo "╚═══════════════════════�
 
 # ───────────────────────────────────────────────────────────────
 section "1. 컨테이너 상태"
-expected_containers=("owlmon-server" "owlmon-web" "owlmon-postgres" "owlmon-prometheus" "owlmon-otel-collector" "owlmon-grafana")
+expected_containers=("owlmon-server" "owlmon-web" "owlmon-postgres" "owlmon-prometheus" "owlmon-otel-collector")
 for c in "${expected_containers[@]}"; do
     if docker ps --format '{{.Names}}' | grep -q "^${c}$"; then
         uptime=$(docker inspect -f '{{.State.StartedAt}}' "$c" 2>/dev/null | cut -c1-19)
