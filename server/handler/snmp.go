@@ -2,11 +2,13 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/prom"
 	"github.com/seongJae/owlmon/server/snmp"
@@ -93,14 +95,15 @@ func (h *SNMPHandler) UpdateDevice(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 요청", http.StatusBadRequest)
 		return
 	}
-	if req.Community == "" {
-		req.Community = "public"
-	}
 	if req.Port == 0 {
 		req.Port = 161
 	}
-	dev := snmp.Device{ID: id, Name: req.Name, IP: req.IP, Community: req.Community, Port: req.Port}
-	if err := h.store.Update(r.Context(), dev); err != nil {
+	dev, err := h.store.Update(r.Context(), snmp.Device{ID: id, Name: req.Name, IP: req.IP, Community: req.Community, Port: req.Port})
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "장비를 찾을 수 없습니다", http.StatusNotFound)
+		return
+	}
+	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return
 	}

@@ -29,7 +29,7 @@ type Device struct {
 	ID        int64
 	Name      string
 	IP        string
-	Community string
+	Community string `json:"-"` // 장비 접속 암호이므로 어떤 API 응답에도 내보내지 않음
 	Port      int
 }
 

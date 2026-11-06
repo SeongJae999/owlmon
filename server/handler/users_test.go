@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/auth"
+	"github.com/seongJae/owlmon/server/snmp"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -260,6 +261,14 @@ func TestMaskKey(t *testing.T) {
 	}
 	if got := maskKey("abc"); got != "****" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// 비밀 값이 API 응답(JSON)으로 나가지 않아야 함 — 상태 API도 이 구조체를 그대로 내보냄
+func TestSNMPDevice_HidesCommunity(t *testing.T) {
+	b, err := json.Marshal(snmp.Device{Name: "sw1", Community: "s3cret"})
+	if err != nil || strings.Contains(string(b), "s3cret") {
+		t.Fatalf("community 노출: %s %v", b, err)
 	}
 }
 

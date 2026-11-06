@@ -44,12 +44,14 @@ func (s *SNMPDeviceStore) Add(ctx context.Context, d snmp.Device) (snmp.Device, 
 	return d, err
 }
 
-func (s *SNMPDeviceStore) Update(ctx context.Context, d snmp.Device) error {
-	_, err := s.pool.Exec(ctx,
-		`UPDATE snmp_devices SET name=$1, ip=$2, community=$3, port=$4 WHERE id=$5`,
+// community가 비어 있으면 기존 값 유지 — 화면이 현재 값을 받지 못하므로 빈 값은 "변경 안 함"
+func (s *SNMPDeviceStore) Update(ctx context.Context, d snmp.Device) (snmp.Device, error) {
+	err := s.pool.QueryRow(ctx,
+		`UPDATE snmp_devices SET name=$1, ip=$2, community=COALESCE(NULLIF($3, ''), community), port=$4
+		 WHERE id=$5 RETURNING community`,
 		d.Name, d.IP, d.Community, d.Port, d.ID,
-	)
-	return err
+	).Scan(&d.Community)
+	return d, err
 }
 
 func (s *SNMPDeviceStore) Delete(ctx context.Context, id int64) error {

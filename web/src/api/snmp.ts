@@ -4,7 +4,7 @@ export interface SNMPDevice {
   ID: number
   Name: string
   IP: string
-  Community: string
+  Community?: string // 서버는 내보내지 않음. 입력할 때만 사용
   Port: number
 }
 
