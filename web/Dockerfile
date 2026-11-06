@@ -25,5 +25,6 @@ ENV TZ=Asia/Seoul
 # 빌드 산출물 + nginx 설정
 COPY --from=builder /src/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.inc /etc/nginx/conf.d/security-headers.inc
 
 EXPOSE 80
