@@ -15,7 +15,7 @@ echo "[1/4] 이미지 불러오기 (v$VERSION)"
 docker load -i "$BUNDLE/images.tar.gz" | grep -v '^$' || true
 
 echo "[2/4] 설정 복사 → $TARGET"
-mkdir -p "$TARGET/infra" "$TARGET/data/prometheus" "$TARGET/data/owlmon-server"
+mkdir -p "$TARGET/infra" "$TARGET/data/prometheus" "$TARGET/data/owlmon-server" "$TARGET/data/certs"
 # 컨테이너가 root가 아닌 사용자로 돌기 때문에 데이터 폴더 소유자를 맞춤 (prometheus=nobody, server=owlmon)
 chown 65534:65534 "$TARGET/data/prometheus"
 chown 100:101 "$TARGET/data/owlmon-server"
@@ -53,5 +53,6 @@ docker compose up -d --no-build --remove-orphans
 sleep 5
 docker compose ps --format "table {{.Name}}\t{{.Status}}"
 echo
-echo "설치 완료 (v$VERSION) — 웹: http://<이 서버 IP>/"
+echo "설치 완료 (v$VERSION) — 웹: https://<이 서버 IP>/"
+echo "인증서: 자체 서명 인증서가 자동 생성됨 (브라우저 경고). 기관 인증서는 $TARGET/data/certs/에 cert.pem·key.pem으로 넣고 docker restart owlmon-web"
 echo "에이전트 키: $TARGET/.env 의 OWLMON_AGENT_KEY (에이전트 설치 시 필요)"

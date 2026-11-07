@@ -19,12 +19,13 @@ RUN npm run build
 FROM nginx:1.27-alpine
 
 # 한국 시간대
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata openssl
 ENV TZ=Asia/Seoul
 
 # 빌드 산출물 + nginx 설정
 COPY --from=builder /src/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY security-headers.inc /etc/nginx/conf.d/security-headers.inc
+COPY --chmod=755 gen-cert.sh /docker-entrypoint.d/05-owlmon-cert.sh
 
-EXPOSE 80
+EXPOSE 80 443

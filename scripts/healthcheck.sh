@@ -62,9 +62,10 @@ else
     fail "/api/health 응답 비정상: ${health:0:200}"
 fi
 
-web_code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 http://localhost/ || echo "000")
+# 자체 서명 인증서일 수 있어 -k (여기선 서비스 응답만 확인)
+web_code=$(curl -sk -o /dev/null -w '%{http_code}' -m 5 https://localhost/ || echo "000")
 if [ "$web_code" = "200" ]; then
-    ok "웹 / → HTTP 200"
+    ok "웹 / → HTTPS 200"
 else
     fail "웹 / → HTTP $web_code"
 fi

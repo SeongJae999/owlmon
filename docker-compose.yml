@@ -2,7 +2,7 @@
 # 설치: scripts/release.sh로 만든 번들의 install.sh 사용 (폐쇄망 포함). 개발 중 소스 빌드는 dev.sh
 #
 # 외부 노출 포트 — 이것만 연다:
-#   80     웹 UI (nginx)
+#   443    웹 UI (HTTPS) — 80은 443으로 이동
 #   4317   에이전트 메트릭 (OTLP gRPC)
 #   8080   에이전트 로그 수집·자동 업데이트 (API는 전부 인증 필요)
 # DB(5433)·Prometheus(9090)는 이 서버 안(127.0.0.1)에서만 접근 — 사내망에 열면 인증 없이 조회됨
@@ -107,7 +107,10 @@ services:
       dockerfile: Dockerfile
     container_name: owlmon-web
     ports:
-      - "80:80"
+      - "80:80"     # HTTPS로 이동만 함
+      - "443:443"
+    volumes:
+      - ./data/certs:/etc/nginx/certs   # 기관 인증서는 여기 cert.pem·key.pem으로 (없으면 자체 서명 자동 생성)
     depends_on:
       - owlmon-server
     restart: unless-stopped
