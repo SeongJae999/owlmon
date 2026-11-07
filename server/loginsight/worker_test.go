@@ -355,3 +355,15 @@ func TestValidate_SummaryRuneLength(t *testing.T) {
 		t.Fatal("121자는 탈락해야 함")
 	}
 }
+
+// 목록 밖 분류("storage")로 인사이트 전체가 버려지던 문제 — LLM 평가 기준선에서 발견
+func TestValidate_UnknownCategoryBecomesOther(t *testing.T) {
+	ins := Insight{Severity: SeverityHigh, Category: "storage", SummaryKo: "백업 실패"}
+	if err := ins.Validate(); err != nil || ins.Category != CatOther {
+		t.Fatalf("모르는 분류는 other로 받아야 함: err=%v cat=%s", err, ins.Category)
+	}
+	ins.Severity = "urgent"
+	if ins.Validate() == nil {
+		t.Fatal("심각도는 알림과 직결돼 엄격히 검증해야 함")
+	}
+}

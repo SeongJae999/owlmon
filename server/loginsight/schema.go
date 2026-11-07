@@ -70,7 +70,8 @@ func (i *Insight) Validate() error {
 	switch i.Category {
 	case CatAuth, CatNetwork, CatDisk, CatDB, CatApp, CatSecurity, CatOther:
 	default:
-		return errors.New("category 값이 유효하지 않습니다: " + string(i.Category))
+		// 분류는 부가 정보 — 모델이 목록 밖 값("storage" 등)을 내도 분석 전체를 버리지 않는다
+		i.Category = CatOther
 	}
 	return nil
 }
