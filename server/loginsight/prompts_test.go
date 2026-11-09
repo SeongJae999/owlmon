@@ -23,6 +23,15 @@ func TestSystemPromptLogCluster_NormalExitGuard(t *testing.T) {
 	}
 }
 
+// 평가 정답지와 같은 기준을 모델도 쓰도록 — 기준이 빠지면 경계선 케이스가 실행마다 흔들린다
+func TestSystemPromptLogCluster_SeverityRubric(t *testing.T) {
+	for _, kw := range []string{"심각도 기준", "지금 바로", "오늘 안에", "이번 주 안에", "안 봐도 됨"} {
+		if !strings.Contains(SystemPromptLogCluster, kw) {
+			t.Errorf("SystemPromptLogCluster에 심각도 기준 키워드 %q 누락", kw)
+		}
+	}
+}
+
 // BuildUserMsg가 붙이는 "[패턴 이력]" 블록을 시스템 프롬프트가 해석하는 지침이 있어야 한다.
 func TestSystemPromptLogCluster_History(t *testing.T) {
 	for _, kw := range []string{"[패턴 이력]", "N일째 지속", "기간만으로 격상하지 마라"} {
