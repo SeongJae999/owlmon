@@ -6,10 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/seongJae/owlmon/server/auth"
 	"github.com/seongJae/owlmon/server/db"
 	"github.com/seongJae/owlmon/server/llm"
 	"github.com/seongJae/owlmon/server/masking"
@@ -17,17 +19,26 @@ import (
 
 // LLMHandler — 로그 설명/알림 요약 등 LLM 기반 API.
 type LLMHandler struct {
-	provider  llm.Provider
-	cache     *llm.Cache
+	provider     llm.Provider
+	router       llm.Provider // nil이면 자유 입력을 분류하지 않는다 (외부 provider에 질문을 보내 분류하지 않기 위함)
+	chat         *ChatDeps
+	cache        *llm.Cache
 	historyStore *db.AlertHistoryStore
 }
 
-func NewLLMHandler(provider llm.Provider, historyStore *db.AlertHistoryStore) *LLMHandler {
-	return &LLMHandler{
+func NewLLMHandler(provider llm.Provider, historyStore *db.AlertHistoryStore, chat *ChatDeps) *LLMHandler {
+	h := &LLMHandler{
 		provider:     provider,
+		chat:         chat,
 		cache:        llm.NewCache(500, 24*time.Hour),
 		historyStore: historyStore,
 	}
+	if op, ok := provider.(*llm.OllamaProvider); ok {
+		r := *op
+		r.JSON = true
+		h.router = &r
+	}
+	return h
 }
 
 // Enabled — LLM 기능 활성 여부 (provider 존재 여부).
@@ -214,12 +225,6 @@ type chatMessage struct {
 	Content string `json:"content"`
 }
 
-// Chat POST /api/chat — OWLmon 도우미 챗봇 (PoC, 실시간 데이터 미연동).
-// Body: {"messages":[{"role":"user","content":"..."}, ...]}  (대화 히스토리 전체)
-// Response: {"reply":"...","model":"..."}
-//
-// 멀티턴 맥락은 클라이언트가 messages 배열로 보내 유지(stateless).
-// 현재는 시스템 데이터 검색 없이 일반 질의응답만 — 데이터 연동(RAG)은 후속.
 func (h *LLMHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	if h.provider == nil {
 		http.Error(w, "AI 도우미가 비활성화되어 있습니다 (OWLMON_LLM_PROVIDER 미설정)", http.StatusServiceUnavailable)
@@ -238,49 +243,104 @@ func (h *LLMHandler) Chat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "messages는 비어있을 수 없습니다", http.StatusBadRequest)
 		return
 	}
+	for _, m := range req.Messages {
+		if m.Role != "user" && m.Role != "assistant" {
+			http.Error(w, "role은 user 또는 assistant여야 합니다", http.StatusBadRequest)
+			return
+		}
+	}
 	last := req.Messages[len(req.Messages)-1]
 	if last.Role != "user" || strings.TrimSpace(last.Content) == "" {
 		http.Error(w, "마지막 메시지는 비어있지 않은 user 여야 합니다", http.StatusBadRequest)
 		return
 	}
 
-	// 최근 N턴만 유지 (프롬프트 폭주 방지) + 대화 히스토리를 단일 userPrompt로 조립.
+	// nginx 60초에 앞서 끝내야 준비된 답변이 504로 버려지지 않는다
+	ctx, cancel := context.WithTimeout(r.Context(), 55*time.Second)
+	defer cancel()
+	start := time.Now()
+
+	q := strings.TrimSpace(last.Content)
+	prev := ""
+	for i := len(req.Messages) - 2; i >= 0; i-- {
+		if req.Messages[i].Role == "user" {
+			prev = req.Messages[i].Content
+			break
+		}
+	}
+
+	route, isChip := chipRoutes[q]
+	if !isChip {
+		route = routeNone
+		if h.router != nil {
+			got, err := classifyRoute(ctx, h.router, prev, q)
+			if err != nil {
+				log.Printf("[chat] user=%s 분류 실패: %v", auth.UsernameFromContext(r.Context()), err)
+				writeJSONLLM(w, map[string]interface{}{"reply": chatRouterFailReply, "model": ""})
+				return
+			}
+			route = got
+		}
+	}
+	if h.chat == nil && route != routeAction {
+		route = routeNone
+	}
+
+	var reply, model string
+	switch route {
+	case routeAction:
+		reply = chatActionReply
+	case routeNone:
+		text, err := h.provider.Complete(ctx, llm.SystemPromptChat, h.generalPrompt(req.Messages))
+		if err != nil {
+			respondError(w, http.StatusBadGateway, "AI 호출 실패", err)
+			return
+		}
+		reply = strings.TrimSpace(text) + "\n\n" + chatGeneralNote
+		model = h.provider.Name()
+	default:
+		reply = h.chat.answer(ctx, route, q, prev, time.Now())
+	}
+
+	log.Printf("[chat] user=%s route=%s ms=%d", auth.UsernameFromContext(r.Context()), route, time.Since(start).Milliseconds())
+	writeJSONLLM(w, map[string]interface{}{"reply": reply, "model": model})
+}
+
+// 지난 데이터 답변을 일반 대화에 다시 넣으면 묻지 않은 서버 얘기가 섞이고, 외부 provider로 수치가 나간다
+func (h *LLMHandler) generalPrompt(messages []chatMessage) string {
+	if h.router == nil {
+		opts := masking.DefaultOptions()
+		opts.MaskExternalIP = true
+		return "[사용자] " + masking.Mask(cleanTurn(messages[len(messages)-1].Content, 2000), opts) + "\n[도우미] "
+	}
+
+	kept := make([]chatMessage, 0, len(messages))
+	for _, m := range messages {
+		if m.Role == "assistant" && reChatDataAnswer.MatchString(m.Content) {
+			if n := len(kept); n > 0 && kept[n-1].Role == "user" {
+				kept = kept[:n-1]
+			}
+			continue
+		}
+		kept = append(kept, m)
+	}
+
 	const maxTurns = 10
-	msgs := req.Messages
-	if len(msgs) > maxTurns {
-		msgs = msgs[len(msgs)-maxTurns:]
+	if len(kept) > maxTurns {
+		kept = kept[len(kept)-maxTurns:]
 	}
 	var sb strings.Builder
-	for _, m := range msgs {
-		content := m.Content
-		if len(content) > 2000 {
-			content = content[:2000] + "...(생략)"
-		}
-		switch m.Role {
-		case "assistant":
+	for _, m := range kept {
+		if m.Role == "assistant" {
 			sb.WriteString("[도우미] ")
-		default:
+		} else {
 			sb.WriteString("[사용자] ")
 		}
-		sb.WriteString(content)
+		sb.WriteString(cleanTurn(m.Content, 2000))
 		sb.WriteString("\n")
 	}
 	sb.WriteString("[도우미] ")
-	userPrompt := sb.String()
-
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
-	defer cancel()
-
-	text, err := h.provider.Complete(ctx, llm.SystemPromptChat, userPrompt)
-	if err != nil {
-		respondError(w, http.StatusBadGateway, "AI 호출 실패", err)
-		return
-	}
-
-	writeJSONLLM(w, map[string]interface{}{
-		"reply": strings.TrimSpace(text),
-		"model": h.provider.Name(),
-	})
+	return sb.String()
 }
 
 func hash(s string) string {

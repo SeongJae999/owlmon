@@ -45,7 +45,16 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 	anomalyHandler := handler.NewAnomalyHandler(checker.Detector, checker.Predictor)
 	agentHandler := handler.NewAgentHandler(appCtx.AgentStore)
 	reportHandler := handler.NewReportHandler(report.NewReporter(prometheusURL, appCtx.EmailConfig, appCtx.ConfigStore))
-	llmHandler := handler.NewLLMHandler(llm.NewProvider(), appCtx.HistoryStore)
+	chatDeps := &handler.ChatDeps{
+		Status: statusHandler, Checker: checker, History: appCtx.HistoryStore,
+		Insights: appCtx.LogInsightStore, SNMP: appCtx.SNMPDeviceStore,
+		Synthetic: appCtx.SyntheticStore, SyntheticChecker: appCtx.SyntheticChecker,
+		DPM: appCtx.DPMStore, DPMPoller: appCtx.DPMPoller,
+	}
+	if appCtx.LogInsightWorker != nil {
+		chatDeps.Health = appCtx.LogInsightWorker.Health
+	}
+	llmHandler := handler.NewLLMHandler(llm.NewProvider(), appCtx.HistoryStore, chatDeps)
 
 	r.Post("/api/auth/login", authHandler.Login)
 	r.Get("/api/health", statusHandler.HealthCheck)

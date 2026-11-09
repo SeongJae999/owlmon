@@ -26,6 +26,9 @@ type OllamaProvider struct {
 	JSON bool
 }
 
+// 챗봇·로그 분석이 같은 Ollama를 쓴다. 대기를 HTTP 타임아웃 밖에 둬서 앞선 요청을 기다리다 실패하지 않게 한다
+var ollamaSlot = make(chan struct{}, 1)
+
 func (p *OllamaProvider) Name() string { return "ollama:" + p.Model }
 
 type ollamaMessage struct {
@@ -71,6 +74,13 @@ func (p *OllamaProvider) Complete(ctx context.Context, systemPrompt, userPrompt 
 		body.Options["temperature"] = 0.1
 	}
 	b, _ := json.Marshal(body)
+
+	select {
+	case ollamaSlot <- struct{}{}:
+		defer func() { <-ollamaSlot }()
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 
 	httpCtx, cancel := context.WithTimeout(ctx, 60*time.Second) // 자체 호스팅은 느릴 수 있음
 	defer cancel()

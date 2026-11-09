@@ -12,6 +12,7 @@ export function setToken(token: string) {
 
 export function removeToken() {
   localStorage.removeItem(TOKEN_KEY)
+  sessionStorage.removeItem('owlmon-chat') // 공용 PC에서 다음 사용자에게 이전 대화가 보이지 않게
 }
 
 export function isLoggedIn(): boolean {

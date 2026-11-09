@@ -5,6 +5,9 @@ import { useQuery } from '@tanstack/react-query'
 import Markdown from '../components/Markdown'
 import { Sparkles, Send, User, Bot, AlertCircle } from 'lucide-react'
 
+// 서버의 chipRoutes와 글자까지 같아야 AI 없이 조회된다
+const DATA_CHIPS = ['지금 서버 상태', '디스크 언제 차?', '인증서 만료 확인', '어제 알림 내역', 'AI 로그 분석 결과']
+
 const SUGGESTIONS = [
   '서버 응답이 느릴 때 뭘 먼저 확인해?',
   '디스크가 가득 차면 어떻게 대처해?',
@@ -50,7 +53,6 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
     setError(null)
     const next: ChatMessage[] = [...messages, { role: 'user', content: q }]
     setMessages(next)
-    setInput('')
     setLoading(true)
     try {
       const res = await sendChat(next)
@@ -70,6 +72,7 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     send(input)
+    setInput('')
   }
 
   const disabled = llmStatus && !llmStatus.enabled
@@ -119,9 +122,6 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-base-500">
-                ⚠ 실시간 서버 상태·수치는 아직 조회할 수 없어요. 그런 정보는 각 대시보드 메뉴를 봐주세요.
-              </p>
             </div>
           )}
 
@@ -169,7 +169,20 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
         </div>
 
         {/* Input */}
-        <form onSubmit={onSubmit} className="border-t border-base-800 p-3 flex gap-2">
+        <div className="border-t border-base-800 px-3 pt-3 flex flex-wrap gap-1.5 [@media(max-height:500px)]:flex-nowrap [@media(max-height:500px)]:overflow-x-auto">
+          {DATA_CHIPS.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => send(c)}
+              disabled={disabled || loading}
+              className="shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-base-800 text-base-300 border border-base-700 hover:border-brand-500 hover:text-base-50 transition-colors disabled:opacity-40"
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={onSubmit} className="p-3 flex gap-2">
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -188,8 +201,8 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
         </form>
       </div>
 
-      <p className={`text-xs text-base-500 text-center ${floating ? 'pb-2' : ''}`}>
-        AI 답변은 참고용입니다. 중요한 조치는 반드시 직접 확인 후 진행하세요.
+      <p className={`text-xs text-base-500 text-center ${floating ? 'pb-2 [@media(max-height:500px)]:hidden' : ''}`}>
+        서버 상태·사용률·디스크 예측·인증서·알림 기록·AI 로그 분석을 조회할 수 있습니다. 중요한 조치는 반드시 직접 확인 후 진행하세요.
       </p>
     </div>
   )
