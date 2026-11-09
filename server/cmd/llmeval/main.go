@@ -439,7 +439,8 @@ func printMetrics(title string, m metrics) {
 func compareReports(a, b report) {
 	fmt.Printf("이전: %s (프롬프트 %s, %s)\n이후: %s (프롬프트 %s, %s)\n\n",
 		a.Model, a.PromptHash, a.At.Format("01-02 15:04"), b.Model, b.PromptHash, b.At.Format("01-02 15:04"))
-	ma, mb := collect(a.Cases), collect(b.Cases)
+	// 케이스를 추가·삭제한 뒤에도 양쪽에 다 있는 케이스끼리만 비교
+	ma, mb := collect(common(a.Cases, b.Cases)), collect(common(b.Cases, a.Cases))
 	row := func(name string, x, xn, y, yn int) {
 		fmt.Printf("  %-16s %8s → %8s\n", name, pct(x, xn), pct(y, yn))
 	}
@@ -468,6 +469,20 @@ func compareReports(a, b report) {
 		}
 	}
 	fmt.Printf("\n개선 %d건\n%s\n회귀 %d건\n%s\n", len(better), strings.Join(better, "\n"), len(worse), strings.Join(worse, "\n"))
+}
+
+func common(x, y []caseResult) []caseResult {
+	ids := map[string]bool{}
+	for _, c := range y {
+		ids[c.ID] = true
+	}
+	var out []caseResult
+	for _, c := range x {
+		if ids[c.ID] {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 func loadCases(set, split string) []evalCase {
