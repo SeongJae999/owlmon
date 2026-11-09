@@ -78,12 +78,12 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
     <div className={floating ? 'h-full flex flex-col' : 'space-y-6'}>
       {/* Hero */}
       {!floating && <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center shrink-0">
-          <Sparkles size={20} className="text-indigo-400" />
+        <div className="w-10 h-10 rounded-xl bg-brand-600/20 flex items-center justify-center shrink-0">
+          <Sparkles size={20} className="text-brand-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-100">OWL AI</h1>
-          <p className="text-slate-400 text-sm mt-0.5">
+          <h1 className="text-xl font-bold text-base-100">OWL AI</h1>
+          <p className="text-base-400 text-sm mt-0.5">
             모니터링·서버·로그·보안 관련 질문에 한국어로 답해드립니다.
           </p>
         </div>
@@ -99,12 +99,12 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
       {/* Chat window */}
       <div className={floating
         ? 'flex-1 min-h-0 flex flex-col'
-        : 'bg-slate-900 rounded-2xl border border-slate-800 flex flex-col h-[calc(100dvh-260px)] min-h-[420px]'}>
+        : 'bg-base-900 rounded-xl border border-base-800 flex flex-col h-[calc(100dvh-260px)] min-h-[420px]'}>
         <div ref={scrollRef} aria-live="polite" className="flex-1 overflow-y-auto p-5 space-y-4">
           {messages.length === 0 && !loading && (
             <div className="h-full flex flex-col items-center justify-center text-center gap-5">
-              <Bot size={40} className="text-slate-600" />
-              <p className="text-slate-500 text-sm">
+              <Bot size={40} className="text-base-600" />
+              <p className="text-base-500 text-sm">
                 무엇이든 물어보세요. 모르는 용어도 풀어서 설명해 드립니다.
               </p>
               <div className="flex flex-wrap gap-2 justify-center max-w-lg">
@@ -113,13 +113,13 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
                     key={s}
                     onClick={() => send(s)}
                     disabled={disabled || loading}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-indigo-500 hover:text-white transition-colors disabled:opacity-40"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-base-800 text-base-300 border border-base-700 hover:border-brand-500 hover:text-base-50 transition-colors disabled:opacity-40"
                   >
                     {s}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-base-500">
                 ⚠ 실시간 서버 상태·수치는 아직 조회할 수 없어요. 그런 정보는 각 대시보드 메뉴를 봐주세요.
               </p>
             </div>
@@ -129,14 +129,14 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
             <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
               <div className={`flex gap-2.5 ${floating ? 'max-w-[90%]' : 'max-w-[80%]'} ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                  m.role === 'user' ? 'bg-indigo-600' : 'bg-slate-700'
+                  m.role === 'user' ? 'bg-brand-600' : 'bg-base-700'
                 }`}>
-                  {m.role === 'user' ? <User size={15} className="text-white" /> : <Bot size={15} className="text-indigo-300" />}
+                  {m.role === 'user' ? <User size={15} className="text-white" /> : <Bot size={15} className="text-brand-300" />}
                 </div>
-                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                <div className={`px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
                   m.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-tr-sm whitespace-pre-wrap'
-                    : 'bg-slate-800 text-slate-200 rounded-tl-sm'
+                    ? 'bg-brand-600 text-white rounded-tr-sm whitespace-pre-wrap'
+                    : 'bg-base-800 text-base-200 rounded-tl-sm'
                 }`}>
                   {m.role === 'user' ? m.content : <Markdown text={m.content} />}
                 </div>
@@ -147,14 +147,14 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
           {loading && (
             <div className="flex justify-start">
               <div className="flex gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-slate-700 flex items-center justify-center shrink-0">
-                  <Bot size={15} className="text-indigo-300" />
+                <div className="w-7 h-7 rounded-lg bg-base-700 flex items-center justify-center shrink-0">
+                  <Bot size={15} className="text-brand-300" />
                 </div>
-                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-slate-800">
+                <div className="px-4 py-3 rounded-xl rounded-tl-sm bg-base-800">
                   <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-base-500 animate-pulse" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-base-500 animate-pulse" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-base-500 animate-pulse" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </div>
@@ -169,26 +169,26 @@ export default function ChatPage({ floating = false }: { floating?: boolean }) {
         </div>
 
         {/* Input */}
-        <form onSubmit={onSubmit} className="border-t border-slate-800 p-3 flex gap-2">
+        <form onSubmit={onSubmit} className="border-t border-base-800 p-3 flex gap-2">
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
             disabled={disabled || loading}
             aria-label="OWL AI에게 질문"
             placeholder={disabled ? 'OWL AI 비활성화 상태' : '질문을 입력하세요…'}
-            className="flex-1 bg-slate-800 text-slate-100 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-slate-700 focus:border-indigo-500 transition-colors disabled:opacity-50"
+            className="flex-1 bg-base-800 text-base-100 placeholder-base-500 rounded-xl px-4 py-2.5 text-sm outline-none border border-base-700 focus:border-brand-500 transition-colors disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={disabled || loading || !input.trim()}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm flex items-center gap-1.5 hover:bg-indigo-500 transition-colors disabled:opacity-40"
+            className="px-4 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-sm flex items-center gap-1.5 hover:bg-brand-500 transition-colors disabled:opacity-40"
           >
             <Send size={15} /> 전송
           </button>
         </form>
       </div>
 
-      <p className={`text-[11px] text-slate-500 text-center ${floating ? 'pb-2' : ''}`}>
+      <p className={`text-xs text-base-500 text-center ${floating ? 'pb-2' : ''}`}>
         AI 답변은 참고용입니다. 중요한 조치는 반드시 직접 확인 후 진행하세요.
       </p>
     </div>

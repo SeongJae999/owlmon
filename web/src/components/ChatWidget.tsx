@@ -24,27 +24,27 @@ export default function ChatWidget() {
           role="dialog"
           aria-label="OWL AI"
           className={cn(
-            'fixed z-50 bg-slate-900 border border-slate-700 shadow-2xl flex flex-col',
-            'inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[400px] sm:h-[min(600px,calc(100dvh-8rem))] sm:rounded-2xl',
+            'fixed z-50 bg-base-900 border border-base-700 shadow-2xl flex flex-col',
+            'inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[400px] sm:h-[min(600px,calc(100dvh-8rem))] sm:rounded-xl',
             !open && 'hidden',
           )}
         >
-          <header className="flex items-center justify-between px-4 py-3 border-b border-slate-800 shrink-0">
+          <header className="flex items-center justify-between px-4 py-3 border-b border-base-800 shrink-0">
             <div className="flex items-center gap-2">
-              <MessageCircle size={18} className="text-indigo-400" />
-              <span className="text-sm font-semibold text-slate-100">OWL AI</span>
+              <MessageCircle size={18} className="text-brand-400" />
+              <span className="text-sm font-semibold text-base-100">OWL AI</span>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="OWL AI 닫기"
-              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+              className="p-1.5 rounded-lg text-base-400 hover:bg-base-800 hover:text-base-200"
             >
               <X size={18} />
             </button>
           </header>
           <div className="flex-1 min-h-0">
-            <Suspense fallback={<div className="p-6 text-center text-sm text-slate-500">불러오는 중...</div>}>
+            <Suspense fallback={<div className="p-6 text-center text-sm text-base-500">불러오는 중...</div>}>
               <ChatPage floating />
             </Suspense>
           </div>
@@ -57,8 +57,8 @@ export default function ChatWidget() {
         aria-label={open ? 'OWL AI 닫기' : 'OWL AI 열기'}
         aria-expanded={open}
         className={cn(
-          'fixed z-50 bottom-5 right-5 sm:bottom-6 sm:right-6 w-14 h-14 rounded-full shadow-lg shadow-indigo-900/40',
-          'bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center transition-colors',
+          'fixed z-50 bottom-5 right-5 sm:bottom-6 sm:right-6 w-14 h-14 rounded-full shadow-lg',
+          'bg-brand-600 hover:bg-brand-500 text-white flex items-center justify-center transition-colors',
           open && 'hidden sm:flex',
         )}
       >

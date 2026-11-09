@@ -16,6 +16,7 @@ import { cn } from '../utils/cn'
 import { TONES } from '../utils/severity'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
+import Loading from './Loading'
 
 /**
  * 웹사이트 모니터링 — SSL 인증서 + 사이트 가용성 통합 페이지
@@ -200,12 +201,12 @@ export default function WebsiteMonitoring() {
         description="SSL 인증서 + 사이트 가용성 통합 감시"
       >
         {sslStatuses.length > 0 && sslStatuses[0].checked_at && (
-          <span className="text-[11px] font-medium text-slate-500 mr-2 hidden sm:inline-flex items-center gap-1">
+          <span className="text-xs font-medium text-base-500 mr-2 hidden sm:inline-flex items-center gap-1">
             <Clock size={11} /> 마지막 체크 {new Date(sslStatuses[0].checked_at).toLocaleTimeString('ko-KR')}
           </span>
         )}
         <button
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-sm"
+          className="flex items-center gap-2 px-4 py-2.5 bg-base-900 border border-base-800 text-base-400 rounded-xl text-sm font-bold hover:bg-base-800 transition shadow-sm"
           onClick={() => checkSSLMutation.mutate()}
           disabled={checkSSLMutation.isPending}
         >
@@ -214,8 +215,8 @@ export default function WebsiteMonitoring() {
         </button>
         <button
           className={cn(
-            "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg",
-            showAdd ? "bg-slate-800 text-slate-400 shadow-none" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
+            "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition shadow-lg",
+            showAdd ? "bg-base-800 text-base-400 shadow-none" : "bg-brand-600 text-white hover:bg-brand-700"
           )}
           onClick={() => setShowAdd(!showAdd)}
         >
@@ -226,21 +227,21 @@ export default function WebsiteMonitoring() {
 
       {/* Add Form */}
       {showAdd && (
-        <form onSubmit={handleAdd} className="bg-slate-900 rounded-3xl border border-indigo-500/30 p-6 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 space-y-6">
+        <form onSubmit={handleAdd} className="bg-base-900 rounded-xl border border-brand-500/30 p-6 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">도메인 주소</label>
+              <label className="text-xs font-bold text-base-400 ml-1">도메인 주소</label>
               <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                 placeholder="예: school.go.kr"
                 value={form.domain}
                 onChange={e => handleDomainChange(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">포트</label>
+              <label className="text-xs font-bold text-base-400 ml-1">포트</label>
               <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                 type="number"
                 inputMode="numeric"
                 value={form.port || ''}
@@ -251,9 +252,9 @@ export default function WebsiteMonitoring() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">메모</label>
+              <label className="text-xs font-bold text-base-400 ml-1">메모</label>
               <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                 placeholder="예: 메인 홈페이지"
                 value={form.memo}
                 onChange={e => setForm({...form, memo: e.target.value})}
@@ -267,10 +268,10 @@ export default function WebsiteMonitoring() {
               type="checkbox"
               checked={form.includeSynthetic}
               onChange={e => setForm({...form, includeSynthetic: e.target.checked})}
-              className="w-4 h-4 accent-indigo-500"
+              className="w-4 h-4 accent-brand-500"
             />
-            <span className="text-sm text-slate-300">
-              사이트 가용성도 함께 점검 <span className="text-slate-500 text-xs">(5분 주기로 사이트가 살아있는지 확인)</span>
+            <span className="text-sm text-base-300">
+              사이트 가용성도 함께 점검 <span className="text-base-500 text-xs">(5분 주기로 사이트가 살아있는지 확인)</span>
             </span>
           </label>
 
@@ -279,7 +280,7 @@ export default function WebsiteMonitoring() {
               type="button"
               onClick={() => setShowAdd(false)}
               disabled={addMutation.isPending}
-              className="px-6 py-3 rounded-xl text-sm font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-50"
+              className="px-6 py-3 rounded-xl text-sm font-bold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors disabled:opacity-50"
             >
               취소
             </button>
@@ -287,10 +288,10 @@ export default function WebsiteMonitoring() {
               type="submit"
               disabled={addMutation.isPending}
               className={cn(
-                "flex items-center gap-2 px-10 py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/20",
+                "flex items-center gap-2 px-10 py-3 rounded-xl text-sm font-bold transition shadow-lg",
                 addMutation.isPending
-                  ? "bg-indigo-500 text-white cursor-wait ring-2 ring-indigo-400/50"
-                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+                  ? "bg-brand-500 text-white cursor-wait ring-2 ring-brand-400/50"
+                  : "bg-brand-600 text-white hover:bg-brand-700"
               )}
             >
               {addMutation.isPending ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
@@ -302,12 +303,9 @@ export default function WebsiteMonitoring() {
 
       {/* Domain Cards */}
       {sslLoading ? (
-        <div className="flex flex-col items-center justify-center py-32 text-slate-400 animate-pulse">
-          <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
-          <p className="font-medium">불러오는 중...</p>
-        </div>
+        <Loading label="불러오는 중..." />
       ) : sslDomains.length === 0 && !showAdd ? (
-        <div className="bg-slate-900 rounded-3xl border border-slate-800 border-dashed py-32 flex flex-col items-center justify-center text-slate-400 text-center px-6">
+        <div className="bg-base-900 rounded-xl border border-base-800 border-dashed py-32 flex flex-col items-center justify-center text-base-400 text-center px-6">
           <Globe size={48} className="mb-4 opacity-20" />
           <p className="font-medium">등록된 웹사이트가 없습니다.</p>
           <p className="text-xs opacity-70 mt-1">상단의 '웹사이트 추가' 버튼을 눌러 등록하세요.</p>
@@ -408,31 +406,31 @@ function EditModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4"
+        className="bg-base-900 border border-base-800 rounded-xl shadow-2xl w-full max-w-md mx-4"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-5 pb-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-400">
+            <div className="p-2 rounded-lg bg-brand-500/15 text-brand-400">
               <Pencil size={18} />
             </div>
             <div className="min-w-0">
-              <h3 className="text-base font-bold text-slate-100">웹사이트 수정</h3>
-              <p className="text-xs text-slate-500 truncate" title={ssl.domain}>{ssl.domain}</p>
+              <h3 className="text-base font-bold text-base-100">웹사이트 수정</h3>
+              <p className="text-xs text-base-500 truncate" title={ssl.domain}>{ssl.domain}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors">
+          <button onClick={onClose} className="p-1 rounded-md text-base-500 hover:text-base-300 hover:bg-base-800 transition-colors">
             <X size={16} />
           </button>
         </div>
 
         <div className="px-5 pb-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">메모</label>
+            <label className="text-xs font-bold text-base-400 ml-1">메모</label>
             <input
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full bg-base-800 border border-base-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
               value={memo}
               onChange={e => setMemo(e.target.value)}
               placeholder="예: 메인 홈페이지"
@@ -441,12 +439,12 @@ function EditModal({
 
           {syn ? (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 tracking-wide ml-1">사이트 점검 주기 (분)</label>
+              <label className="text-xs font-bold text-base-400 ml-1">사이트 점검 주기 (분)</label>
               <input
                 type="number"
                 min={1}
                 inputMode="numeric"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all tabular-nums"
+                className="w-full bg-base-800 border border-base-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition tabular-nums"
                 value={synIntervalStr}
                 onChange={e => setSynIntervalStr(e.target.value)}
                 onBlur={e => {
@@ -454,10 +452,10 @@ function EditModal({
                   if (!e.target.value.trim() || Number(e.target.value) <= 0) setSynIntervalStr('5')
                 }}
               />
-              <p className="text-[10px] text-slate-500 ml-1">권장: 5분 (1분 = 잦은 알림, 30분 = 장애 감지 늦음)</p>
+              <p className="text-xs text-base-500 ml-1">권장: 5분 (1분 = 잦은 알림, 30분 = 장애 감지 늦음)</p>
             </div>
           ) : (
-            <p className="text-xs text-slate-500 italic">사이트 점검 미등록 — 카드의 '점검 추가' 버튼으로 등록</p>
+            <p className="text-xs text-base-500 italic">사이트 점검 미등록: 카드의 '점검 추가' 버튼으로 등록</p>
           )}
 
           {error && (
@@ -471,7 +469,7 @@ function EditModal({
         <div className="flex gap-2 px-5 pb-5 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors"
           >
             취소
           </button>
@@ -480,7 +478,7 @@ function EditModal({
             disabled={saving}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors flex items-center gap-1.5",
-              saving ? "bg-indigo-500 cursor-wait" : "bg-indigo-600 hover:bg-indigo-700"
+              saving ? "bg-brand-500 cursor-wait" : "bg-brand-600 hover:bg-brand-700"
             )}
           >
             {saving ? <RefreshCcw size={14} className="animate-spin" /> : <Save size={14} />}
@@ -518,13 +516,13 @@ function WebsiteCard({
       ? "border-amber-500/30 ring-1 ring-amber-500/20"
       : ssl?.status === 'notice'
         ? "border-sky-500/30 ring-1 ring-sky-500/20"
-        : "border-slate-800"
+        : "border-base-800"
 
   const siteUrl = `https://${domain}${port && port !== 443 ? `:${port}` : ''}/`
 
   return (
     <div className={cn(
-      "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all relative overflow-hidden",
+      "bg-base-900 rounded-xl border p-5 shadow-premium transition relative overflow-hidden",
       cardBorder
     )}>
       {/* Header */}
@@ -532,7 +530,7 @@ function WebsiteCard({
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className={cn(
             "p-2 rounded-lg shrink-0",
-            ssl?.status === 'ok' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800 text-slate-400"
+            ssl?.status === 'ok' ? "bg-emerald-500/10 text-emerald-400" : "bg-base-800 text-base-400"
           )}>
             <Globe size={18} />
           </div>
@@ -541,19 +539,19 @@ function WebsiteCard({
               href={siteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="group/link inline-flex items-center gap-1 max-w-full font-bold text-slate-100 leading-tight hover:text-indigo-400 transition-colors"
+              className="group/link inline-flex items-center gap-1 max-w-full font-bold text-base-100 leading-tight hover:text-brand-400 transition-colors"
               title={`${domain} 새 탭에서 열기`}
             >
               <span className="truncate">{domain}</span>
-              <ExternalLink size={12} className="shrink-0 text-slate-500 group-hover/link:text-indigo-400 transition-colors" />
+              <ExternalLink size={12} className="shrink-0 text-base-500 group-hover/link:text-brand-400 transition-colors" />
             </a>
-            {memo && <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate" title={memo}>{memo}</p>}
+            {memo && <p className="text-xs text-base-500 font-medium mt-0.5 truncate" title={memo}>{memo}</p>}
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {sslCfg && (
             <span className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight whitespace-nowrap",
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tracking-tight whitespace-nowrap",
               sslCfg.bg, sslCfg.text
             )}
               title="SSL 인증서 상태"
@@ -564,10 +562,10 @@ function WebsiteCard({
           )}
           {syn && (
             <span className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight whitespace-nowrap",
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tracking-tight whitespace-nowrap",
               synAlive === true ? "bg-emerald-500/15 text-emerald-300"
                 : synAlive === false ? "bg-rose-500/15 text-rose-300"
-                : "bg-slate-800 text-slate-400"
+                : "bg-base-800 text-base-400"
             )}
               title="사이트 가용성 상태"
             >
@@ -576,14 +574,14 @@ function WebsiteCard({
             </span>
           )}
           <button
-            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all"
+            className="p-1.5 rounded-lg text-base-400 hover:text-brand-400 hover:bg-brand-500/10 transition"
             onClick={onEdit}
             title="수정" aria-label="수정"
           >
             <Pencil size={16} />
           </button>
           <button
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+            className="p-1.5 rounded-lg text-base-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
             onClick={onDelete}
             title="삭제" aria-label="삭제"
           >
@@ -594,14 +592,14 @@ function WebsiteCard({
 
       {/* SSL 섹션 */}
       {ssl?.status === 'error' ? (
-        <div className="bg-slate-800 border border-slate-800 rounded-xl p-3 flex items-center gap-2 text-slate-400 text-xs font-bold mb-4">
+        <div className="bg-base-800 border border-base-800 rounded-xl p-3 flex items-center gap-2 text-base-400 text-xs font-bold mb-4">
           <Info size={14} className="shrink-0" />
           <p className="truncate">{ssl.error || '인증서 확인 실패'}</p>
         </div>
       ) : ssl ? (
-        <div className="space-y-2 mb-4 pb-4 border-b border-slate-800">
+        <div className="space-y-2 mb-4 pb-4 border-b border-base-800">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+            <span className="text-xs font-bold text-base-500 flex items-center gap-1.5">
               <ShieldCheck size={12} /> SSL 인증서
             </span>
             <div className="flex items-baseline gap-1">
@@ -612,16 +610,16 @@ function WebsiteCard({
                   : ssl.days_left <= 60 ? "text-sky-400"
                   : "text-emerald-400"
               )}>{ssl.days_left}</span>
-              <span className="text-xs font-bold text-slate-400">일</span>
+              <span className="text-xs font-bold text-base-400">일</span>
             </div>
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-slate-500" title="SSL 인증서를 발급한 인증기관 (CA)">발급기관</span>
-            <span className="text-slate-400 font-medium truncate max-w-[140px] text-right" title={ssl.issuer}>{ssl.issuer}</span>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-base-500" title="SSL 인증서를 발급한 인증기관 (CA)">발급기관</span>
+            <span className="text-base-400 font-medium truncate max-w-[140px] text-right" title={ssl.issuer}>{ssl.issuer}</span>
           </div>
         </div>
       ) : (
-        <div className="mb-4 pb-4 border-b border-slate-800 flex items-center gap-2 text-xs text-indigo-300">
+        <div className="mb-4 pb-4 border-b border-base-800 flex items-center gap-2 text-xs text-brand-300">
           <RefreshCcw size={12} className="animate-spin" /> SSL 인증서 확인 중…
         </div>
       )}
@@ -630,40 +628,40 @@ function WebsiteCard({
       {syn ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+            <span className="text-xs font-bold text-base-500 flex items-center gap-1.5">
               <Activity size={12} /> 사이트 가용성
             </span>
             <span className={cn(
-              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold",
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold",
               synAlive === true ? "bg-emerald-500/15 text-emerald-300"
                 : synAlive === false ? "bg-rose-500/15 text-rose-300"
-                : "bg-slate-800 text-slate-400"
+                : "bg-base-800 text-base-400"
             )}>
               {synAlive === true && <CheckCircle2 size={10} />}
               {synAlive === false && <ShieldAlert size={10} />}
               {synAlive === true ? '정상' : synAlive === false ? '응답 없음' : '점검 전'}
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">가동률</span>
+              <span className="text-base-500">가동률</span>
               <span className={cn(
                 "font-bold tabular-nums",
                 synUptime !== null && synUptime >= 99 ? "text-emerald-400"
                   : synUptime !== null && synUptime >= 95 ? "text-amber-400"
                   : synUptime !== null ? "text-rose-400"
-                  : "text-slate-500"
+                  : "text-base-500"
               )}>{synUptime !== null ? `${synUptime.toFixed(1)}%` : '—'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">응답</span>
-              <span className="font-bold text-slate-300 tabular-nums">{synLatency !== null ? `${synLatency}ms` : '—'}</span>
+              <span className="text-base-500">응답</span>
+              <span className="font-bold text-base-300 tabular-nums">{synLatency !== null ? `${synLatency}ms` : '—'}</span>
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-2 bg-slate-800/40 rounded-lg p-2.5">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="flex items-center justify-between gap-2 bg-base-800/40 rounded-lg p-2.5">
+          <div className="flex items-center gap-1.5 text-xs text-base-400">
             <Activity size={13} /> 사이트 가용성 점검 없음
           </div>
           <button
@@ -672,8 +670,8 @@ function WebsiteCard({
             className={cn(
               "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-colors",
               addingSyn
-                ? "bg-indigo-500 text-white cursor-wait"
-                : "bg-indigo-600 text-white hover:bg-indigo-700"
+                ? "bg-brand-500 text-white cursor-wait"
+                : "bg-brand-600 text-white hover:bg-brand-700"
             )}
             title="이 도메인에 사이트 점검 추가 (5분 주기)" aria-label="이 도메인에 사이트 점검 추가 (5분 주기)"
           >
@@ -685,10 +683,10 @@ function WebsiteCard({
 
       {/* Footer — 즉시 점검 버튼 (등록된 경우만) */}
       {onCheckSyn && (
-        <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-end">
+        <div className="mt-4 pt-3 border-t border-base-800 flex items-center justify-end">
           <button
             onClick={onCheckSyn}
-            className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+            className="text-xs font-bold text-brand-400 hover:text-brand-300 flex items-center gap-1"
             title="사이트 즉시 점검" aria-label="사이트 즉시 점검"
           >
             <Zap size={10} /> 사이트 즉시 점검

@@ -56,7 +56,7 @@ export default function HomeSummary({ hosts, hostStatuses, activeAlerts, mainten
           >
             <t.icon size={20} className={cn('shrink-0 opacity-80', tone.text)} />
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-slate-400">{t.label}</div>
+              <div className="text-xs font-semibold text-base-400">{t.label}</div>
               <div className={cn('text-sm font-bold', tone.text)}>
                 {loading ? '…' : empty ? '등록 없음' : t.bad > 0 ? `문제 ${t.bad} / ${t.total}` : `모두 정상 (${t.total})`}
               </div>

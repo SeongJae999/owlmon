@@ -17,15 +17,15 @@ interface Props {
  */
 export default function PageToolbar({ icon: Icon, title, description, children }: Props) {
   return (
-    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-base-900 p-4 rounded-xl border border-base-800">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="p-2 bg-indigo-500/15 text-indigo-400 rounded-lg border border-indigo-500/20 shrink-0">
+        <div className="p-2 bg-brand-500/15 text-brand-400 rounded-lg border border-brand-500/20 shrink-0">
           <Icon size={18} />
         </div>
         <div>
-          <h1 className="font-bold text-sm text-slate-100 leading-tight">{title}</h1>
+          <h1 className="font-bold text-sm text-base-100 leading-tight">{title}</h1>
           {description && (
-            <p className="text-xs text-slate-500 font-medium mt-0.5">{description}</p>
+            <p className="text-xs text-base-500 font-medium mt-0.5">{description}</p>
           )}
         </div>
       </div>

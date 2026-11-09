@@ -41,38 +41,38 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-in fade-in duration-150"
       onClick={onCancel}
     >
       <div
-        className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 animate-in zoom-in-95 duration-150"
+        className="bg-base-900 border border-base-800 rounded-xl shadow-2xl w-full max-w-sm mx-4 animate-in zoom-in-95 duration-150"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between p-5 pb-3">
           <div className="flex items-center gap-3">
             <div className={cn(
               "p-2 rounded-lg",
-              variant === 'danger' ? "bg-rose-500/15 text-rose-400" : "bg-indigo-500/15 text-indigo-400"
+              variant === 'danger' ? "bg-rose-500/15 text-rose-400" : "bg-brand-500/15 text-brand-400"
             )}>
               <AlertTriangle size={18} />
             </div>
-            <h3 className="text-base font-bold text-slate-100">{title}</h3>
+            <h3 className="text-base font-bold text-base-100">{title}</h3>
           </div>
           <button
             onClick={onCancel}
-            className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+            className="p-1 rounded-md text-base-500 hover:text-base-300 hover:bg-base-800 transition-colors"
             aria-label="닫기"
           >
             <X size={16} />
           </button>
         </div>
         <div className="px-5 pb-5">
-          <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
+          <p className="text-sm text-base-300 leading-relaxed">{message}</p>
         </div>
         <div className="flex gap-2 px-5 pb-5 justify-end">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors"
           >
             {cancelLabel}
           </button>
@@ -82,7 +82,7 @@ export default function ConfirmDialog({
               "px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors",
               variant === 'danger'
                 ? "bg-rose-600 hover:bg-rose-700"
-                : "bg-indigo-600 hover:bg-indigo-700"
+                : "bg-brand-600 hover:bg-brand-700"
             )}
           >
             {confirmLabel}

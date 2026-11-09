@@ -31,7 +31,7 @@ export default function HostSpecCard({ host }: Props) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-base-800 bg-base-900/50 p-4 text-sm text-base-500">
         하드웨어 정보 불러오는 중…
       </div>
     )
@@ -39,9 +39,9 @@ export default function HostSpecCard({ host }: Props) {
 
   if (error || !spec) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-base-800 bg-base-900/50 p-4 text-sm text-base-500">
         이 호스트의 하드웨어 정보가 아직 등록되지 않았습니다.
-        <span className="block mt-0.5 text-xs text-slate-600">
+        <span className="block mt-0.5 text-xs text-base-600">
           (에이전트가 시작되며 자동 전송됩니다 — 첫 부팅 후 30초 이내)
         </span>
       </div>
@@ -54,7 +54,7 @@ export default function HostSpecCard({ host }: Props) {
   const hasNetworks = (spec.networks ?? []).length > 0
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 overflow-hidden">
+    <div className="rounded-lg border border-base-800 bg-base-900/50 overflow-hidden">
       {/* 🥇 핵심 4 stat — 즉시 보이는 정보 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3">
         <StatBlock icon={Cpu}        label="CPU"    value={`${spec.cpu_cores}`}                       unit="코어" color="indigo" />
@@ -64,19 +64,19 @@ export default function HostSpecCard({ host }: Props) {
       </div>
 
       {/* 🥈 보조 정보 — 한 줄 텍스트 */}
-      <div className="border-t border-slate-800 px-4 py-2.5 text-[11px] text-slate-500 space-y-0.5">
+      <div className="border-t border-base-800 px-4 py-2.5 text-xs text-base-500 space-y-0.5">
         <div className="truncate" title={spec.cpu_model}>
-          <span className="text-slate-600">CPU:</span>{' '}
-          <span className="text-slate-400">{spec.cpu_model || '—'}</span>
-          <span className="text-slate-600"> · {spec.cpu_sockets}소켓 · {spec.arch}</span>
+          <span className="text-base-600">CPU:</span>{' '}
+          <span className="text-base-400">{spec.cpu_model || '—'}</span>
+          <span className="text-base-600"> · {spec.cpu_sockets}소켓 · {spec.arch}</span>
         </div>
         <div className="truncate">
-          <span className="text-slate-600">커널:</span>{' '}
-          <span className="text-slate-400">{spec.kernel_version || '—'}</span>
+          <span className="text-base-600">커널:</span>{' '}
+          <span className="text-base-400">{spec.kernel_version || '—'}</span>
           {spec.virtualization && (
             <>
-              <span className="text-slate-600"> · </span>
-              <span className="text-slate-400">{formatVirtualization(spec.virtualization)}</span>
+              <span className="text-base-600"> · </span>
+              <span className="text-base-400">{formatVirtualization(spec.virtualization)}</span>
             </>
           )}
         </div>
@@ -84,10 +84,10 @@ export default function HostSpecCard({ host }: Props) {
 
       {/* 🥉 디스크/네트워크 — 가로 2열 (좁은 화면은 세로) */}
       {(hasDisks || hasNetworks) && (
-        <div className="border-t border-slate-800 px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div className="border-t border-base-800 px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
           {hasDisks && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+              <div className="text-xs text-base-500 mb-1.5 flex items-center gap-1.5">
                 <HardDrive size={11} /> 물리 디스크
               </div>
               <div className="space-y-1">
@@ -97,7 +97,7 @@ export default function HostSpecCard({ host }: Props) {
           )}
           {hasNetworks && (
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+              <div className="text-xs text-base-500 mb-1.5 flex items-center gap-1.5">
                 <Network size={11} /> 네트워크
               </div>
               <div className="space-y-1">
@@ -123,7 +123,7 @@ function StatBlock({
   splitUnit?: boolean
 }) {
   const colorMap: Record<string, string> = {
-    indigo:  'text-indigo-400 bg-indigo-500/10',
+    indigo:  'text-brand-400 bg-brand-500/10',
     violet:  'text-violet-400 bg-violet-500/10',
     sky:     'text-sky-400 bg-sky-500/10',
     emerald: 'text-emerald-400 bg-emerald-500/10',
@@ -141,14 +141,14 @@ function StatBlock({
   }
 
   return (
-    <div className="bg-slate-900/60 rounded-md p-2.5 border border-slate-800/60">
+    <div className="bg-base-900/60 rounded-md p-2.5 border border-base-800/60">
       <div className={cn("inline-flex items-center justify-center w-6 h-6 rounded mb-1.5", colorMap[color])}>
         <Icon size={12} />
       </div>
-      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider leading-none mb-1">{label}</div>
+      <div className="text-xs font-semibold text-base-500 leading-none mb-1">{label}</div>
       <div className="flex items-baseline gap-1 leading-none">
-        <span className="text-lg font-bold text-slate-100 tabular-nums truncate" title={value}>{displayValue}</span>
-        {displayUnit && <span className="text-[10px] font-semibold text-slate-500">{displayUnit}</span>}
+        <span className="text-lg font-bold text-base-100 tabular-nums truncate" title={value}>{displayValue}</span>
+        {displayUnit && <span className="text-xs font-semibold text-base-500">{displayUnit}</span>}
       </div>
     </div>
   )
@@ -162,11 +162,11 @@ function DiskRow({ disk }: { disk: DiskInfo }) {
 
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${kindColor}`}>{kind}</span>
-      <span className="text-slate-300 font-mono">{disk.name}</span>
-      <span className="text-slate-200">{formatBytes(disk.size_bytes)}</span>
+      <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${kindColor}`}>{kind}</span>
+      <span className="text-base-300 font-mono">{disk.name}</span>
+      <span className="text-base-200">{formatBytes(disk.size_bytes)}</span>
       {disk.model && (
-        <span className="text-slate-500 text-[11px] truncate" title={disk.model}>
+        <span className="text-base-500 text-xs truncate" title={disk.model}>
           {disk.model}
         </span>
       )}
@@ -177,9 +177,9 @@ function DiskRow({ disk }: { disk: DiskInfo }) {
 function NetworkRow({ net }: { net: NetworkInfo }) {
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="text-slate-300 font-mono">{net.name}</span>
-      <span className="text-slate-200">{net.ipv4.join(', ') || '—'}</span>
-      {net.mac && <span className="text-slate-500 text-[11px] font-mono">{net.mac}</span>}
+      <span className="text-base-300 font-mono">{net.name}</span>
+      <span className="text-base-200">{net.ipv4.join(', ') || '—'}</span>
+      {net.mac && <span className="text-base-500 text-xs font-mono">{net.mac}</span>}
     </div>
   )
 }

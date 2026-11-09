@@ -27,7 +27,7 @@ function MetricBar({ value, warning, critical, label }: { value: number | null; 
   const isEmpty = value === null
 
   const statusColor = isEmpty
-    ? 'bg-slate-700'
+    ? 'bg-base-700'
     : value >= critical
       ? 'bg-rose-500'
       : value >= warning
@@ -35,7 +35,7 @@ function MetricBar({ value, warning, critical, label }: { value: number | null; 
         : 'bg-emerald-500'
 
   const textColor = isEmpty
-    ? 'text-slate-600'
+    ? 'text-base-600'
     : value >= critical
       ? 'text-rose-400'
       : value >= warning
@@ -45,14 +45,14 @@ function MetricBar({ value, warning, critical, label }: { value: number | null; 
   return (
     <div className="space-y-1">
       <div className="flex justify-between items-baseline">
-        <span className="text-xs font-medium text-slate-500">{label}</span>
+        <span className="text-xs font-medium text-base-500">{label}</span>
         <span className={cn("text-xs font-semibold tabular-nums", textColor)}>
           {isEmpty ? '—' : `${value.toFixed(0)}%`}
         </span>
       </div>
-      <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+      <div className="h-1.5 w-full bg-base-800 rounded-full overflow-hidden">
         <div
-          className={cn("h-full rounded-full transition-all duration-300", statusColor)}
+          className={cn("h-full rounded-full transition duration-300", statusColor)}
           style={{ width: isEmpty ? '0%' : `${Math.min(value, 100)}%` }}
         />
       </div>
@@ -62,7 +62,7 @@ function MetricBar({ value, warning, critical, label }: { value: number | null; 
 
 function SummaryCard({ label, count, color, icon: Icon }: { label: string; count: number; color: string; icon: any }) {
   const themes: Record<string, string> = {
-    blue:   'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+    blue:   'text-brand-400 bg-brand-500/10 border-brand-500/20',
     green:  'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     amber:  'text-amber-400 bg-amber-500/10 border-amber-500/20',
     rose:   'text-rose-400 bg-rose-500/10 border-rose-500/20',
@@ -71,7 +71,7 @@ function SummaryCard({ label, count, color, icon: Icon }: { label: string; count
 
   return (
     <div className={cn("flex items-center gap-3 p-4 rounded-xl border transition-colors", themes[color])}>
-      <div className="p-2 rounded-lg bg-slate-900/40 border border-current/20">
+      <div className="p-2 rounded-lg bg-base-900/40 border border-current/20">
         <Icon size={16} />
       </div>
       <div className="flex flex-col min-w-0">
@@ -135,20 +135,20 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <h2 className="text-base font-bold text-slate-100">호스트 목록</h2>
-            <span className="text-xs font-medium text-slate-500 tabular-nums">{hosts.length}개</span>
+            <h2 className="text-base font-bold text-base-100">호스트 목록</h2>
+            <span className="text-xs font-medium text-base-500 tabular-nums">{hosts.length}개</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-base-500">
             <Zap size={12} className="text-amber-400" /> 자동 갱신
           </div>
         </div>
 
         {/* 호스트 0개 — 빈 그리드 대신 설치 안내 (데모 첫 화면이 "고장난 화면"으로 보이는 것 방지) */}
         {hosts.length === 0 && (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-10 flex flex-col items-center text-center gap-2">
-            <Monitor size={40} className="text-slate-700" />
-            <p className="text-sm font-semibold text-slate-300">연결된 호스트가 없습니다</p>
-            <p className="text-xs text-slate-500">에이전트를 설치하면 자동으로 표시됩니다 (첫 수집 후 30초 이내)</p>
+          <div className="rounded-xl border border-base-800 bg-base-900/50 p-10 flex flex-col items-center text-center gap-2">
+            <Monitor size={40} className="text-base-700" />
+            <p className="text-sm font-semibold text-base-300">연결된 호스트가 없습니다</p>
+            <p className="text-xs text-base-500">에이전트를 설치하면 자동으로 표시됩니다 (첫 수집 후 30초 이내)</p>
           </div>
         )}
 
@@ -180,16 +180,16 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                 key={host}
                 onClick={() => onSelect(host)}
                 className={cn(
-                  "group bg-slate-900 rounded-xl border p-4 transition-all duration-200 flex flex-col h-full cursor-pointer",
+                  "group bg-base-900 rounded-xl border p-4 transition duration-200 flex flex-col h-full cursor-pointer",
                   inMaintenance
                     ? "border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60"
                     : hasCritical
-                      ? "border-rose-500/50 hover:border-rose-500/80 hover:bg-rose-500/[0.05] animate-alert-pulse shadow-[0_0_0_1px_rgba(244,63,94,0.25)] ring-1 ring-rose-500/20"
+                      ? "border-rose-500/50 hover:border-rose-500/80 hover:bg-rose-500/[0.05] animate-alert-pulse ring-1 ring-rose-500/25 ring-1 ring-rose-500/20"
                       : hasWarning
                         ? "border-amber-500/40 hover:border-amber-500/70 hover:bg-amber-500/[0.03]"
                         : isOffline
-                          ? "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                          : "border-slate-800 hover:border-indigo-500/60 hover:bg-slate-900/80"
+                          ? "border-base-800 bg-base-900/60 hover:border-base-700"
+                          : "border-base-800 hover:border-brand-500/60 hover:bg-base-900/80"
                 )}
               >
                 {/* Card Header */}
@@ -207,13 +207,13 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                         : "bg-emerald-400"
                     )} />
                     <div className="min-w-0 flex-1">
-                      <span className="font-semibold text-sm text-slate-100 group-hover:text-indigo-400 transition-colors block break-words leading-snug">
+                      <span className="font-semibold text-sm text-base-100 group-hover:text-brand-400 transition-colors block break-words leading-snug">
                         {host}
                         {hostLabel(host) && (
-                          <span className="ml-1.5 text-[11px] font-normal text-slate-400">({hostLabel(host)})</span>
+                          <span className="ml-1.5 text-xs font-normal text-base-400">({hostLabel(host)})</span>
                         )}
                       </span>
-                      <span className="text-xs font-medium text-slate-500 mt-0.5 block">
+                      <span className="text-xs font-medium text-base-500 mt-0.5 block">
                         {isOffline ? '연결 끊김'
                           : inMaintenance ? '점검 중'
                           : hasCritical ? '경고 (위험)'
@@ -235,12 +235,12 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                   const spec = specByHost.get(host)
                   if (!spec) return null
                   return (
-                    <div className="flex items-center gap-1.5 mb-3 px-1 text-xs text-slate-500 truncate" title={`${spec.cpu_model} · ${formatBytes(spec.memory_total_bytes)}`}>
-                      <Cpu size={11} className="text-slate-600 shrink-0" />
+                    <div className="flex items-center gap-1.5 mb-3 px-1 text-xs text-base-500 truncate" title={`${spec.cpu_model} · ${formatBytes(spec.memory_total_bytes)}`}>
+                      <Cpu size={11} className="text-base-600 shrink-0" />
                       <span className="font-medium tabular-nums">{spec.cpu_cores}코어</span>
-                      <span className="text-slate-700">·</span>
+                      <span className="text-base-700">·</span>
                       <span className="truncate">{shortCPU(spec.cpu_model)}</span>
-                      <span className="text-slate-700">·</span>
+                      <span className="text-base-700">·</span>
                       <span className="font-medium shrink-0">{formatBytes(spec.memory_total_bytes)}</span>
                     </div>
                   )
@@ -254,9 +254,9 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                 </div>
 
                 {/* Footer */}
-                <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                <div className="pt-3 border-t border-base-800 flex items-center justify-between gap-2">
                   <div className="flex items-baseline gap-1.5 min-w-0">
-                    <span className="text-xs font-medium text-slate-500 shrink-0">가동률</span>
+                    <span className="text-xs font-medium text-base-500 shrink-0">가동률</span>
                     {uptime !== undefined ? (
                       <span className={cn(
                         "text-sm font-semibold tabular-nums",
@@ -264,7 +264,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                       )}>
                         {uptime.toFixed(1)}%
                       </span>
-                    ) : <span className="text-sm font-semibold text-slate-600">—</span>}
+                    ) : <span className="text-sm font-semibold text-base-600">—</span>}
                   </div>
 
                   <div className="flex gap-1 shrink-0">
@@ -274,7 +274,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                         "p-1.5 rounded-md transition-colors border",
                         inMaintenance
                           ? "bg-purple-500 text-white border-transparent"
-                          : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200 hover:bg-slate-700"
+                          : "bg-base-800 text-base-400 border-base-700 hover:text-base-200 hover:bg-base-700"
                       )}
                       title={inMaintenance ? "점검 모드 해제" : "점검 모드 설정"}
                       aria-label={inMaintenance ? `${host} 점검 모드 해제` : `${host} 점검 모드 설정`}
@@ -283,7 +283,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onSelect(host) }}
-                      className="p-1.5 rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+                      className="p-1.5 rounded-md bg-brand-500 text-white hover:bg-brand-600 transition-colors"
                       title="상세 보기"
                       aria-label={`${host} 상세 보기`}
                     >

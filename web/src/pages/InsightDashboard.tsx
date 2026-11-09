@@ -105,7 +105,7 @@ export default function InsightDashboard() {
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-base-800 hover:bg-base-700 text-base-300 text-sm font-semibold transition-colors disabled:opacity-50"
         >
           <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
           새로고침
@@ -141,12 +141,12 @@ export default function InsightDashboard() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-slate-900 border border-slate-800">
-        <Filter size={16} className="text-slate-500" />
+      <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-base-900 border border-base-800">
+        <Filter size={16} className="text-base-500" />
         <select
           value={severity}
           onChange={e => setSeverity(e.target.value as Severity | '')}
-          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="px-3 py-2 rounded-lg bg-base-800 border border-base-700 text-base-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="">전체 심각도</option>
           <option value="critical">심각</option>
@@ -159,23 +159,23 @@ export default function InsightDashboard() {
           placeholder="호스트명 필터"
           value={hostFilter}
           onChange={e => setHostFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-1 min-w-[200px]"
+          className="px-3 py-2 rounded-lg bg-base-800 border border-base-700 text-base-200 text-sm placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-brand-500 flex-1 min-w-[200px]"
         />
-        <span className="text-xs text-slate-500 font-medium">총 {groups.length}건</span>
+        <span className="text-xs text-base-500 font-medium">총 {groups.length}건</span>
       </div>
 
       {/* List */}
       {isLoading ? (
-        <div className="text-center py-12 text-slate-500">로딩 중...</div>
+        <div className="text-center py-12 text-base-500">로딩 중...</div>
       ) : isError ? (
-        <div role="alert" className="text-center py-12 rounded-xl bg-slate-900 border border-rose-500/30 text-rose-300 text-sm">
+        <div role="alert" className="text-center py-12 rounded-xl bg-base-900 border border-rose-500/30 text-rose-300 text-sm">
           인사이트 목록을 불러오지 못했습니다. 잠시 후 새로고침하세요.
         </div>
       ) : groups.length === 0 ? (
-        <div className="text-center py-16 rounded-xl bg-slate-900 border border-slate-800">
-          <Sparkles size={32} className="mx-auto text-slate-700 mb-3" />
-          <p className="text-slate-400">분석된 인사이트가 없습니다</p>
-          <p className="text-xs text-slate-500 mt-1">
+        <div className="text-center py-16 rounded-xl bg-base-900 border border-base-800">
+          <Sparkles size={32} className="mx-auto text-base-700 mb-3" />
+          <p className="text-base-400">분석된 인사이트가 없습니다</p>
+          <p className="text-xs text-base-500 mt-1">
             워커가 5분마다 동작합니다. 새 이상 로그가 발생하면 여기 표시됩니다.
           </p>
         </div>
@@ -194,7 +194,7 @@ export default function InsightDashboard() {
               >
                 <button
                   onClick={() => toggleExpand(ins.id)}
-                  className="w-full p-4 text-left flex items-start justify-between gap-4 hover:bg-slate-900/30 transition-colors rounded-xl"
+                  className="w-full p-4 text-left flex items-start justify-between gap-4 hover:bg-base-900/30 transition-colors rounded-xl"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -207,16 +207,16 @@ export default function InsightDashboard() {
                       >
                         {style.label}
                       </span>
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-slate-400">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-base-800 text-base-400">
                         {CATEGORY_LABEL[ins.category] ?? ins.category}
                       </span>
                       {hosts.length > 0 && (
-                        <span className="text-xs text-slate-400 font-semibold">
+                        <span className="text-xs text-base-400 font-semibold">
                           {hosts.length > 1 ? `서버 ${hosts.length}대 · ${hosts.join(', ')}` : hosts[0]}
                         </span>
                       )}
                       {count > 1 && (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-base-500">
                           {count}회 분석 · 처음 {formatTime(firstAt)}
                         </span>
                       )}
@@ -226,39 +226,39 @@ export default function InsightDashboard() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-semibold text-slate-100">{ins.summary_ko}</p>
+                    <p className="text-sm font-semibold text-base-100">{ins.summary_ko}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-slate-500 font-medium">
+                    <span className="text-xs text-base-500 font-medium">
                       {formatTime(ins.created_at)}
                     </span>
                     {isOpen ? (
-                      <ChevronDown size={16} className="text-slate-500" />
+                      <ChevronDown size={16} className="text-base-500" />
                     ) : (
-                      <ChevronRight size={16} className="text-slate-500" />
+                      <ChevronRight size={16} className="text-base-500" />
                     )}
                   </div>
                 </button>
 
                 {isOpen && (
-                  <div className="px-4 pb-4 pt-1 border-t border-slate-700/40 space-y-3 text-sm">
+                  <div className="px-4 pb-4 pt-1 border-t border-base-700/40 space-y-3 text-sm">
                     {ins.root_cause_ko && (
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 mb-1 mt-3">추정 원인</p>
-                        <p className="text-slate-200 leading-relaxed">{ins.root_cause_ko}</p>
+                        <p className="text-xs font-semibold text-base-500 mb-1 mt-3">추정 원인</p>
+                        <p className="text-base-200 leading-relaxed">{ins.root_cause_ko}</p>
                       </div>
                     )}
                     {ins.action_ko && (
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 mb-1">권장 조치</p>
-                        <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">
+                        <p className="text-xs font-semibold text-base-500 mb-1">권장 조치</p>
+                        <p className="text-base-200 leading-relaxed whitespace-pre-wrap">
                           {ins.action_ko}
                         </p>
                       </div>
                     )}
                     {/* 모델·지연·템플릿은 운영자에겐 노이즈 — 마우스를 올리면 보이게 */}
                     <div
-                      className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 pt-2 border-t border-slate-700/30"
+                      className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-500 pt-2 border-t border-base-700/30"
                       title={`모델: ${ins.model_name}${ins.latency_ms ? ` · 지연: ${ins.latency_ms}ms` : ''} · 템플릿: ${ins.template_hash.slice(0, 8)}`}
                     >
                       {ins.sample_log_ids?.length > 0 && (

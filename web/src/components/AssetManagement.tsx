@@ -5,6 +5,7 @@ import { Server, MapPin, Calendar, Edit2, Trash2, Plus, X, Save, RefreshCcw, Inf
 import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
+import Loading from './Loading'
 
 const emptyForm = (): Omit<Asset, 'id' | 'updated_at'> => ({
   host_name: '',
@@ -87,7 +88,7 @@ export default function AssetManagement() {
       <PageToolbar icon={Server} title="장비 목록" description="등록된 서버와 네트워크 장비의 위치·담당자 등 관리 정보">
         {!editing && (
           <button 
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+            className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 transition shadow-lg"
             onClick={startNew}
           >
             <Plus size={18} />
@@ -98,13 +99,13 @@ export default function AssetManagement() {
 
       {/* Editor Form */}
       {editing && (
-        <div className="bg-slate-900 rounded-3xl border border-indigo-500/30 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="p-6 border-b border-slate-800 bg-slate-800/50 flex items-center justify-between">
-            <h3 className="font-bold text-slate-200 flex items-center gap-2 text-lg">
-              {editingId ? <Edit2 size={20} className="text-indigo-500" /> : <Plus size={20} className="text-indigo-500" />}
+        <div className="bg-base-900 rounded-xl border border-brand-500/30 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="p-6 border-b border-base-800 bg-base-800/50 flex items-center justify-between">
+            <h3 className="font-bold text-base-200 flex items-center gap-2 text-lg">
+              {editingId ? <Edit2 size={20} className="text-brand-500" /> : <Plus size={20} className="text-brand-500" />}
               {editingId ? '자산 정보 편집' : '신규 자산 등록'}
             </h3>
-            <button onClick={cancel} className="p-2 text-slate-400 hover:bg-slate-900 rounded-lg hover:text-rose-500 transition-all">
+            <button onClick={cancel} className="p-2 text-base-400 hover:bg-base-900 rounded-lg hover:text-rose-500 transition">
               <X size={20} />
             </button>
           </div>
@@ -121,17 +122,17 @@ export default function AssetManagement() {
             <FormField label="추가 메모" value={editing.notes} onChange={v => setEditing({...editing, notes: v})} placeholder="기타 특이사항" />
           </div>
 
-          <div className="p-6 bg-slate-800/50 border-t border-slate-800 flex justify-end gap-3">
+          <div className="p-6 bg-base-800/50 border-t border-base-800 flex justify-end gap-3">
             <button 
-              className="px-6 py-2.5 bg-slate-900 border border-slate-800 text-slate-400 rounded-xl text-sm font-bold hover:bg-slate-800 transition-all"
+              className="px-6 py-2.5 bg-base-900 border border-base-800 text-base-400 rounded-xl text-sm font-bold hover:bg-base-800 transition"
               onClick={cancel}
             >
               취소
             </button>
             <button 
               className={cn(
-                "px-10 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2",
-                saveMutation.isPending ? "bg-slate-700 text-slate-400 cursor-not-allowed" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
+                "px-10 py-2.5 rounded-xl text-sm font-bold shadow-lg transition flex items-center gap-2",
+                saveMutation.isPending ? "bg-base-700 text-base-400 cursor-not-allowed" : "bg-brand-600 text-white hover:bg-brand-700"
               )}
               onClick={handleSave}
               disabled={saveMutation.isPending}
@@ -144,14 +145,11 @@ export default function AssetManagement() {
       )}
 
       {/* Asset Table */}
-      <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-32 text-slate-400 animate-pulse">
-            <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
-            <p className="font-medium">자산 목록을 불러오는 중...</p>
-          </div>
+          <Loading label="자산 목록을 불러오는 중..." />
         ) : assets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-slate-400 text-center px-6">
+          <div className="flex flex-col items-center justify-center py-32 text-base-400 text-center px-6">
             <Info size={48} className="mb-4 opacity-20" />
             <p className="font-medium">등록된 자산이 없습니다.</p>
             <p className="text-xs opacity-70 mt-1">상단의 '새 자산 등록' 버튼을 눌러 정보를 추가하세요.</p>
@@ -162,55 +160,55 @@ export default function AssetManagement() {
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-800/50 border-b border-slate-800">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">호스트 정보</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">위치 / 설명</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">도입일</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">보증 현황</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">관리</th>
+                <tr className="bg-base-800/50 border-b border-base-800">
+                  <th className="px-6 py-4 text-xs font-bold text-base-400 ">호스트 정보</th>
+                  <th className="px-6 py-4 text-xs font-bold text-base-400 ">위치 / 설명</th>
+                  <th className="px-6 py-4 text-xs font-bold text-base-400 ">도입일</th>
+                  <th className="px-6 py-4 text-xs font-bold text-base-400 ">보증 현황</th>
+                  <th className="px-6 py-4 text-xs font-bold text-base-400 text-right">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-base-800">
                 {assets.map(a => {
                   const ws = warrantyStatus(a.warranty_expires)
                   return (
-                    <tr key={a.id} className="hover:bg-slate-800/30 transition-colors group">
+                    <tr key={a.id} className="hover:bg-base-800/30 transition-colors group">
                       <td className="px-6 py-4">
-                        <div className="font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">{a.host_name}</div>
-                        <div className="text-[11px] font-bold text-slate-400 font-mono tracking-tight">{a.ip || '0.0.0.0'}</div>
+                        <div className="font-bold text-base-200 group-hover:text-brand-400 transition-colors">{a.host_name}</div>
+                        <div className="text-xs font-bold text-base-400 font-mono tracking-tight">{a.ip || '0.0.0.0'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                          <MapPin size={10} className="text-slate-400" />
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-base-400">
+                          <MapPin size={10} className="text-base-400" />
                           {a.location || '-'}
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{a.description || '상세 설명 없음'}</div>
+                        <div className="text-xs text-base-400 mt-0.5 line-clamp-1">{a.description || '상세 설명 없음'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                          <Calendar size={10} className="text-slate-400" />
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-base-500">
+                          <Calendar size={10} className="text-base-400" />
                           {a.purchase_date || '-'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         {ws ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-slate-500">{a.warranty_expires}</span>
+                            <span className="text-xs font-semibold text-base-500">{a.warranty_expires}</span>
                             <span className={cn(
-                              "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
+                              "px-2 py-0.5 rounded text-xs font-bold tracking-tight",
                               ws.bg, ws.text
                             )}>
                               {ws.label}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">설정 안 됨</span>
+                          <span className="text-xs text-base-400 italic">설정 안 됨</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           <button 
-                            className="p-2 bg-slate-800 text-slate-400 hover:bg-indigo-500/10 hover:text-indigo-400 rounded-lg transition-all"
+                            className="p-2 bg-base-800 text-base-400 hover:bg-brand-500/10 hover:text-brand-400 rounded-lg transition"
                             onClick={() => startEdit(a)}
                             title="정보 수정"
                             aria-label={`${a.host_name} 정보 수정`}
@@ -218,7 +216,7 @@ export default function AssetManagement() {
                             <Edit2 size={16} />
                           </button>
                           <button 
-                            className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all"
+                            className="p-2 bg-base-800 text-base-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition"
                             onClick={() => handleRemove(a.id, a.host_name)}
                             title="정보 삭제"
                             aria-label={`${a.host_name} 정보 삭제`}
@@ -235,26 +233,26 @@ export default function AssetManagement() {
           </div>
 
           {/* 모바일: 카드뷰 — 5컬럼 테이블 가로 스크롤 대신 세로 스택 */}
-          <div className="md:hidden divide-y divide-slate-800">
+          <div className="md:hidden divide-y divide-base-800">
             {assets.map(a => {
               const ws = warrantyStatus(a.warranty_expires)
               return (
                 <div key={a.id} className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-bold text-slate-200">{a.host_name}</div>
-                      <div className="text-[11px] font-bold text-slate-400 font-mono">{a.ip || '0.0.0.0'}</div>
+                      <div className="font-bold text-base-200">{a.host_name}</div>
+                      <div className="text-xs font-bold text-base-400 font-mono">{a.ip || '0.0.0.0'}</div>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button
-                        className="p-2 bg-slate-800 text-slate-400 hover:bg-indigo-500/10 hover:text-indigo-400 rounded-lg transition-all"
+                        className="p-2 bg-base-800 text-base-400 hover:bg-brand-500/10 hover:text-brand-400 rounded-lg transition"
                         onClick={() => startEdit(a)}
                         aria-label={`${a.host_name} 정보 수정`}
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
-                        className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-all"
+                        className="p-2 bg-base-800 text-base-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition"
                         onClick={() => handleRemove(a.id, a.host_name)}
                         aria-label={`${a.host_name} 정보 삭제`}
                       >
@@ -262,21 +260,21 @@ export default function AssetManagement() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-base-400">
                     <MapPin size={10} />
                     {a.location || '-'}
-                    <span className="font-normal text-slate-500 truncate">· {a.description || '상세 설명 없음'}</span>
+                    <span className="font-normal text-base-500 truncate">· {a.description || '상세 설명 없음'}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1.5 font-semibold text-slate-500">
+                    <span className="flex items-center gap-1.5 font-semibold text-base-500">
                       <Calendar size={10} /> {a.purchase_date || '도입일 미설정'}
                     </span>
                     {ws ? (
-                      <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase', ws.bg, ws.text)}>
+                      <span className={cn('px-2 py-0.5 rounded text-xs font-bold ', ws.bg, ws.text)}>
                         {ws.label}
                       </span>
                     ) : (
-                      <span className="text-slate-400 italic">보증 미설정</span>
+                      <span className="text-base-400 italic">보증 미설정</span>
                     )}
                   </div>
                 </div>
@@ -304,10 +302,10 @@ export default function AssetManagement() {
 function FormField({ label, value, onChange, type = "text", placeholder = "" }: { label: string, value: string, onChange: (v: string) => void, type?: string, placeholder?: string }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-widest">{label}</label>
+      <label className="text-xs font-bold text-base-400 ml-1 ">{label}</label>
       <input
         type={type}
-        className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-slate-400"
+        className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium text-base-400"
         value={value || ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}

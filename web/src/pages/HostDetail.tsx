@@ -80,10 +80,10 @@ export default function HostDetailPage() {
 
   if (!hostName) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400 space-y-4">
+      <div className="flex flex-col items-center justify-center h-[60vh] text-base-400 space-y-4">
         <Server size={64} className="mb-2 opacity-10" />
         <p className="font-bold">호스트가 선택되지 않았습니다.</p>
-        <Link to="/" className="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-widest hover:gap-3 transition-all">
+        <Link to="/" className="flex items-center gap-2 text-brand-600 font-bold text-xs hover:gap-3 transition">
           <ArrowLeft size={16} /> Dashboard
         </Link>
       </div>
@@ -96,44 +96,44 @@ export default function HostDetailPage() {
   return (
     <div className="space-y-5 sm:space-y-8">
       {/* Top Navigation & Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-base-800 pb-6">
         <div className="flex items-center gap-4 min-w-0">
-          <Link to="/" className="p-2 bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-800 transition-colors text-slate-400 shrink-0" title="목록으로">
+          <Link to="/" className="p-2 bg-base-900 hover:bg-base-800 rounded-lg border border-base-800 transition-colors text-base-400 shrink-0" title="목록으로">
             <ChevronLeft size={18} />
           </Link>
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold text-slate-100 truncate" title={hostName}>{hostName}</h1>
+              <h1 className="text-xl font-bold text-base-100 truncate" title={hostName}>{hostName}</h1>
               <span className={cn(
                 "w-2.5 h-2.5 rounded-full shrink-0",
                 isOffline ? "bg-rose-500" : "bg-emerald-400"
               )} />
-              <span className="text-xs font-medium text-slate-400 shrink-0">{isOffline ? '연결 끊김' : '정상 동작'}</span>
+              <span className="text-xs font-medium text-base-400 shrink-0">{isOffline ? '연결 끊김' : '정상 동작'}</span>
             </div>
             {/* 호스트 스펙 인라인 (CPU/RAM 한 줄) — 별도 카드 대신 헤더에 압축 */}
             {hostSpec ? (
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-base-500 mt-0.5">
                 {hostSpec.cpu_cores}코어
                 {hostSpec.cpu_model && <> · {hostSpec.cpu_model.replace(/\s+CPU\s+/i, ' ').replace(/@.*$/, '').trim()}</>}
                 {hostSpec.memory_total_bytes && <> · RAM {(hostSpec.memory_total_bytes / 1024 / 1024 / 1024).toFixed(0)}GB</>}
               </p>
             ) : (
-              <p className="text-xs text-slate-500 mt-0.5">호스트 상세</p>
+              <p className="text-xs text-base-500 mt-0.5">호스트 상세</p>
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-end">
-            <span className="text-xs font-medium text-slate-500">이상 탐지</span>
+            <span className="text-xs font-medium text-base-500">이상 탐지</span>
             <span className={cn(
               "text-base font-bold tabular-nums",
-              hostAnomalies.length > 0 ? "text-rose-400" : "text-slate-500"
+              hostAnomalies.length > 0 ? "text-rose-400" : "text-base-500"
             )}>{hostAnomalies.length}</span>
           </div>
-          <div className="w-px h-6 bg-slate-800" />
+          <div className="w-px h-6 bg-base-800" />
           <div className="flex flex-col items-end">
-            <span className="text-xs font-medium text-slate-500">갱신 주기</span>
+            <span className="text-xs font-medium text-base-500">갱신 주기</span>
             <span className="text-base font-bold text-emerald-400 tabular-nums">30초</span>
           </div>
         </div>
@@ -158,15 +158,15 @@ export default function HostDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-1 h-5 bg-indigo-500 rounded-full" />
-            <h2 className="text-base font-bold text-slate-100">리소스 사용률</h2>
-            <span className="text-[11px] font-semibold text-slate-500">24시간 추이</span>
+            <div className="w-1 h-5 bg-brand-500 rounded-full" />
+            <h2 className="text-base font-bold text-base-100">리소스 사용률</h2>
+            <span className="text-xs font-semibold text-base-500">24시간 추이</span>
           </div>
           <Link
             to="/trends"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-400 hover:text-brand-300 transition-colors"
           >
-            전체 호스트 비교 / 7일·30일 추이 →
+            전체 호스트 7일, 30일 추이 비교
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
@@ -174,7 +174,7 @@ export default function HostDetailPage() {
             title="CPU"
             value={metrics?.cpu ?? null}
             data={cpuChart}
-            color="#4f46e5"
+            color="var(--color-brand-600)"
             warning={th.cpuWarn}
             critical={th.cpuCrit}
             anomaly={hostAnomalies.find(a => a.metric === 'cpu')}
@@ -183,7 +183,7 @@ export default function HostDetailPage() {
             title="메모리"
             value={metrics?.memory ?? null}
             data={memChart}
-            color="#8b5cf6"
+            color="var(--color-violet-500)"
             warning={th.memWarn}
             critical={th.memCrit}
             anomaly={hostAnomalies.find(a => a.metric === 'memory')}
@@ -196,7 +196,7 @@ export default function HostDetailPage() {
             title="디스크"
             value={metrics?.disk ?? null}
             data={diskChart}
-            color="#10b981"
+            color="var(--color-emerald-500)"
             warning={th.diskWarn}
             critical={th.diskCrit}
             anomaly={hostAnomalies.find(a => a.metric === 'disk')}
@@ -210,8 +210,8 @@ export default function HostDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center gap-2.5">
           <div className="w-1 h-5 bg-emerald-500 rounded-full" />
-          <h2 className="text-base font-bold text-slate-100">디스크 사용량</h2>
-          <span className="text-[11px] font-semibold text-slate-500">마운트별 잔여 용량</span>
+          <h2 className="text-base font-bold text-base-100">디스크 사용량</h2>
+          <span className="text-xs font-semibold text-base-500">마운트별 잔여 용량</span>
         </div>
         <DiskUsageBreakdown
           host={hostName}
@@ -224,8 +224,8 @@ export default function HostDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center gap-2.5">
           <div className="w-1 h-5 bg-sky-500 rounded-full" />
-          <h2 className="text-base font-bold text-slate-100">물리 디스크 구조</h2>
-          <span className="text-[11px] font-semibold text-slate-500">파티션 · LVM 분해</span>
+          <h2 className="text-base font-bold text-base-100">물리 디스크 구조</h2>
+          <span className="text-xs font-semibold text-base-500">파티션 · LVM 분해</span>
         </div>
         <DiskTopology host={hostName} />
       </div>
@@ -234,7 +234,7 @@ export default function HostDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center gap-2.5">
           <div className="w-1 h-5 bg-violet-500 rounded-full" />
-          <h2 className="text-base font-bold text-slate-100">장비 정보</h2>
+          <h2 className="text-base font-bold text-base-100">장비 정보</h2>
         </div>
         <HostSpecCard host={hostName} />
         {serviceChecks.length > 0 && (

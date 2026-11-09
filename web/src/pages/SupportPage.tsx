@@ -48,8 +48,8 @@ export default function SupportPage() {
                     className={cn(
                       "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors",
                       active === s.id
-                        ? "bg-indigo-500/15 text-indigo-300"
-                        : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                        ? "bg-brand-500/15 text-brand-300"
+                        : "text-base-400 hover:bg-base-800 hover:text-base-200"
                     )}
                   >
                     <Icon size={14} />
@@ -64,7 +64,7 @@ export default function SupportPage() {
         {/* Content */}
         <div className="flex-1 min-w-0 space-y-8">
           <Section id="quickstart" title="빠른 시작" icon={Terminal}>
-            <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+            <p className="text-sm text-base-400 mb-4 leading-relaxed">
               에이전트는 모니터링 대상 호스트에 설치합니다. 설치 후 자동으로 OWLmon 서버로 메트릭을 전송합니다.
             </p>
 
@@ -73,8 +73,8 @@ export default function SupportPage() {
                 code={`curl -sSL http://<OWLmon 서버 IP>/install-agent.sh | sudo bash`}
                 note="3줄로 끝. 시스템 서비스로 등록되어 부팅 시 자동 시작합니다."
               />
-              <p className="text-xs text-slate-500 mt-2">
-                망분리 환경: <code className="text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">scripts/install-agent-linux.sh</code> 를 수동 복사 후 실행
+              <p className="text-xs text-base-500 mt-2">
+                망분리 환경: <code className="text-base-400 bg-base-800 px-1.5 py-0.5 rounded text-xs">scripts/install-agent-linux.sh</code> 를 수동 복사 후 실행
               </p>
             </SubSection>
 
@@ -87,7 +87,7 @@ iwr -useb http://<OWLmon 서버 IP>/install-agent.ps1 | iex`}
             </SubSection>
 
             <SubSection title="설치 확인">
-              <ol className="list-decimal list-inside text-sm text-slate-300 space-y-1.5 ml-1">
+              <ol className="list-decimal list-inside text-sm text-base-300 space-y-1.5 ml-1">
                 <li>30초 이내 OWLmon 대시보드에 호스트 카드 자동 생성</li>
                 <li>CPU / 메모리 / 디스크 사용률 실시간 표시</li>
                 <li>안 보이면 → '문제 해결' 섹션 참고</li>
@@ -115,28 +115,28 @@ iwr -useb http://<OWLmon 서버 IP>/install-agent.ps1 | iex`}
             </div>
 
             <SubSection title="네트워크 포트">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-base-900 border border-base-800 rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-800/50">
-                    <tr className="text-left text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                  <thead className="bg-base-800/50">
+                    <tr className="text-left text-xs font-bold text-base-400 ">
                       <th className="px-4 py-2.5">포트</th>
                       <th className="px-4 py-2.5">용도</th>
                       <th className="px-4 py-2.5">방향</th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-300 [&_tr]:border-t [&_tr]:border-slate-800">
-                    <tr><td className="px-4 py-2.5 font-mono">4317</td><td className="px-4 py-2.5">OTLP gRPC (메트릭 수집)</td><td className="px-4 py-2.5 text-slate-500">에이전트 → 서버</td></tr>
-                    <tr><td className="px-4 py-2.5 font-mono">8080</td><td className="px-4 py-2.5">서버 API (로그 / 알림)</td><td className="px-4 py-2.5 text-slate-500">에이전트 → 서버</td></tr>
-                    <tr><td className="px-4 py-2.5 font-mono">80 / 443</td><td className="px-4 py-2.5">웹 대시보드</td><td className="px-4 py-2.5 text-slate-500">사용자 → 서버</td></tr>
-                    <tr><td className="px-4 py-2.5 font-mono">25 / 587</td><td className="px-4 py-2.5">SMTP (이메일 알림)</td><td className="px-4 py-2.5 text-slate-500">서버 → 메일</td></tr>
+                  <tbody className="text-base-300 [&_tr]:border-t [&_tr]:border-base-800">
+                    <tr><td className="px-4 py-2.5 font-mono">4317</td><td className="px-4 py-2.5">OTLP gRPC (메트릭 수집)</td><td className="px-4 py-2.5 text-base-500">에이전트 → 서버</td></tr>
+                    <tr><td className="px-4 py-2.5 font-mono">8080</td><td className="px-4 py-2.5">서버 API (로그 / 알림)</td><td className="px-4 py-2.5 text-base-500">에이전트 → 서버</td></tr>
+                    <tr><td className="px-4 py-2.5 font-mono">80 / 443</td><td className="px-4 py-2.5">웹 대시보드</td><td className="px-4 py-2.5 text-base-500">사용자 → 서버</td></tr>
+                    <tr><td className="px-4 py-2.5 font-mono">25 / 587</td><td className="px-4 py-2.5">SMTP (이메일 알림)</td><td className="px-4 py-2.5 text-base-500">서버 → 메일</td></tr>
                   </tbody>
                 </table>
               </div>
             </SubSection>
 
             <SubSection title="이메일 알림 (SMTP) 설정">
-              <p className="text-sm text-slate-400 mb-2 leading-relaxed">
-                알림 이메일 발송을 활성화하려면 서버 관리자가 <code className="bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">.env</code> 파일에 SMTP 정보를 설정해야 합니다.
+              <p className="text-sm text-base-400 mb-2 leading-relaxed">
+                알림 이메일 발송을 활성화하려면 서버 관리자가 <code className="bg-base-800 px-1.5 py-0.5 rounded text-xs">.env</code> 파일에 SMTP 정보를 설정해야 합니다.
               </p>
               <CodeBlock
                 code={`# ~/owlmon/.env 파일에 추가
@@ -150,33 +150,33 @@ SMTP_FROM=owlmon@school.go.kr
 docker compose up -d --force-recreate owlmon-server`}
                 note="Gmail 앞 → 앱 비밀번호 발급 필요. 학교 자체 SMTP가 있으면 해당 값 입력."
               />
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-xs text-base-500 mt-2">
                 설정 후 알림 수신자는 <strong>알림 설정</strong> 페이지에서 추가합니다.
               </p>
             </SubSection>
 
             <SubSection title="자동 암호화 백업 (KISA AES-256)">
-              <p className="text-sm text-slate-400 mb-2 leading-relaxed">
+              <p className="text-sm text-base-400 mb-2 leading-relaxed">
                 PostgreSQL DB(알림 히스토리, 룰, 도메인, 자산 등 모든 영속 데이터)는 매일 03:00 KST에 <strong>AES-256-CBC + PBKDF2(100000 iter)</strong>로 암호화되어 백업됩니다. 행안부 백업 의무 + KISA 암호화 알고리즘 권장 동시 충족.
               </p>
-              <ul className="text-sm text-slate-300 space-y-1.5 ml-1 list-disc list-inside">
-                <li>저장 경로: <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">~/owlmon/data/backups/</code></li>
-                <li>파일명: <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">owlmon-YYYYMMDD-HHMMSS.sql.gz.enc</code></li>
-                <li>보관 기간: 기본 30일 (<code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">BACKUP_RETENTION_DAYS</code> 환경변수)</li>
-                <li>패스프레이즈: 첫 실행 시 자동 생성 → <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">/backups/.passphrase</code> (chmod 600)</li>
+              <ul className="text-sm text-base-300 space-y-1.5 ml-1 list-disc list-inside">
+                <li>저장 경로: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">~/owlmon/data/backups/</code></li>
+                <li>파일명: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">owlmon-YYYYMMDD-HHMMSS.sql.gz.enc</code></li>
+                <li>보관 기간: 기본 30일 (<code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">BACKUP_RETENTION_DAYS</code> 환경변수)</li>
+                <li>패스프레이즈: 첫 실행 시 자동 생성 → <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">/backups/.passphrase</code> (chmod 600)</li>
               </ul>
 
               <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                <span><strong>패스프레이즈 분실 시 백업 복원 불가</strong>. <code className="bg-slate-800 px-1 rounded">/backups/.passphrase</code> 파일을 USB 등 별도 안전한 곳에 1회 백업하세요.</span>
+                <span><strong>패스프레이즈 분실 시 백업 복원 불가</strong>. <code className="bg-base-800 px-1 rounded">/backups/.passphrase</code> 파일을 USB 등 별도 안전한 곳에 1회 백업하세요.</span>
               </div>
 
-              <h3 className="text-sm font-bold text-slate-300 mt-4 mb-1.5">수동 백업 (즉시)</h3>
+              <h3 className="text-sm font-bold text-base-300 mt-4 mb-1.5">수동 백업 (즉시)</h3>
               <CodeBlock
                 code={`ssh owlmon@<서버IP> 'docker exec owlmon-backup sh -c "PASS=\\$(cat /backups/.passphrase); pg_dump --no-owner --no-acl | gzip -9 | openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -salt -pass pass:\\$PASS -out /backups/owlmon-manual-\\$(date +%Y%m%d-%H%M%S).sql.gz.enc"'`}
               />
 
-              <h3 className="text-sm font-bold text-slate-300 mt-4 mb-1.5">복원 (장애 시)</h3>
+              <h3 className="text-sm font-bold text-base-300 mt-4 mb-1.5">복원 (장애 시)</h3>
               <CodeBlock
                 code={`# 1. 서버 컨테이너 정지
 docker compose stop owlmon-server
@@ -196,9 +196,9 @@ docker compose start owlmon-server`}
                 note="⚠️ 복원 전 현재 DB 별도 백업 권장. 패스프레이즈 분실 시 복원 불가."
               />
 
-              <h3 className="text-sm font-bold text-slate-300 mt-4 mb-1.5">패스프레이즈 직접 지정</h3>
-              <p className="text-xs text-slate-500 mb-1.5">
-                기관 정책에 따라 직접 패스프레이즈 관리가 필요하면 <code className="bg-slate-800 px-1 rounded">.env</code>에 추가:
+              <h3 className="text-sm font-bold text-base-300 mt-4 mb-1.5">패스프레이즈 직접 지정</h3>
+              <p className="text-xs text-base-500 mb-1.5">
+                기관 정책에 따라 직접 패스프레이즈 관리가 필요하면 <code className="bg-base-800 px-1 rounded">.env</code>에 추가:
               </p>
               <CodeBlock
                 code={`# ~/owlmon/.env에 추가
@@ -211,9 +211,9 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
             <FAQItem q="에이전트 설치 후 호스트가 대시보드에 안 보입니다.">
               <p className="mb-2">다음 순서로 확인하세요:</p>
               <ol className="list-decimal list-inside space-y-1 ml-1">
-                <li>에이전트 서비스 상태: <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">systemctl status owlmon-agent</code></li>
-                <li>방화벽 — 에이전트에서 OWLmon 서버 4317 포트 도달 가능한지: <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">nc -zv {`<서버IP>`} 4317</code></li>
-                <li>에이전트 로그: <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">journalctl -u owlmon-agent -n 50</code></li>
+                <li>에이전트 서비스 상태: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">systemctl status owlmon-agent</code></li>
+                <li>방화벽: 에이전트에서 OWLmon 서버 4317 포트 도달 가능한지: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">nc -zv {`<서버IP>`} 4317</code></li>
+                <li>에이전트 로그: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">journalctl -u owlmon-agent -n 50</code></li>
                 <li>30초 대기 후 새로고침 (메트릭은 30초 주기 전송)</li>
               </ol>
             </FAQItem>
@@ -251,7 +251,7 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
               cause="대부분 다른 프로세스(ML/배치 작업 등)와 시간이 겹친 우연. 에이전트 자체는 1% 미만."
               fix={
                 <>
-                  <p><code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">top</code>으로 실제 CPU 점유 프로세스 확인. owlmon-agent가 아니라면 해당 프로세스 조사.</p>
+                  <p><code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">top</code>으로 실제 CPU 점유 프로세스 확인. owlmon-agent가 아니라면 해당 프로세스 조사.</p>
                 </>
               }
             />
@@ -272,8 +272,8 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
               fix={
                 <>
                   <p>1. 서버 디스크 용량 확인 (logs 테이블 GB 단위 증가 가능)</p>
-                  <p>2. 에이전트 → 서버 8080 포트 도달성 (<code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">curl -v http://서버IP:8080/health</code>)</p>
-                  <p>3. WAL 파일 디스크 확인 (<code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">/opt/owlmon/logs-wal.json</code>)</p>
+                  <p>2. 에이전트 → 서버 8080 포트 도달성 (<code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">curl -v http://서버IP:8080/health</code>)</p>
+                  <p>3. WAL 파일 디스크 확인 (<code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">/opt/owlmon/logs-wal.json</code>)</p>
                 </>
               }
             />
@@ -285,7 +285,7 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
                 <>
                   <p>1. 로그아웃 후 재로그인</p>
                   <p>2. 브라우저 개발자도구 (F12) → Network 탭에서 401/500 응답 확인</p>
-                  <p>3. 서버 컨테이너 로그: <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">docker logs owlmon-server --tail 100</code></p>
+                  <p>3. 서버 컨테이너 로그: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">docker logs owlmon-server --tail 100</code></p>
                 </>
               }
             />
@@ -296,12 +296,12 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
               fix={
                 <>
                   <p>대상 PostgreSQL 서버에서 다음 작업 (관리자 권한):</p>
-                  <p>1. <code className="text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded text-[11px]">postgresql.conf</code>에 다음 줄 추가/수정:</p>
-                  <pre className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-[11px] text-slate-300 overflow-x-auto font-mono ml-3">shared_preload_libraries = 'pg_stat_statements'</pre>
+                  <p>1. <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">postgresql.conf</code>에 다음 줄 추가/수정:</p>
+                  <pre className="bg-base-950 border border-base-800 rounded-lg p-2.5 text-xs text-base-300 overflow-x-auto font-mono ml-3">shared_preload_libraries = 'pg_stat_statements'</pre>
                   <p>2. PostgreSQL 재시작</p>
                   <p>3. 대상 DB에 접속 후:</p>
-                  <pre className="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-[11px] text-slate-300 overflow-x-auto font-mono ml-3">CREATE EXTENSION pg_stat_statements;</pre>
-                  <p className="text-slate-500 text-[10px] mt-1 flex items-start gap-1"><AlertTriangle size={11} className="shrink-0 mt-0.5" /> AWS RDS / GCP Cloud SQL은 파라미터 그룹에서 켜야 합니다. 자체 운영 DB만 위 절차 사용.</p>
+                  <pre className="bg-base-950 border border-base-800 rounded-lg p-2.5 text-xs text-base-300 overflow-x-auto font-mono ml-3">CREATE EXTENSION pg_stat_statements;</pre>
+                  <p className="text-base-500 text-xs mt-1 flex items-start gap-1"><AlertTriangle size={11} className="shrink-0 mt-0.5" /> AWS RDS / GCP Cloud SQL은 파라미터 그룹에서 켜야 합니다. 자체 운영 DB만 위 절차 사용.</p>
                 </>
               }
             />
@@ -311,14 +311,14 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <a
                 href="mailto:skanehfud279@willkomo.com"
-                className="flex items-center gap-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 transition-colors group"
+                className="flex items-center gap-4 p-5 rounded-xl bg-base-900 border border-base-800 hover:border-brand-500/50 hover:bg-base-800/50 transition-colors group"
               >
-                <div className="p-3 rounded-xl bg-indigo-500/15 text-indigo-300 group-hover:bg-indigo-500/25 transition-colors">
+                <div className="p-3 rounded-xl bg-brand-500/15 text-brand-300 group-hover:bg-brand-500/25 transition-colors">
                   <Mail size={20} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-200">이메일 문의</div>
-                  <div className="text-xs text-slate-400 mt-0.5 truncate">skanehfud279@willkomo.com</div>
+                  <div className="text-sm font-bold text-base-200">이메일 문의</div>
+                  <div className="text-xs text-base-400 mt-0.5 truncate">skanehfud279@willkomo.com</div>
                 </div>
               </a>
 
@@ -326,19 +326,19 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
                 href="https://github.com/SeongJae999/owlmon/issues"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 transition-colors group"
+                className="flex items-center gap-4 p-5 rounded-xl bg-base-900 border border-base-800 hover:border-brand-500/50 hover:bg-base-800/50 transition-colors group"
               >
-                <div className="p-3 rounded-xl bg-slate-800 text-slate-300 group-hover:bg-slate-700 transition-colors">
+                <div className="p-3 rounded-xl bg-base-800 text-base-300 group-hover:bg-base-700 transition-colors">
                   <Code size={20} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-200">GitHub Issues</div>
-                  <div className="text-xs text-slate-400 mt-0.5">버그 신고 / 기능 제안</div>
+                  <div className="text-sm font-bold text-base-200">GitHub Issues</div>
+                  <div className="text-xs text-base-400 mt-0.5">버그 신고 / 기능 제안</div>
                 </div>
               </a>
             </div>
 
-            <p className="text-xs text-slate-500 mt-4">
+            <p className="text-xs text-base-500 mt-4">
               영업/도입 문의는 이메일을 권장합니다. 영업일 기준 1~2일 내 회신.
             </p>
           </Section>
@@ -352,12 +352,12 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
 
 function Section({ id, title, icon: Icon, children }: { id: string; title: string; icon: any; children: React.ReactNode }) {
   return (
-    <section id={id} className="bg-slate-900 rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4 scroll-mt-6">
-      <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
-        <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-300">
+    <section id={id} className="bg-base-900 rounded-xl border border-base-800 p-5 sm:p-6 space-y-4 scroll-mt-6">
+      <div className="flex items-center gap-3 pb-3 border-b border-base-800">
+        <div className="p-2 rounded-lg bg-brand-500/15 text-brand-300">
           <Icon size={18} />
         </div>
-        <h2 className="text-base font-bold text-slate-100">{title}</h2>
+        <h2 className="text-base font-bold text-base-100">{title}</h2>
       </div>
       {children}
     </section>
@@ -367,7 +367,7 @@ function Section({ id, title, icon: Icon, children }: { id: string; title: strin
 function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-4">
-      <h3 className="text-sm font-bold text-slate-300 mb-2">{title}</h3>
+      <h3 className="text-sm font-bold text-base-300 mb-2">{title}</h3>
       {children}
     </div>
   )
@@ -377,7 +377,7 @@ function CodeBlock({ code, note }: { code: string; note?: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <div className="relative">
-      <pre className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 overflow-x-auto whitespace-pre-wrap break-all font-mono">
+      <pre className="bg-base-950 border border-base-800 rounded-xl p-4 text-xs text-base-300 overflow-x-auto whitespace-pre-wrap break-all font-mono">
         {code}
       </pre>
       <button
@@ -387,20 +387,20 @@ function CodeBlock({ code, note }: { code: string; note?: string }) {
             setTimeout(() => setCopied(false), 1500)
           })
         }}
-        className="absolute top-2 right-2 p-1.5 rounded-md bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+        className="absolute top-2 right-2 p-1.5 rounded-md bg-base-800 text-base-400 hover:text-base-200 hover:bg-base-700 transition-colors"
         title="복사" aria-label="복사"
       >
         {copied ? <CheckCircle2 size={12} className="text-emerald-400" /> : <Copy size={12} />}
       </button>
-      {note && <p className="text-[11px] text-slate-500 mt-1.5 ml-1">{note}</p>}
+      {note && <p className="text-xs text-base-500 mt-1.5 ml-1">{note}</p>}
     </div>
   )
 }
 
 function ReqCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <h4 className="text-sm font-bold text-slate-200 mb-3 pb-2 border-b border-slate-800">{title}</h4>
+    <div className="bg-base-900 border border-base-800 rounded-xl p-4">
+      <h4 className="text-sm font-bold text-base-200 mb-3 pb-2 border-b border-base-800">{title}</h4>
       <div className="space-y-2">{children}</div>
     </div>
   )
@@ -409,8 +409,8 @@ function ReqCard({ title, children }: { title: string; children: React.ReactNode
 function ReqRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-3 text-xs">
-      <span className="text-slate-500 w-16 shrink-0">{label}</span>
-      <span className="text-slate-300 font-medium">{value}</span>
+      <span className="text-base-500 w-16 shrink-0">{label}</span>
+      <span className="text-base-300 font-medium">{value}</span>
     </div>
   )
 }
@@ -418,16 +418,16 @@ function ReqRow({ label, value }: { label: string; value: string }) {
 function FAQItem({ q, children }: { q: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border-b border-slate-800 last:border-b-0">
+    <div className="border-b border-base-800 last:border-b-0">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-3 py-3 text-left hover:text-indigo-300 transition-colors"
+        className="w-full flex items-center justify-between gap-3 py-3 text-left hover:text-brand-300 transition-colors"
       >
-        <span className="text-sm font-semibold text-slate-200">{q}</span>
-        <ChevronDown size={16} className={cn("shrink-0 text-slate-500 transition-transform", open && "rotate-180")} />
+        <span className="text-sm font-semibold text-base-200">{q}</span>
+        <ChevronDown size={16} className={cn("shrink-0 text-base-500 transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="pb-3 text-xs text-slate-400 leading-relaxed space-y-1.5">
+        <div className="pb-3 text-xs text-base-400 leading-relaxed space-y-1.5">
           {children}
         </div>
       )}
@@ -437,18 +437,18 @@ function FAQItem({ q, children }: { q: string; children: React.ReactNode }) {
 
 function TroubleCard({ issue, cause, fix }: { issue: string; cause: string; fix: React.ReactNode }) {
   return (
-    <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4 space-y-2">
+    <div className="bg-base-950/50 border border-base-800 rounded-xl p-4 space-y-2">
       <div className="flex items-start gap-2">
         <AlertCircle size={14} className="shrink-0 text-amber-400 mt-0.5" />
-        <span className="text-sm font-bold text-slate-200">{issue}</span>
+        <span className="text-sm font-bold text-base-200">{issue}</span>
       </div>
       <div className="ml-6 space-y-1.5 text-xs">
         <div>
-          <span className="text-slate-500 font-bold">원인: </span>
-          <span className="text-slate-400">{cause}</span>
+          <span className="text-base-500 font-bold">원인: </span>
+          <span className="text-base-400">{cause}</span>
         </div>
-        <div className="text-slate-300 space-y-1">
-          <span className="text-slate-500 font-bold">해결: </span>
+        <div className="text-base-300 space-y-1">
+          <span className="text-base-500 font-bold">해결: </span>
           <div className="ml-1">{fix}</div>
         </div>
       </div>

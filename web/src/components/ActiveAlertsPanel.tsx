@@ -45,7 +45,7 @@ export default function ActiveAlertsPanel({ alerts, onChanged, onSelectHost, hos
     return (
       <div role="alert" className={cn('rounded-xl border px-4 py-3 flex items-center gap-2 text-sm', TONES.amber.bg, TONES.amber.border, TONES.amber.text)}>
         <AlertTriangle size={16} className="shrink-0" />
-        알림 상태를 불러오지 못했습니다 — 서버 연결을 확인하세요
+        알림 상태를 불러오지 못했습니다. 서버 연결을 확인하세요
       </div>
     )
   }
@@ -60,15 +60,15 @@ export default function ActiveAlertsPanel({ alerts, onChanged, onSelectHost, hos
   }
 
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900/50" aria-label="처리할 문제">
-      <header className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
-        <AlertTriangle size={16} className={open > 0 ? TONES.rose.text : 'text-slate-500'} />
-        <h2 className="text-sm font-semibold text-slate-200">
-          처리할 문제 <span className={open > 0 ? TONES.rose.text : 'text-slate-500'}>{open}건</span>
+    <section className="rounded-xl border border-base-800 bg-base-900/50" aria-label="처리할 문제">
+      <header className="px-4 py-3 border-b border-base-800 flex items-center gap-2">
+        <AlertTriangle size={16} className={open > 0 ? TONES.rose.text : 'text-base-500'} />
+        <h2 className="text-sm font-semibold text-base-200">
+          처리할 문제 <span className={open > 0 ? TONES.rose.text : 'text-base-500'}>{open}건</span>
         </h2>
-        {items.length > open && <span className="text-xs text-slate-500">· 확인함 {items.length - open}건</span>}
+        {items.length > open && <span className="text-xs text-base-500">· 확인함 {items.length - open}건</span>}
       </header>
-      <ul className="divide-y divide-slate-800">
+      <ul className="divide-y divide-base-800">
         {items.map(a => {
           const key = `${a.host}|${a.category}|${a.severity}|${a.message}`
           const tone = TONES[a.severity === 'critical' ? 'rose' : 'amber']
@@ -82,26 +82,26 @@ export default function ActiveAlertsPanel({ alerts, onChanged, onSelectHost, hos
                   <button
                     type="button"
                     onClick={() => onSelectHost?.(a.host)}
-                    className="shrink-0 text-sm font-semibold text-slate-100 hover:text-indigo-300 hover:underline"
+                    className="shrink-0 text-sm font-semibold text-base-100 hover:text-brand-300 hover:underline"
                   >
                     {a.host}
                   </button>
                 )}
-                <span className="text-sm text-slate-300 truncate">
-                  <span className="text-slate-500">{CATEGORY_LABEL[a.category] ?? a.category} · </span>
+                <span className="text-sm text-base-300 truncate">
+                  <span className="text-base-500">{CATEGORY_LABEL[a.category] ?? a.category} · </span>
                   {a.message}
                 </span>
               </div>
               {a.acked ? (
-                <span className="text-xs text-slate-500 flex items-center gap-1 sm:shrink-0">
-                  <Check size={14} /> 확인함 — 복구될 때까지 메일 중지
+                <span className="text-xs text-base-500 flex items-center gap-1 sm:shrink-0">
+                  <Check size={14} /> 확인함 (복구될 때까지 메일 중지)
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={() => ack(a)}
                   disabled={pending !== null}
-                  className="sm:shrink-0 self-start sm:self-auto px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 disabled:opacity-50"
+                  className="sm:shrink-0 self-start sm:self-auto px-3 py-1.5 rounded-lg bg-base-800 hover:bg-base-700 text-base-200 text-xs font-semibold border border-base-700 disabled:opacity-50"
                   title="확인 처리하면 복구될 때까지 같은 알림 메일을 보내지 않습니다"
                 >
                   {pending === `${a.host}|${a.category}|${a.severity}` ? '처리 중…' : '확인'}

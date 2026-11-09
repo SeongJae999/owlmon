@@ -57,15 +57,15 @@ export default function EmailStatusBanner() {
         </div>
         {smtpIssue && (
           <div className="text-xs text-blue-300/90 leading-relaxed">
-            · <strong>SMTP 서버 미설정</strong> — 서버 관리자가 <code className="bg-slate-800 px-1 rounded text-[10px]">docker-compose .env</code>에 <code className="bg-slate-800 px-1 rounded text-[10px]">SMTP_HOST/PORT/USERNAME/PASSWORD</code> 설정 후 서버 재시작 필요
+            <strong>SMTP 서버 미설정:</strong> 서버 관리자가 <code className="bg-base-800 px-1 rounded text-xs">docker-compose .env</code>에 <code className="bg-base-800 px-1 rounded text-xs">SMTP_HOST/PORT/USERNAME/PASSWORD</code> 설정 후 서버 재시작 필요
           </div>
         )}
         {!smtpIssue && recipientIssue && (
           <div className="text-xs text-blue-300/90 leading-relaxed">
-            · <strong>알림 수신자 미등록</strong> — 알림 설정에서 이메일 추가
+            <strong>알림 수신자 미등록:</strong> 알림 설정에서 이메일 추가
           </div>
         )}
-        <div className="text-[11px] text-blue-300/60">
+        <div className="text-xs text-blue-300/60">
           일부러 사용 안 하시는 경우(카톡/슬랙 등 다른 채널 또는 DB만 활용) 우측 X로 7일간 숨김.
         </div>
       </div>

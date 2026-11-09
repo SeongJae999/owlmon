@@ -6,10 +6,10 @@ import type { ReactNode } from 'react'
 function inline(text: string): ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean).map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-slate-50">{part.slice(2, -2)}</strong>
+      return <strong key={i} className="font-semibold text-base-50">{part.slice(2, -2)}</strong>
     }
     if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={i} className="px-1 py-0.5 rounded bg-slate-950/60 text-[0.9em] font-mono text-indigo-200">{part.slice(1, -1)}</code>
+      return <code key={i} className="px-1 py-0.5 rounded bg-base-950/60 text-[0.9em] font-mono text-brand-200">{part.slice(1, -1)}</code>
     }
     return part
   })
@@ -44,10 +44,10 @@ export default function Markdown({ text, className = '' }: { text: string; class
     if (!line) { flushPara(); flushList(); continue }
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
       flushPara(); flushList()
-      blocks.push(<hr key={blocks.length} className="border-slate-700/60" />)
+      blocks.push(<hr key={blocks.length} className="border-base-700/60" />)
     } else if (heading) {
       flushPara(); flushList()
-      blocks.push(<p key={blocks.length} className="font-semibold text-slate-50 pt-1">{inline(heading[1])}</p>)
+      blocks.push(<p key={blocks.length} className="font-semibold text-base-50 pt-1">{inline(heading[1])}</p>)
     } else if (bullet || numbered) {
       flushPara()
       const ordered = !!numbered

@@ -9,7 +9,7 @@ interface Props {
 
 // 할당 막대/트리 점 색 팔레트 — 파티션(자식) 순서대로 순환
 const SEG_COLORS = [
-  'bg-indigo-500/70',
+  'bg-brand-500/70',
   'bg-violet-500/70',
   'bg-sky-500/70',
   'bg-emerald-500/70',
@@ -46,7 +46,7 @@ export default function DiskTopology({ host }: Props) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-base-800 bg-base-900/50 p-4 text-sm text-base-500">
         디스크 구조 불러오는 중…
       </div>
     )
@@ -54,9 +54,9 @@ export default function DiskTopology({ host }: Props) {
 
   if (!disks.length) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-base-800 bg-base-900/50 p-4 text-sm text-base-500">
         물리 디스크 구조 데이터가 없습니다.
-        <span className="block mt-0.5 text-xs text-slate-600">
+        <span className="block mt-0.5 text-xs text-base-600">
           (에이전트 업데이트 후 Linux 호스트에서 lsblk로 수집됩니다)
         </span>
       </div>
@@ -87,17 +87,17 @@ function PhysicalDisk({
   const total = disk.size_bytes || 1
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 overflow-hidden">
+    <div className="rounded-lg border border-base-800 bg-base-900/50 overflow-hidden">
       {/* 헤더: 배지 + 이름 + 모델 + 총량 */}
       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
-        <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0', kindColor)}>{kind}</span>
-        <span className="text-sm font-mono font-semibold text-slate-200 shrink-0">{disk.name}</span>
+        <span className={cn('px-1.5 py-0.5 rounded text-xs font-bold shrink-0', kindColor)}>{kind}</span>
+        <span className="text-sm font-mono font-semibold text-base-200 shrink-0">{disk.name}</span>
         {disk.model && (
-          <span className="text-[11px] text-slate-500 truncate" title={disk.model}>
+          <span className="text-xs text-base-500 truncate" title={disk.model}>
             {disk.model}
           </span>
         )}
-        <span className="ml-auto text-sm font-bold text-slate-300 tabular-nums shrink-0">
+        <span className="ml-auto text-sm font-bold text-base-300 tabular-nums shrink-0">
           {formatBytes(disk.size_bytes)}
         </span>
       </div>
@@ -105,7 +105,7 @@ function PhysicalDisk({
       {/* 할당 막대 — 파티션 크기 비율 (사용량 아님, "어떻게 쪼개졌나") */}
       {children.length > 0 && (
         <div className="px-4 pb-2.5">
-          <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-slate-800 gap-px">
+          <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-base-800 gap-px">
             {children.map((c, i) => {
               const w = Math.max(0.5, (c.size_bytes / total) * 100)
               return (
@@ -122,7 +122,7 @@ function PhysicalDisk({
       )}
 
       {/* 트리 — 파티션→LVM→마운트 */}
-      <div className="border-t border-slate-800/60 px-2 py-1.5">
+      <div className="border-t border-base-800/60 px-2 py-1.5">
         {children.map((c, i) => (
           <TreeNode key={c.name} node={c} depth={0} colorIdx={i} usageByMount={usageByMount} />
         ))}
@@ -158,23 +158,23 @@ function TreeNode({
 
         {/* LVM 논리 볼륨 표시 */}
         {isLVM && (
-          <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-sky-900/40 text-sky-300 shrink-0">LVM</span>
+          <span className="px-1 py-0.5 rounded text-xs font-bold bg-sky-900/40 text-sky-300 shrink-0">LVM</span>
         )}
-        <span className="font-mono text-slate-300 shrink-0">{node.name}</span>
+        <span className="font-mono text-base-300 shrink-0">{node.name}</span>
 
         {/* 마운트포인트 / 미마운트 표시 */}
         {node.mountpoint ? (
-          <span className="text-slate-400 shrink-0">{node.mountpoint}</span>
+          <span className="text-base-400 shrink-0">{node.mountpoint}</span>
         ) : children.length === 0 ? (
-          <span className="text-slate-600 shrink-0">{node.fstype === 'swap' ? 'swap' : '미마운트'}</span>
+          <span className="text-base-600 shrink-0">{node.fstype === 'swap' ? 'swap' : '미마운트'}</span>
         ) : null}
 
-        <span className="ml-auto text-slate-500 tabular-nums shrink-0">{formatBytes(node.size_bytes)}</span>
+        <span className="ml-auto text-base-500 tabular-nums shrink-0">{formatBytes(node.size_bytes)}</span>
 
         {/* 마운트된 볼륨만 사용량 미니바 */}
         {u && u.totalBytes > 0 ? (
           <div className="flex items-center gap-1.5 w-28 shrink-0">
-            <div className="h-1.5 flex-1 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-1.5 flex-1 rounded-full bg-base-800 overflow-hidden">
               <div
                 className={cn(
                   'h-full rounded-full',
@@ -183,7 +183,7 @@ function TreeNode({
                 style={{ width: `${Math.min(100, u.usedPercent)}%` }}
               />
             </div>
-            <span className="text-[10px] text-slate-400 tabular-nums w-9 text-right">
+            <span className="text-xs text-base-400 tabular-nums w-9 text-right">
               {u.usedPercent.toFixed(0)}%
             </span>
           </div>

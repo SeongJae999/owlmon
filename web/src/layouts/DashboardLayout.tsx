@@ -24,6 +24,8 @@ import {
   ListChecks,
   TrendingUp,
   Sparkles,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
@@ -63,6 +65,13 @@ export default function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark')
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light'
+    document.documentElement.dataset.theme = next
+    try { localStorage.setItem('owlmon-theme', next) } catch { /* 저장 불가 환경이면 이번 세션만 적용 */ }
+    setTheme(next)
+  }
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [forbidden, setForbidden] = useState<string | null>(null)
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
@@ -104,11 +113,11 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 font-sans text-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-base-950 font-sans text-base-100 overflow-hidden">
       {/* Mobile Overlay */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-all duration-300" 
+          className="fixed inset-0 bg-base-900/40 z-40 lg:hidden transition duration-300" 
           onClick={() => setMobileMenuOpen(false)} 
         />
       )}
@@ -116,18 +125,18 @@ export default function DashboardLayout() {
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 bg-slate-900 text-slate-300 transition-all duration-300 ease-in-out transform lg:translate-x-0 lg:static flex flex-col shadow-2xl",
+          "fixed inset-y-0 left-0 z-50 bg-base-900 text-base-300 transition duration-300 ease-in-out transform lg:translate-x-0 lg:static flex flex-col shadow-2xl",
           sidebarCollapsed ? "w-20" : "w-72",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Brand */}
-        <div className="h-16 flex items-center px-5 gap-3 border-b border-slate-800/50">
+        <div className="h-16 flex items-center px-5 gap-3 border-b border-base-800/50">
           <img src="/favicon.svg" alt="OWLmon" title="OWLmon" className="w-9 h-9 shrink-0 rounded-xl" />
           {!sidebarCollapsed && (
             <div className="overflow-hidden whitespace-nowrap">
-              <p className="font-bold text-white text-lg">OWLmon</p>
-              <p className="text-xs text-slate-500 font-medium">통합 모니터링</p>
+              <p className="font-bold text-base-50 text-lg">OWLmon</p>
+              <p className="text-xs text-base-500 font-medium">통합 모니터링</p>
             </div>
           )}
         </div>
@@ -147,13 +156,13 @@ export default function DashboardLayout() {
                       type="button"
                       onClick={() => setSettingsOpen(o => !o)}
                       aria-expanded={open}
-                      className="w-full flex items-center justify-between text-xs font-semibold text-slate-500 hover:text-slate-300 px-3 mb-3"
+                      className="w-full flex items-center justify-between text-xs font-semibold text-base-500 hover:text-base-300 px-3 mb-3"
                     >
                       {section.title}
                       <ChevronRight size={14} className={cn('transition-transform', open && 'rotate-90')} />
                     </button>
                   ) : (
-                    <p className="text-xs font-semibold text-slate-500 px-3 mb-3">{section.title}</p>
+                    <p className="text-xs font-semibold text-base-500 px-3 mb-3">{section.title}</p>
                   )
                 )}
                 {open && (
@@ -167,20 +176,20 @@ export default function DashboardLayout() {
                           onClick={() => setMobileMenuOpen(false)}
                           title={sidebarCollapsed ? item.label : undefined}
                           className={cn(
-                            "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group relative font-semibold",
+                            "flex items-center gap-3.5 px-4 py-3 rounded-xl transition duration-200 group relative font-semibold",
                             active
-                              ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
-                              : "hover:bg-slate-800/50 hover:text-white"
+                              ? "bg-brand-600 text-white shadow-lg"
+                              : "hover:bg-base-800/50 hover:text-base-50"
                           )}
                         >
-                          <item.icon size={20} className={cn("shrink-0 transition-transform duration-200 group-hover:scale-110", active ? "text-white" : "text-slate-500 group-hover:text-slate-300")} />
+                          <item.icon size={20} className={cn("shrink-0 transition-transform duration-200 group-hover:scale-110", active ? "text-white" : "text-base-500 group-hover:text-base-300")} />
                           {!sidebarCollapsed && <span className="text-[13px]">{item.label}</span>}
                           {item.id === 'overview' && unackedAlertCount > 0 && (
                             <span
                               aria-label={`처리할 문제 ${unackedAlertCount}건`}
                               className={cn(
-                                "absolute right-3 top-1/2 -translate-y-1/2 flex h-5 min-w-[20px] px-1 items-center justify-center rounded-full text-[10px] font-bold shadow-sm",
-                                active ? "bg-white text-indigo-600" : "bg-rose-500 text-white"
+                                "absolute right-3 top-1/2 -translate-y-1/2 flex h-5 min-w-[20px] px-1 items-center justify-center rounded-full text-xs font-bold shadow-sm",
+                                active ? "bg-white text-brand-600" : "bg-rose-500 text-white"
                               )}
                             >
                               {unackedAlertCount}
@@ -197,17 +206,17 @@ export default function DashboardLayout() {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800/50 bg-slate-900/50 space-y-1">
+        <div className="p-4 border-t border-base-800/50 bg-base-900/50 space-y-1">
           <button 
             onClick={onLogout}
-            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-200 font-semibold"
+            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-base-500 hover:bg-rose-500/10 hover:text-rose-400 transition duration-200 font-semibold"
           >
             <LogOut size={20} className="shrink-0" />
             {!sidebarCollapsed && <span className="text-[13px]">시스템 로그아웃</span>}
           </button>
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex w-full items-center gap-3.5 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-800 hover:text-slate-300 transition-all duration-200 font-semibold"
+            className="hidden lg:flex w-full items-center gap-3.5 px-4 py-3 rounded-xl text-base-500 hover:bg-base-800 hover:text-base-300 transition duration-200 font-semibold"
           >
             {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             {!sidebarCollapsed && <span className="text-[13px]">사이드바 축소</span>}
@@ -218,10 +227,10 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 sm:px-6 shrink-0 z-40 sticky top-0">
+        <header className="h-16 bg-base-900 border-b border-base-800 flex items-center justify-between px-3 sm:px-6 shrink-0 z-40 sticky top-0">
           <div className="flex items-center gap-4">
             <button
-              className="lg:hidden p-2 text-slate-400 hover:bg-slate-800 rounded-lg transition-colors"
+              className="lg:hidden p-2 text-base-400 hover:bg-base-800 rounded-lg transition-colors"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="메뉴 열기"
             >
@@ -231,40 +240,49 @@ export default function DashboardLayout() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg border border-slate-700">
+            <div className="flex items-center gap-1 p-1 bg-base-800 rounded-lg border border-base-700">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="p-2 text-base-400 hover:text-brand-400 hover:bg-base-700 rounded-md transition-colors"
+                title={theme === 'light' ? '어두운 화면으로' : '밝은 화면으로'}
+                aria-label={theme === 'light' ? '어두운 화면으로 전환' : '밝은 화면으로 전환'}
+              >
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
               {/* 벨 클릭 → 알림 이력 (장식 버튼이라 데모 중 무반응으로 보이던 것 수정) */}
-              <Link to="/history" className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 rounded-md transition-colors relative block" title="알림" aria-label="알림 이력 보기">
+              <Link to="/history" className="p-2 text-base-400 hover:text-brand-400 hover:bg-base-700 rounded-md transition-colors relative block" title="알림" aria-label="알림 이력 보기">
                 <Bell size={18} />
                 {unackedAlertCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-slate-900" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-base-900" />
                 )}
               </Link>
-              <div className="w-px h-5 bg-slate-700 mx-0.5" />
+              <div className="w-px h-5 bg-base-700 mx-0.5" />
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen(o => !o)}
                   aria-expanded={userMenuOpen}
                   aria-label="내 계정 메뉴"
-                  className="flex items-center gap-2 pl-1.5 pr-2 py-1 hover:bg-slate-700 rounded-md transition-colors group"
+                  className="flex items-center gap-2 pl-1.5 pr-2 py-1 hover:bg-base-700 rounded-md transition-colors group"
                 >
-                  <div className="w-7 h-7 bg-slate-700 rounded-md flex items-center justify-center text-slate-300 text-xs font-semibold uppercase group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-colors">
-                    {me?.username?.[0] ?? '·'}
+                  <div className="w-7 h-7 bg-base-700 rounded-md flex items-center justify-center text-base-300 text-xs font-semibold group-hover:bg-brand-500/20 group-hover:text-brand-400 transition-colors">
+                    {me?.username?.[0]?.toUpperCase() ?? '·'}
                   </div>
                   <div className="hidden lg:block text-left">
-                    <p className="text-xs font-semibold text-slate-200 leading-none">{me?.username ?? ''}</p>
-                    <p className="text-xs font-medium text-slate-500 leading-none mt-0.5">{isViewer ? '조회 전용' : '관리자'}</p>
+                    <p className="text-xs font-semibold text-base-200 leading-none">{me?.username ?? ''}</p>
+                    <p className="text-xs font-medium text-base-500 leading-none mt-0.5">{isViewer ? '조회 전용' : '관리자'}</p>
                   </div>
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-xl py-1 z-50" onMouseLeave={() => setUserMenuOpen(false)}>
-                    <p className="px-3 py-2 text-xs text-slate-500 lg:hidden">{me?.username} · {isViewer ? '조회 전용' : '관리자'}</p>
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-base-700 bg-base-900 shadow-xl py-1 z-50" onMouseLeave={() => setUserMenuOpen(false)}>
+                    <p className="px-3 py-2 text-xs text-base-500 lg:hidden">{me?.username} · {isViewer ? '조회 전용' : '관리자'}</p>
                     {me?.multi_user && (
-                      <button type="button" onClick={() => { setUserMenuOpen(false); setPasswordOpen(true) }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">
+                      <button type="button" onClick={() => { setUserMenuOpen(false); setPasswordOpen(true) }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-base-200 hover:bg-base-800">
                         <KeyRound size={15} /> 비밀번호 변경
                       </button>
                     )}
-                    <button type="button" onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">
+                    <button type="button" onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-base-200 hover:bg-base-800">
                       <LogOut size={15} /> 로그아웃
                     </button>
                   </div>
@@ -278,20 +296,20 @@ export default function DashboardLayout() {
         <main className="flex-1 overflow-y-auto p-3 pb-20 sm:p-6 lg:p-8 scroll-smooth">
           <div className="w-full">
             <EmailStatusBanner />
-            <Suspense fallback={<div className="py-12 text-center text-sm text-slate-500">불러오는 중...</div>}>
+            <Suspense fallback={<div className="py-12 text-center text-sm text-base-500">불러오는 중...</div>}>
               <Outlet />
             </Suspense>
           </div>
 
           {/* Global Footer in Main Area */}
-          <footer className="w-full mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 pb-8">
-            <div className="flex items-center gap-2 text-slate-500">
+          <footer className="w-full mt-12 pt-6 border-t border-base-800 flex flex-col sm:flex-row items-center justify-between gap-3 pb-8">
+            <div className="flex items-center gap-2 text-base-500">
               <img src="/favicon.svg" alt="OWLmon" className="w-5 h-5 rounded-md" />
               <span className="text-xs font-medium">OWLmon v1.2</span>
             </div>
             <div className="flex gap-6">
-              <Link to="/support" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">지원</Link>
-              <a href="https://github.com/SeongJae999/owlmon" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors">GitHub</a>
+              <Link to="/support" className="text-xs font-medium text-base-500 hover:text-brand-400 transition-colors">지원</Link>
+              <a href="https://github.com/SeongJae999/owlmon" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-base-500 hover:text-brand-400 transition-colors">GitHub</a>
             </div>
           </footer>
         </main>
@@ -299,7 +317,7 @@ export default function DashboardLayout() {
       <ChatWidget />
       {passwordOpen && <PasswordModal onClose={() => setPasswordOpen(false)} />}
       {forbidden && (
-        <div role="alert" className="fixed z-[70] top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-slate-900 text-amber-300 text-sm shadow-xl">
+        <div role="alert" className="fixed z-[70] top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-base-900 text-amber-300 text-sm shadow-xl">
           {forbidden}
         </div>
       )}

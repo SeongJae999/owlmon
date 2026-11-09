@@ -26,7 +26,7 @@ const METRICS = [
 ] as const
 
 // 호스트별 라인 색깔 (4~6대 가정)
-const HOST_COLORS = ['#60a5fa', '#a78bfa', '#f59e0b', '#34d399', '#f472b6', '#fb7185']
+const HOST_COLORS = ['var(--color-blue-400)', 'var(--color-violet-400)', 'var(--color-amber-500)', 'var(--color-emerald-400)', 'var(--color-pink-400)', 'var(--color-rose-400)']
 
 export default function TrendsPage() {
   const [rangeIdx, setRangeIdx] = useState(0) // 기본 24h
@@ -63,14 +63,14 @@ export default function TrendsPage() {
         title="자원 사용 추이"
         description="호스트별 CPU / 메모리 / 디스크 시계열 비교 — 변화 시점 추적 + 사전 감지"
       >
-        <div className="flex gap-1 bg-slate-800 rounded-lg p-1">
+        <div className="flex gap-1 bg-base-800 rounded-lg p-1">
           {RANGES.map((r, i) => (
             <button
               key={r.label}
               onClick={() => setRangeIdx(i)}
               className={cn(
                 "px-3 py-1.5 rounded text-xs font-bold transition-colors",
-                rangeIdx === i ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+                rangeIdx === i ? "bg-brand-600 text-white" : "text-base-400 hover:text-base-200"
               )}
             >
               {r.label}
@@ -80,8 +80,8 @@ export default function TrendsPage() {
       </PageToolbar>
 
       {/* 호스트 필터 (1대 단독 분석 ↔ 전체 비교 자유 전환) */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3 flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">표시 호스트</span>
+      <div className="bg-base-900 rounded-xl border border-base-800 p-3 flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-bold text-base-400 ml-1">표시 호스트</span>
         <div className="flex gap-1.5 flex-wrap">
           {hosts.map((h, i) => {
             const active = selectedHosts?.has(h) ?? false
@@ -90,16 +90,16 @@ export default function TrendsPage() {
                 key={h}
                 onClick={() => toggleHost(h)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-colors",
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors",
                   active
-                    ? "bg-slate-800 text-slate-100 border-slate-700"
-                    : "bg-transparent text-slate-500 border-slate-800 hover:border-slate-700"
+                    ? "bg-base-800 text-base-100 border-base-700"
+                    : "bg-transparent text-base-500 border-base-800 hover:border-base-700"
                 )}
                 title={active ? "클릭하면 숨김" : "클릭하면 표시"}
               >
                 <span
                   className="w-2 h-2 rounded-full"
-                  style={{ background: active ? HOST_COLORS[i % HOST_COLORS.length] : '#475569' }}
+                  style={{ background: active ? HOST_COLORS[i % HOST_COLORS.length] : 'var(--chart-inactive)' }}
                 />
                 {h}
               </button>
@@ -108,7 +108,7 @@ export default function TrendsPage() {
         </div>
         <button
           onClick={() => setSelectedHosts(new Set(hosts))}
-          className="ml-auto px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 transition-colors"
+          className="ml-auto px-2.5 py-1 rounded-md text-xs font-semibold bg-base-800 text-base-200 border border-base-700 hover:bg-base-700 hover:border-base-600 transition-colors"
         >
           전체 선택
         </button>
@@ -165,39 +165,39 @@ function MetricTrendCard({
   }[metric.color]
 
   return (
-    <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm p-3 sm:p-5">
+    <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm p-3 sm:p-5">
       <div className="flex items-center gap-3 mb-4">
         <div className={cn("p-2 rounded-lg", iconColor)}>
           <Icon size={18} />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-slate-100">{metric.label}</h3>
-          <p className="text-[11px] text-slate-500">호스트별 비교 (max by host_name)</p>
+          <h3 className="text-sm font-bold text-base-100">{metric.label}</h3>
+          <p className="text-xs text-base-500">호스트별 비교 (max by host_name)</p>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="h-64 flex flex-col items-center justify-center gap-2 text-slate-500">
+        <div className="h-64 flex flex-col items-center justify-center gap-2 text-base-500">
           <RefreshCcw size={20} className="animate-spin opacity-50" />
           <span className="text-sm">추이 데이터 불러오는 중…</span>
         </div>
       ) : data.length === 0 ? (
         <div className="h-64 flex flex-col items-center justify-center gap-2 text-center">
-          <TrendingUp size={36} className="text-slate-700" />
-          <p className="text-sm font-semibold text-slate-400">아직 수집된 추이 데이터가 없습니다</p>
-          <p className="text-xs text-slate-600">에이전트 수집이 시작되면 몇 분 뒤 자동으로 표시됩니다</p>
+          <TrendingUp size={36} className="text-base-700" />
+          <p className="text-sm font-semibold text-base-400">아직 수집된 추이 데이터가 없습니다</p>
+          <p className="text-xs text-base-600">에이전트 수집이 시작되면 몇 분 뒤 자동으로 표시됩니다</p>
         </div>
       ) : (
         <>
           <div className="h-56 sm:h-64 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 5, right: 15, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="time" stroke="#64748b" fontSize={10} interval="preserveStartEnd" minTickGap={50} />
-                <YAxis stroke="#64748b" fontSize={10} domain={[0, 100]} unit="%" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-base-800)" />
+                <XAxis dataKey="time" stroke="var(--color-base-500)" fontSize={10} interval="preserveStartEnd" minTickGap={50} />
+                <YAxis stroke="var(--color-base-500)" fontSize={10} domain={[0, 100]} unit="%" />
                 <Tooltip
-                  contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
-                  labelStyle={{ color: '#cbd5e1' }}
+                  contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: '8px', fontSize: '12px' }}
+                  labelStyle={{ color: 'var(--chart-tooltip-label)' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
                 {hosts.map((h) => {
@@ -226,15 +226,15 @@ function MetricTrendCard({
             {summary.map((s) => {
               const colorIdx = allHosts.indexOf(s.host)
               return (
-              <div key={s.host} className="bg-slate-800/50 rounded-lg p-2.5 border border-slate-800">
+              <div key={s.host} className="bg-base-800/50 rounded-lg p-2.5 border border-base-800">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <div className="w-2 h-2 rounded-full" style={{ background: HOST_COLORS[colorIdx % HOST_COLORS.length] }} />
-                  <span className="text-[11px] font-bold text-slate-300 truncate">{s.host}</span>
+                  <span className="text-xs font-bold text-base-300 truncate">{s.host}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1 text-[11px] text-slate-400">
+                <div className="grid grid-cols-3 gap-1 text-xs text-base-400">
                   <div title="최신">
                     <div className="opacity-60">현재</div>
-                    <div className="font-bold text-slate-200 tabular-nums">{s.latest != null ? `${s.latest.toFixed(1)}%` : '—'}</div>
+                    <div className="font-bold text-base-200 tabular-nums">{s.latest != null ? `${s.latest.toFixed(1)}%` : '—'}</div>
                   </div>
                   <div title="기간 내 최대">
                     <div className="opacity-60">최대</div>
@@ -244,10 +244,10 @@ function MetricTrendCard({
                     <div className="opacity-60">변화</div>
                     <div className={cn(
                       "font-bold tabular-nums",
-                      s.change == null ? "text-slate-500"
+                      s.change == null ? "text-base-500"
                         : s.change > 5 ? "text-rose-300"
                         : s.change < -5 ? "text-emerald-300"
-                        : "text-slate-200"
+                        : "text-base-200"
                     )}>
                       {s.change != null ? `${s.change >= 0 ? '+' : ''}${s.change.toFixed(1)}%p` : '—'}
                     </div>

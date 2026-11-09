@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import Loading from '../components/Loading'
 import HostOverview from '../components/HostOverview'
 import ActiveAlertsPanel from '../components/ActiveAlertsPanel'
 import HomeSummary from '../components/HomeSummary'
@@ -12,7 +13,7 @@ import {
 } from '../hooks/useMonitoring'
 import { setMaintenance } from '../api/alert'
 import PageToolbar from '../components/PageToolbar'
-import { RefreshCcw, Monitor } from 'lucide-react'
+import { Monitor } from 'lucide-react'
 
 export default function OverviewPage() {
   const navigate = useNavigate()
@@ -32,10 +33,7 @@ export default function OverviewPage() {
 
   if (hostsLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-slate-500 space-y-4 animate-pulse">
-        <RefreshCcw size={48} className="animate-spin opacity-30" />
-        <p className="text-sm font-semibold">호스트 정보를 불러오는 중…</p>
-      </div>
+      <Loading label="호스트 정보를 불러오는 중…" rows={6} />
     )
   }
 

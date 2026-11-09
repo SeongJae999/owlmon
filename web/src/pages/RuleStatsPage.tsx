@@ -55,24 +55,24 @@ export function RuleStatsContent() {
       </div>
 
       {/* Rules table */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-800/50 border-b border-slate-800">
+            <thead className="bg-base-800/50 border-b border-base-800">
               <tr>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">규칙 이름</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">카테고리</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">심각도</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">1h</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">24h</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">7d</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">30d</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider text-right tabular-nums">알림 발사</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">마지막 매칭</th>
-                <th className="px-3 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">상태</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 ">규칙 이름</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 ">카테고리</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 ">심각도</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 text-right tabular-nums">1h</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 text-right tabular-nums">24h</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 text-right tabular-nums">7d</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 text-right tabular-nums">30d</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 text-right tabular-nums">알림 발사</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 ">마지막 매칭</th>
+                <th className="px-3 py-2.5 text-xs font-bold text-base-400 ">상태</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-base-800">
               {rows.map(r => {
                 const isSilent = r.stat.matches_30d === 0
                 const isNoisy = r.stat.matches_30d > 50
@@ -81,15 +81,15 @@ export function RuleStatsContent() {
                   : null
 
                 return (
-                  <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
+                  <tr key={r.id} className="hover:bg-base-800/30 transition-colors">
                     <td className="px-3 py-2">
-                      <div className="font-semibold text-slate-100 text-sm">{r.name}</div>
-                      <code className="text-[10px] text-slate-500 font-mono">{r.pattern}</code>
+                      <div className="font-semibold text-base-100 text-sm">{r.name}</div>
+                      <code className="text-xs text-base-500 font-mono">{r.pattern}</code>
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-400">{categoryLabel(r.category)}</td>
+                    <td className="px-3 py-2 text-xs text-base-400">{categoryLabel(r.category)}</td>
                     <td className="px-3 py-2">
                       <span className={cn(
-                        "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase",
+                        "px-1.5 py-0.5 rounded text-xs font-bold ",
                         r.severity === 'critical' ? 'bg-rose-500/15 text-rose-300'
                           : r.severity === 'warning' ? 'bg-amber-500/15 text-amber-300'
                           : 'bg-blue-500/15 text-blue-300'
@@ -97,46 +97,46 @@ export function RuleStatsContent() {
                         {severityLabel(r.severity)}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-slate-300">
-                      {r.stat.matches_1h > 0 ? r.stat.matches_1h : <span className="text-slate-600">·</span>}
+                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-base-300">
+                      {r.stat.matches_1h > 0 ? r.stat.matches_1h : <span className="text-base-600">·</span>}
                     </td>
-                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-slate-300">
-                      {r.stat.matches_24h > 0 ? r.stat.matches_24h : <span className="text-slate-600">·</span>}
+                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-base-300">
+                      {r.stat.matches_24h > 0 ? r.stat.matches_24h : <span className="text-base-600">·</span>}
                     </td>
-                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-slate-300">
-                      {r.stat.matches_7d > 0 ? r.stat.matches_7d : <span className="text-slate-600">·</span>}
+                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-base-300">
+                      {r.stat.matches_7d > 0 ? r.stat.matches_7d : <span className="text-base-600">·</span>}
                     </td>
                     <td className={cn(
                       "px-3 py-2 text-right text-xs font-bold tabular-nums",
-                      isNoisy ? "text-amber-300" : "text-slate-200"
+                      isNoisy ? "text-amber-300" : "text-base-200"
                     )}>
-                      {r.stat.matches_30d > 0 ? r.stat.matches_30d.toLocaleString() : <span className="text-slate-600 font-normal">·</span>}
+                      {r.stat.matches_30d > 0 ? r.stat.matches_30d.toLocaleString() : <span className="text-base-600 font-normal">·</span>}
                     </td>
-                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-slate-300">
+                    <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-base-300">
                       {r.stat.alerts_fired > 0 ? (
                         <span title={`매칭 ${r.stat.matches_30d}건 중 ${r.stat.alerts_fired}건 알림 (${matchEfficiency}%)`}>
                           {r.stat.alerts_fired}
                         </span>
-                      ) : <span className="text-slate-600">·</span>}
+                      ) : <span className="text-base-600">·</span>}
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-slate-400 font-mono whitespace-nowrap">
+                    <td className="px-3 py-2 text-xs text-base-400 font-mono whitespace-nowrap">
                       {r.stat.last_match_at
                         ? <span title={new Date(r.stat.last_match_at).toLocaleString('ko-KR')}>{relativeTime(r.stat.last_match_at)}</span>
-                        : <span className="text-slate-600">—</span>}
+                        : <span className="text-base-600">—</span>}
                     </td>
                     <td className="px-3 py-2">
                       {!r.enabled ? (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700 text-slate-400">비활성</span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-base-700 text-base-400">비활성</span>
                       ) : isSilent ? (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700/50 text-slate-500" title="30일간 매칭 없음 — 시스템 조용(정상) 또는 패턴 검토">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-base-700/50 text-base-500" title="30일간 매칭 없음 — 시스템 조용(정상) 또는 패턴 검토">
                           조용
                         </span>
                       ) : isNoisy ? (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-300" title="30일간 50회 이상 — 패턴이 너무 광범위하지 않은지 점검">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-500/15 text-amber-300" title="30일간 50회 이상 — 패턴이 너무 광범위하지 않은지 점검">
                           시끄러움
                         </span>
                       ) : (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-300">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-emerald-500/15 text-emerald-300">
                           정상
                         </span>
                       )}
@@ -147,15 +147,15 @@ export function RuleStatsContent() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 bg-slate-800/30 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="px-4 py-3 bg-base-800/30 border-t border-base-800 flex items-center justify-between text-xs text-base-500">
           <div className="flex items-center gap-3">
             <span>총 {rows.length}개 규칙</span>
-            <span className="text-slate-600">·</span>
+            <span className="text-base-600">·</span>
             <span>30초 자동 갱신</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> 시끄러움 (30d 50회+)</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-500" /> 조용 (한 번도 매칭 X)</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-base-500" /> 조용 (한 번도 매칭 X)</span>
           </div>
         </div>
       </div>

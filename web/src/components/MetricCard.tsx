@@ -44,10 +44,10 @@ function getStatus(value: number | null, warning = 70, critical = 90) {
 
 // 색은 공용 토큰(TONES)에서 — 페이지 간 severity 톤 일치 (hex는 recharts용)
 const statusConfig = {
-  normal:   { color: TONES.emerald.hex, label: '정상',        bg: TONES.emerald.bg, text: TONES.emerald.text, border: TONES.emerald.border },
-  warning:  { color: TONES.amber.hex,   label: '경고',        bg: TONES.amber.bg,   text: TONES.amber.text,   border: TONES.amber.border },
-  critical: { color: TONES.rose.hex,    label: '위험',        bg: TONES.rose.bg,    text: TONES.rose.text,    border: TONES.rose.border },
-  unknown:  { color: TONES.slate.hex,   label: '데이터 없음', bg: TONES.slate.bg,   text: TONES.slate.text,   border: TONES.slate.border },
+  normal:   { color: TONES.emerald.color, label: '정상',        bg: TONES.emerald.bg, text: TONES.emerald.text, border: TONES.emerald.border },
+  warning:  { color: TONES.amber.color,   label: '경고',        bg: TONES.amber.bg,   text: TONES.amber.text,   border: TONES.amber.border },
+  critical: { color: TONES.rose.color,    label: '위험',        bg: TONES.rose.bg,    text: TONES.rose.text,    border: TONES.rose.border },
+  unknown:  { color: TONES.slate.color,   label: '데이터 없음', bg: TONES.slate.bg,   text: TONES.slate.text,   border: TONES.slate.border },
 }
 
 export default function MetricCard({ title, value, unit = '%', data, warning, critical, anomaly, diskPrediction, usedBytes, totalBytes, absoluteHint, subtitle }: Props) {
@@ -58,15 +58,15 @@ export default function MetricCard({ title, value, unit = '%', data, warning, cr
   return (
     <div
       className={cn(
-        "bg-slate-900 rounded-2xl border p-5 transition-colors duration-200 relative overflow-hidden",
-        hasAnomaly ? "border-purple-500/40" : "border-slate-800"
+        "bg-base-900 rounded-xl border p-5 transition-colors duration-200 relative overflow-hidden",
+        hasAnomaly ? "border-purple-500/40" : "border-base-800"
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className={cn("w-2 h-2 rounded-full", hasAnomaly ? "bg-purple-400" : status === 'normal' ? "bg-emerald-400" : status === 'warning' ? "bg-amber-400" : "bg-rose-400")} />
-          <h4 className="text-sm font-semibold text-slate-300">{title}</h4>
+          <h4 className="text-sm font-semibold text-base-300">{title}</h4>
         </div>
 
         <div className="flex items-center gap-2">
@@ -98,14 +98,14 @@ export default function MetricCard({ title, value, unit = '%', data, warning, cr
                 endAngle={-270}
               >
                 <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                <RadialBar background={{ fill: '#1e293b' }} dataKey="value" cornerRadius={6} />
+                <RadialBar background={{ fill: 'var(--color-base-800)' }} dataKey="value" cornerRadius={6} />
               </RadialBarChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs font-bold text-slate-100 tabular-nums leading-none">
+              <span className="text-xs font-bold text-base-100 tabular-nums leading-none">
                 {value.toFixed(0)}
               </span>
-              <span className="text-[9px] text-slate-500 leading-none">{unit}</span>
+              <span className="text-xs text-base-500 leading-none">{unit}</span>
             </div>
           </div>
         )}
@@ -113,18 +113,18 @@ export default function MetricCard({ title, value, unit = '%', data, warning, cr
         {/* 숫자 + 절대값 + 남은 용량 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-1.5 leading-none">
-            <span className="text-3xl font-bold text-slate-100 tabular-nums">
+            <span className="text-3xl font-bold text-base-100 tabular-nums">
               {value !== null ? value.toFixed(1) : '--'}
             </span>
-            <span className="text-sm font-medium text-slate-500">{unit}</span>
+            <span className="text-sm font-medium text-base-500">{unit}</span>
           </div>
           {usedBytes != null && totalBytes != null && totalBytes > 0 ? (
             <>
-              <div className="text-xs font-semibold text-slate-400 tabular-nums mt-1.5">
-                {formatBytes(usedBytes)} <span className="text-slate-600">/</span> {formatBytes(totalBytes)}
+              <div className="text-xs font-semibold text-base-400 tabular-nums mt-1.5">
+                {formatBytes(usedBytes)} <span className="text-base-600">/</span> {formatBytes(totalBytes)}
               </div>
               <div className={cn(
-                "text-[11px] font-bold tabular-nums mt-0.5",
+                "text-xs font-bold tabular-nums mt-0.5",
                 value !== null && value >= (critical ?? 90) ? "text-rose-300"
                   : value !== null && value >= (warning ?? 70) ? "text-amber-300"
                   : "text-emerald-300"
@@ -133,9 +133,9 @@ export default function MetricCard({ title, value, unit = '%', data, warning, cr
               </div>
             </>
           ) : absoluteHint ? (
-            <div className="text-[11px] text-slate-500 mt-1.5 italic">{absoluteHint}</div>
+            <div className="text-xs text-base-500 mt-1.5 italic">{absoluteHint}</div>
           ) : (
-            <div className="text-[11px] text-slate-500 mt-1.5">{subtitle ?? '실시간 사용률'}</div>
+            <div className="text-xs text-base-500 mt-1.5">{subtitle ?? '실시간 사용률'}</div>
           )}
         </div>
       </div>
@@ -153,7 +153,7 @@ export default function MetricCard({ title, value, unit = '%', data, warning, cr
                 ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
                 : diskPrediction.days_left <= 30
                   ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                  : "bg-slate-700/30 border-slate-600/40 text-slate-300"
+                  : "bg-base-700/30 border-base-600/40 text-base-300"
             )}>
               <div className="flex items-center gap-1.5 font-semibold text-xs">
                 <TrendingUp size={13} />
@@ -204,11 +204,11 @@ export default function MetricCard({ title, value, unit = '%', data, warning, cr
                 backdropFilter: 'blur(8px)'
               }}
               labelStyle={{ display: 'none' }}
-              itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: '600' }}
+              itemStyle={{ color: 'var(--chart-tooltip-text)', fontSize: '12px', fontWeight: '600' }}
               formatter={(v) => [`${v}${unit}`, title]}
             />
             {hasAnomaly && (
-              <ReferenceLine y={anomaly.mean} stroke="#a855f7" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
+              <ReferenceLine y={anomaly.mean} stroke="var(--color-purple-500)" strokeDasharray="4 4" strokeWidth={1.5} opacity={0.5} />
             )}
             <Area
               type="monotone"

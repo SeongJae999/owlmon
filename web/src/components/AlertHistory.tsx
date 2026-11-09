@@ -12,6 +12,7 @@ import SummaryCard from './SummaryCard'
 import PageToolbar from './PageToolbar'
 import Markdown from './Markdown'
 import { getLLMStatus, summarizeAlerts, type SummaryResult } from '../api/llm'
+import Loading from './Loading'
 
 const SEVERITY_CONFIG: Record<string, { bg: string, text: string, icon: any }> = {
   critical: { bg: TONES.rose.bg,  text: TONES.rose.text,  icon: AlertCircle },
@@ -136,7 +137,7 @@ export default function AlertHistory() {
         )}
         <Link
           to="/settings"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors"
           title="알림 정책/임계값/수신자 설정"
         >
           <Settings size={12} /> 알림 설정
@@ -144,7 +145,7 @@ export default function AlertHistory() {
         <button
           onClick={() => handleDownload('csv')}
           disabled={downloading || filtered.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors disabled:opacity-40"
           title="CSV 다운로드 (감사 자료용)" aria-label="CSV 다운로드 (감사 자료용)"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
@@ -153,7 +154,7 @@ export default function AlertHistory() {
         <button
           onClick={() => handleDownload('json')}
           disabled={downloading || filtered.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors disabled:opacity-40"
           title="JSON 다운로드" aria-label="JSON 다운로드"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
@@ -164,7 +165,7 @@ export default function AlertHistory() {
       {records.length >= 1000 && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
           <AlertTriangle size={14} className="shrink-0" />
-          <span>전체 결과 1000건 한도 도달 — 시간 범위를 좁히거나 필터를 적용하세요.</span>
+          <span>전체 결과 1000건 한도 도달. 시간 범위를 좁히거나 필터를 적용하세요.</span>
         </div>
       )}
 
@@ -177,19 +178,19 @@ export default function AlertHistory() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3 space-y-3">
+      <div className="bg-base-900 rounded-xl border border-base-800 p-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+          <span className="text-xs font-bold text-base-500 flex items-center gap-1">
             <Clock size={11} /> 시간 범위
           </span>
-          <div className="flex gap-1 bg-slate-800 rounded-lg p-0.5">
+          <div className="flex gap-1 bg-base-800 rounded-lg p-0.5">
             {RANGE_PRESETS.map(r => (
               <button
                 key={r.label}
                 onClick={() => setRangeMinutes(r.minutes)}
                 className={cn(
-                  "px-2.5 py-1 rounded text-[11px] font-bold transition-colors",
-                  rangeMinutes === r.minutes ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+                  "px-2.5 py-1 rounded text-xs font-bold transition-colors",
+                  rangeMinutes === r.minutes ? "bg-brand-600 text-white" : "text-base-400 hover:text-base-200"
                 )}
               >
                 {r.label}
@@ -202,7 +203,7 @@ export default function AlertHistory() {
           <select
             value={filterSev}
             onChange={e => setFilterSev(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            className="bg-base-800 border border-base-700 rounded-lg px-3 py-1.5 text-sm text-base-200 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           >
             <option value="">전체 심각도</option>
             <option value="critical">심각</option>
@@ -212,7 +213,7 @@ export default function AlertHistory() {
           <select
             value={filterHost}
             onChange={e => setFilterHost(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 max-w-[200px] truncate"
+            className="bg-base-800 border border-base-700 rounded-lg px-3 py-1.5 text-sm text-base-200 focus:outline-none focus:ring-2 focus:ring-brand-500/30 max-w-[200px] truncate"
           >
             <option value="">전체 호스트</option>
             {uniqueHosts.map(h => <option key={h} value={h}>{h}</option>)}
@@ -221,12 +222,12 @@ export default function AlertHistory() {
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             placeholder="제목/본문 검색…"
-            className="flex-1 min-w-[180px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            className="flex-1 min-w-[180px] bg-base-800 border border-base-700 rounded-lg px-3 py-1.5 text-sm text-base-100 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           {(filterSev || filterHost || searchText) && (
             <button
               onClick={() => { setFilterSev(''); setFilterHost(''); setSearchText('') }}
-              className="text-[11px] font-semibold text-slate-400 hover:text-slate-200 px-2 py-1.5"
+              className="text-xs font-semibold text-base-400 hover:text-base-200 px-2 py-1.5"
             >
               필터 초기화
             </button>
@@ -235,12 +236,9 @@ export default function AlertHistory() {
       </div>
 
       {/* Content */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 animate-pulse">
-            <RefreshCcw size={36} className="mb-3 opacity-20 animate-spin" />
-            <p className="font-medium text-sm">알림 이력을 불러오는 중...</p>
-          </div>
+          <Loading label="알림 이력을 불러오는 중..." />
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-20 text-rose-400 text-center px-6">
             <AlertCircle size={36} className="mb-3 opacity-30" />
@@ -248,7 +246,7 @@ export default function AlertHistory() {
             <p className="text-xs opacity-70 mt-1">서버 또는 DB 연결 오류일 수 있습니다.</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center px-6">
+          <div className="flex flex-col items-center justify-center py-20 text-base-400 text-center px-6">
             <History size={36} className="mb-3 opacity-20" />
             <p className="font-medium text-sm">조건에 맞는 알림이 없습니다.</p>
             <p className="text-xs opacity-70 mt-1">시간 범위를 늘리거나 필터를 해제해 보세요.</p>
@@ -259,19 +257,19 @@ export default function AlertHistory() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-800/50 border-b border-slate-800">
-                    <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-48">발송 시각</th>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-24">심각도</th>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-40">호스트</th>
-                    <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide">내용</th>
+                  <tr className="bg-base-800/50 border-b border-base-800">
+                    <th className="px-4 py-3 text-xs font-bold text-base-400 w-48">발송 시각</th>
+                    <th className="px-4 py-3 text-xs font-bold text-base-400 w-24">심각도</th>
+                    <th className="px-4 py-3 text-xs font-bold text-base-400 w-40">호스트</th>
+                    <th className="px-4 py-3 text-xs font-bold text-base-400 ">내용</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-base-800">
                   {filtered.map(r => {
-                    const cfg = SEVERITY_CONFIG[r.severity] ?? { bg: 'bg-slate-800', text: 'text-slate-400', icon: Info }
+                    const cfg = SEVERITY_CONFIG[r.severity] ?? { bg: 'bg-base-800', text: 'text-base-400', icon: Info }
                     return (
-                      <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-slate-300 tabular-nums">
+                      <tr key={r.id} className="hover:bg-base-800/30 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-base-300 tabular-nums">
                           {new Date(r.sent_at).toLocaleString('ko-KR', {
                             year: 'numeric', month: '2-digit', day: '2-digit',
                             hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -279,7 +277,7 @@ export default function AlertHistory() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={cn(
-                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap",
+                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap",
                             cfg.bg, cfg.text
                           )}>
                             <cfg.icon size={10} />
@@ -287,14 +285,14 @@ export default function AlertHistory() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                            <Server size={11} className="text-slate-500" />
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-base-300">
+                            <Server size={11} className="text-base-500" />
                             <span className="truncate">{r.host}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm font-bold text-slate-100 line-clamp-1" title={r.subject}>{r.subject}</div>
-                          <div className="text-xs text-slate-400 line-clamp-2 break-words mt-0.5" title={r.body}>{r.body}</div>
+                          <div className="text-sm font-bold text-base-100 line-clamp-1" title={r.subject}>{r.subject}</div>
+                          <div className="text-xs text-base-400 line-clamp-2 break-words mt-0.5" title={r.body}>{r.body}</div>
                         </td>
                       </tr>
                     )
@@ -304,35 +302,35 @@ export default function AlertHistory() {
             </div>
 
             {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-slate-800">
+            <div className="md:hidden divide-y divide-base-800">
               {filtered.map(r => {
-                const cfg = SEVERITY_CONFIG[r.severity] ?? { bg: 'bg-slate-800', text: 'text-slate-400', icon: Info }
+                const cfg = SEVERITY_CONFIG[r.severity] ?? { bg: 'bg-base-800', text: 'text-base-400', icon: Info }
                 return (
                   <div key={r.id} className="p-3 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold",
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold",
                         cfg.bg, cfg.text
                       )}>
                         <cfg.icon size={10} />
                         {severityLabel(r.severity)}
                       </span>
-                      <span className="text-[11px] text-slate-400 tabular-nums">
+                      <span className="text-xs text-base-400 tabular-nums">
                         {new Date(r.sent_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-300">
-                      <Server size={11} className="text-slate-500" />
+                    <div className="flex items-center gap-1.5 text-xs text-base-300">
+                      <Server size={11} className="text-base-500" />
                       <span className="font-semibold truncate">{r.host}</span>
                     </div>
-                    <div className="text-sm font-bold text-slate-100 line-clamp-1">{r.subject}</div>
-                    <div className="text-xs text-slate-400 line-clamp-2 break-words">{r.body}</div>
+                    <div className="text-sm font-bold text-base-100 line-clamp-1">{r.subject}</div>
+                    <div className="text-xs text-base-400 line-clamp-2 break-words">{r.body}</div>
                   </div>
                 )
               })}
             </div>
 
-            <div className="px-4 py-2.5 bg-slate-800/30 border-t border-slate-800 text-[11px] text-slate-500">
+            <div className="px-4 py-2.5 bg-base-800/30 border-t border-base-800 text-xs text-base-500">
               {filtered.length}건 표시 {records.length > filtered.length && `(전체 ${records.length}건 중)`}
             </div>
           </>
@@ -342,21 +340,21 @@ export default function AlertHistory() {
       {/* AI 요약 Modal */}
       {summaryOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setSummaryOpen(false)}
         >
           <div
-            className="bg-slate-900 border border-violet-500/30 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto"
+            className="bg-base-900 border border-violet-500/30 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-5 pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between p-5 pb-3 border-b border-base-800">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-violet-500/15 text-violet-300">
                   <Sparkles size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-100">AI 알림 요약</h3>
-                  <p className="text-[11px] text-slate-500">
+                  <h3 className="text-base font-bold text-base-100">AI 알림 요약</h3>
+                  <p className="text-xs text-base-500">
                     최근 {Math.round(rangeMinutes / 60)}시간
                     {aiSummary?.cached && ' · 캐시'}
                     {aiSummary !== null && ` · ${aiSummary.total}건 분석`}
@@ -364,14 +362,14 @@ export default function AlertHistory() {
                   </p>
                 </div>
               </div>
-              <button onClick={() => setSummaryOpen(false)} className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800">
+              <button onClick={() => setSummaryOpen(false)} className="p-1 rounded-md text-base-500 hover:text-base-300 hover:bg-base-800">
                 <X size={16} />
               </button>
             </div>
 
             <div className="p-5">
               {summaryLoading && (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
+                <div className="flex items-center gap-2 text-sm text-base-400">
                   <RefreshCcw size={14} className="animate-spin" />
                   AI가 알림 패턴 분석 중...
                 </div>
@@ -383,11 +381,11 @@ export default function AlertHistory() {
                 </div>
               )}
               {aiSummary && (
-                <Markdown text={aiSummary.summary} className="text-sm text-slate-200 leading-relaxed" />
+                <Markdown text={aiSummary.summary} className="text-sm text-base-200 leading-relaxed" />
               )}
             </div>
 
-            <div className="p-3 bg-slate-800/30 border-t border-slate-800 text-[10px] text-slate-500">
+            <div className="p-3 bg-base-800/30 border-t border-base-800 text-xs text-base-500">
               AI 요약은 참고용입니다. 핵심 알림은 본문에서 직접 확인 권장.
             </div>
           </div>

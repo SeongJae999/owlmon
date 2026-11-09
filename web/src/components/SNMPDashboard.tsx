@@ -8,6 +8,7 @@ import { Network, ArrowDown, ArrowUp, Clock, Trash2, Plus, X, Save, AlertTriangl
 import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
+import Loading from './Loading'
 
 function formatBps(bps: number): string {
   if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
@@ -47,30 +48,30 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
 
   return (
     <div className={cn(
-      "bg-slate-900 rounded-3xl border p-5 shadow-premium transition-all relative overflow-hidden",
-      status.Up ? "border-slate-800" : "border-rose-500/40 ring-1 ring-rose-500/20"
+      "bg-base-900 rounded-xl border p-5 shadow-premium transition relative overflow-hidden",
+      status.Up ? "border-base-800" : "border-rose-500/40 ring-1 ring-rose-500/20"
     )}>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className={cn(
-            "w-2.5 h-2.5 rounded-full ring-4 ring-offset-2 ring-offset-slate-900",
+            "w-2.5 h-2.5 rounded-full ring-4 ring-offset-2 ring-offset-base-900",
             status.Up ? "bg-emerald-500 ring-emerald-500/20 animate-pulse" : "bg-rose-500 ring-rose-500/20"
           )} />
           <div>
-            <h4 className="font-bold text-slate-100 leading-tight">{status.Device.Name}</h4>
+            <h4 className="font-bold text-base-100 leading-tight">{status.Device.Name}</h4>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-[11px] font-bold text-slate-400 font-mono">{status.Device.IP}</span>
+              <span className="text-xs font-bold text-base-400 font-mono">{status.Device.IP}</span>
               {status.Up && status.UptimeSec > 0 && (
-                <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+                <div className="flex items-center gap-1 text-xs text-base-400 font-medium">
                   <Clock size={10} />
                   {formatUptime(status.UptimeSec)}
                 </div>
               )}
               {status.ResponseMs !== undefined && status.ResponseMs > 0 && (
                 <span className={cn(
-                  "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded",
+                  "text-xs font-bold tabular-nums px-1.5 py-0.5 rounded",
                   status.ResponseMs < 200 ? "bg-emerald-500/10 text-emerald-300"
                     : status.ResponseMs < 1000 ? "bg-amber-500/10 text-amber-300"
                     : "bg-rose-500/10 text-rose-300"
@@ -83,14 +84,14 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
         </div>
         <div className="flex items-center gap-0.5">
           <button
-            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-all"
+            className="p-1.5 rounded-lg text-base-400 hover:text-brand-300 hover:bg-brand-500/10 transition"
             onClick={onEdit}
             title="장비 정보 수정" aria-label="장비 정보 수정"
           >
             <Pencil size={14} />
           </button>
           <button
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all"
+            className="p-1.5 rounded-lg text-base-400 hover:text-rose-300 hover:bg-rose-500/10 transition"
             onClick={onDelete}
             title="장비 삭제" aria-label="장비 삭제"
           >
@@ -105,9 +106,9 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
           <div className="space-y-1 min-w-0">
             <p className="font-bold">장비 응답 없음</p>
             {status.LastError ? (
-              <p className="text-[11px] text-rose-300/90 break-words font-mono">{status.LastError}</p>
+              <p className="text-xs text-rose-300/90 break-words font-mono">{status.LastError}</p>
             ) : (
-              <p className="text-[11px] text-rose-300/80">
+              <p className="text-xs text-rose-300/80">
                 30초마다 다시 확인합니다. 계속 응답이 없으면 장비의 SNMP 기능이 켜져 있는지, 접속 암호(Community)와 방화벽 설정을 확인하세요.
               </p>
             )}
@@ -119,7 +120,7 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">UP: {activeIfs.length}</span>
+              <span className="text-xs font-bold text-base-400 tracking-tight">UP: {activeIfs.length}</span>
             </div>
             {downIfs.length > 0 && (
               <button
@@ -127,8 +128,8 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
                 className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
                 title="케이블 안 꽂힌 빈 포트 — 클릭하면 펼침" aria-label="케이블 안 꽂힌 빈 포트 — 클릭하면 펼침"
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                <div className="w-1.5 h-1.5 rounded-full bg-base-500" />
+                <span className="text-xs font-bold text-base-500 tracking-tight">
                   미사용: {downIfs.length} {showDown ? '▴' : '▾'}
                 </span>
               </button>
@@ -144,29 +145,29 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
               .map(iface => {
                 const hasTraffic = iface.InBps > 0 || iface.OutBps > 0
                 return (
-                  <div key={iface.Index} className="p-2 bg-slate-800/50 rounded-lg border border-slate-800/50 flex items-center justify-between gap-4">
-                    <span className="text-[11px] font-bold text-slate-300 truncate flex-1 min-w-0" title={iface.Name}>
+                  <div key={iface.Index} className="p-2 bg-base-800/50 rounded-lg border border-base-800/50 flex items-center justify-between gap-4">
+                    <span className="text-xs font-bold text-base-300 truncate flex-1 min-w-0" title={iface.Name}>
                       {prettifyInterfaceName(iface.Name)}
                     </span>
                     {hasTraffic ? (
                       <div className="flex gap-3 shrink-0">
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-sky-400">
+                        <div className="flex items-center gap-1 text-xs font-bold text-sky-400">
                           <ArrowDown size={10} />
                           {formatBps(iface.InBps)}
                         </div>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-rose-300">
+                        <div className="flex items-center gap-1 text-xs font-bold text-rose-300">
                           <ArrowUp size={10} />
                           {formatBps(iface.OutBps)}
                         </div>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-slate-600 shrink-0">유휴</span>
+                      <span className="text-xs text-base-600 shrink-0">유휴</span>
                     )}
                   </div>
                 )
               })}
             {activeIfs.length === 0 && (
-              <div className="py-4 text-center text-[11px] font-bold text-slate-400 italic">
+              <div className="py-4 text-center text-xs font-bold text-base-400 italic">
                 활성 인터페이스 없음
               </div>
             )}
@@ -174,13 +175,13 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
 
           {/* DOWN 포트 펼침 영역 */}
           {showDown && downIfs.length > 0 && (
-            <div className="space-y-1 pt-2 border-t border-slate-800">
-              <div className="text-[10px] font-semibold text-slate-500 mb-1">미사용 포트 (케이블 없음)</div>
+            <div className="space-y-1 pt-2 border-t border-base-800">
+              <div className="text-xs font-semibold text-base-500 mb-1">미사용 포트 (케이블 없음)</div>
               <div className="flex flex-wrap gap-1">
                 {downIfs.map(iface => (
                   <span
                     key={iface.Index}
-                    className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800/50 text-slate-500 border border-slate-800"
+                    className="px-1.5 py-0.5 rounded text-xs bg-base-800/50 text-base-500 border border-base-800"
                     title={iface.Name}
                   >
                     {prettifyInterfaceName(iface.Name)}
@@ -193,8 +194,8 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
       )}
 
       {status.CollectedAt && (
-        <div className="mt-4 pt-3 border-t border-slate-800 flex justify-end">
-          <div className="text-[10px] font-semibold text-slate-500 tabular-nums">
+        <div className="mt-4 pt-3 border-t border-base-800 flex justify-end">
+          <div className="text-xs font-semibold text-base-500 tabular-nums">
             마지막 확인: {new Date(status.CollectedAt).toLocaleTimeString('ko-KR')}
           </div>
         </div>
@@ -279,8 +280,8 @@ export default function SNMPDashboard() {
       <PageToolbar icon={Network} title="네트워크 장비" description="스위치·공유기의 연결 상태와 포트별 사용량 (SNMP 방식)">
         <button
           className={cn(
-            "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg",
-            showAdd ? "bg-slate-800 text-slate-400 shadow-none" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20"
+            "flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition shadow-lg",
+            showAdd ? "bg-base-800 text-base-400 shadow-none" : "bg-brand-600 text-white hover:bg-brand-700"
           )}
           onClick={() => setShowAdd(!showAdd)}
         >
@@ -291,39 +292,39 @@ export default function SNMPDashboard() {
 
       {/* Add Device Form */}
       {showAdd && (
-        <form onSubmit={handleAdd} className="bg-slate-900 rounded-3xl border border-indigo-500/30 p-6 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 space-y-6">
+        <form onSubmit={handleAdd} className="bg-base-900 rounded-xl border border-brand-500/30 p-6 shadow-xl animate-in fade-in slide-in-from-top-4 duration-300 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Device Name</label>
+              <label className="text-xs font-bold text-base-400 ml-1">Device Name</label>
               <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                 placeholder="예: 2층 메인 스위치"
                 value={form.Name}
                 onChange={e => setForm({...form, Name: e.target.value})}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">IP Address</label>
+              <label className="text-xs font-bold text-base-400 ml-1">IP Address</label>
               <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                 placeholder="192.168.1.1"
                 value={form.IP}
                 onChange={e => setForm({...form, IP: e.target.value})}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">접속 암호 (SNMP Community)</label>
+              <label className="text-xs font-bold text-base-400 ml-1">접속 암호 (SNMP Community)</label>
               <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                 placeholder="public"
                 value={form.Community}
                 onChange={e => setForm({...form, Community: e.target.value})}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">UDP Port</label>
+              <label className="text-xs font-bold text-base-400 ml-1">UDP Port</label>
               <input
-                className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                 type="number"
                 placeholder="161"
                 value={form.Port}
@@ -340,7 +341,7 @@ export default function SNMPDashboard() {
             <button 
               type="submit" 
               disabled={addMutation.isPending}
-              className="flex items-center gap-2 px-10 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-10 py-3 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 shadow-lg transition disabled:opacity-50"
             >
               {addMutation.isPending ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
               장치 등록하기
@@ -351,12 +352,9 @@ export default function SNMPDashboard() {
 
       {/* Device Grid */}
       {devicesLoading ? (
-        <div className="flex flex-col items-center justify-center py-32 text-slate-400 animate-pulse">
-          <RefreshCcw size={48} className="mb-4 opacity-20 animate-spin" />
-          <p className="font-medium">네트워크 장비 정보를 불러오는 중...</p>
-        </div>
+        <Loading label="네트워크 장비 정보를 불러오는 중..." />
       ) : devices.length === 0 && !showAdd ? (
-        <div className="bg-slate-900 rounded-3xl border border-slate-800 border-dashed py-32 flex flex-col items-center justify-center text-slate-400 text-center px-6">
+        <div className="bg-base-900 rounded-xl border border-base-800 border-dashed py-32 flex flex-col items-center justify-center text-base-400 text-center px-6">
           <Network size={48} className="mb-4 opacity-20" />
           <p className="font-medium">등록된 네트워크 장비가 없습니다.</p>
           <p className="text-xs opacity-70 mt-1">상단의 '장치 추가' 버튼으로 스위치/라우터를 등록하세요.</p>
@@ -366,19 +364,19 @@ export default function SNMPDashboard() {
           {devices.map(dev => {
             const status = statusMap.get(dev.ID)
             if (!status) return (
-              <div key={dev.ID} className="bg-slate-900 rounded-3xl border border-slate-800 p-5 shadow-sm">
+              <div key={dev.ID} className="bg-base-900 rounded-xl border border-base-800 p-5 shadow-sm">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <RefreshCcw size={14} className="text-indigo-400 animate-spin shrink-0" />
+                    <RefreshCcw size={14} className="text-brand-400 animate-spin shrink-0" />
                     <div className="min-w-0">
-                      <h4 className="font-bold text-slate-100 leading-tight truncate">{dev.Name}</h4>
-                      <span className="text-[11px] font-bold text-slate-400 font-mono">{dev.IP}</span>
+                      <h4 className="font-bold text-base-100 leading-tight truncate">{dev.Name}</h4>
+                      <span className="text-xs font-bold text-base-400 font-mono">{dev.IP}</span>
                     </div>
                   </div>
                 </div>
-                <div className="text-[11px] text-slate-400 leading-relaxed">
-                  📡 첫 SNMP 폴링 대기 중...
-                  <div className="text-[10px] text-slate-500 mt-1">
+                <div className="text-xs text-base-400 leading-relaxed">
+                  첫 SNMP 폴링 대기 중...
+                  <div className="text-xs text-base-500 mt-1">
                     응답 도착 시 즉시 갱신됨 (최대 30초)
                   </div>
                 </div>
@@ -398,49 +396,49 @@ export default function SNMPDashboard() {
 
       {/* Edit Modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditing(null)}>
+        <div className="fixed inset-0 z-50 bg-base-950/70 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
           <form
             onSubmit={handleEditSubmit}
             onClick={e => e.stopPropagation()}
-            className="bg-slate-900 rounded-3xl border border-indigo-500/30 p-6 shadow-2xl w-full max-w-2xl space-y-5"
+            className="bg-base-900 rounded-xl border border-brand-500/30 p-6 shadow-2xl w-full max-w-2xl space-y-5"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-100">장비 수정</h3>
-              <button type="button" onClick={() => setEditing(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+              <h3 className="text-lg font-bold text-base-100">장비 수정</h3>
+              <button type="button" onClick={() => setEditing(null)} className="p-1.5 rounded-lg text-base-400 hover:text-base-200 hover:bg-base-800">
                 <X size={18} />
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Device Name</label>
+                <label className="text-xs font-bold text-base-400 ml-1">Device Name</label>
                 <input
-                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                  className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                   value={editing.Name}
                   onChange={e => setEditing({ ...editing, Name: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">IP Address</label>
+                <label className="text-xs font-bold text-base-400 ml-1">IP Address</label>
                 <input
-                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium font-mono"
+                  className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium font-mono"
                   value={editing.IP}
                   onChange={e => setEditing({ ...editing, IP: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">접속 암호 (SNMP Community)</label>
+                <label className="text-xs font-bold text-base-400 ml-1">접속 암호 (SNMP Community)</label>
                 <input
-                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                  className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                   placeholder="변경할 때만 입력"
                   value={editing.Community ?? ''}
                   onChange={e => setEditing({ ...editing, Community: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">UDP Port</label>
+                <label className="text-xs font-bold text-base-400 ml-1">UDP Port</label>
                 <input
                   type="number"
-                  className="w-full bg-slate-800 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                  className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium"
                   value={editing.Port}
                   onChange={e => setEditing({ ...editing, Port: Number(e.target.value) })}
                 />
@@ -452,13 +450,13 @@ export default function SNMPDashboard() {
                   <AlertTriangle size={14} /> 수정 실패
                 </p>
               )}
-              <button type="button" onClick={() => setEditing(null)} className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold transition-colors">
+              <button type="button" onClick={() => setEditing(null)} className="px-5 py-2.5 rounded-xl bg-base-800 text-base-300 hover:bg-base-700 text-sm font-bold transition-colors">
                 취소
               </button>
               <button
                 type="submit"
                 disabled={updateMutation.isPending}
-                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 shadow-lg transition disabled:opacity-50"
               >
                 {updateMutation.isPending ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
                 저장

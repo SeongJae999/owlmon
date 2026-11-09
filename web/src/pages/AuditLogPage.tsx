@@ -7,6 +7,7 @@ import {
 import { cn } from '../utils/cn'
 import SummaryCard from '../components/SummaryCard'
 import PageToolbar from '../components/PageToolbar'
+import Loading from '../components/Loading'
 
 const RANGE_PRESETS = [
   { label: '24시간', minutes: 24 * 60 },
@@ -97,7 +98,7 @@ export default function AuditLogPage() {
         <button
           onClick={() => handleDownload('csv')}
           disabled={downloading || filtered.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors disabled:opacity-40"
           title="CSV 다운로드 (감사 자료 제출용)" aria-label="CSV 다운로드 (감사 자료 제출용)"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
@@ -106,7 +107,7 @@ export default function AuditLogPage() {
         <button
           onClick={() => handleDownload('json')}
           disabled={downloading || filtered.length === 0}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-base-800 text-base-300 border border-base-700 hover:bg-base-700 transition-colors disabled:opacity-40"
           title="JSON 다운로드" aria-label="JSON 다운로드"
         >
           {downloading ? <RefreshCcw size={12} className="animate-spin" /> : <Download size={12} />}
@@ -122,19 +123,19 @@ export default function AuditLogPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3 space-y-3">
+      <div className="bg-base-900 rounded-xl border border-base-800 p-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+          <span className="text-xs font-bold text-base-500 flex items-center gap-1">
             <Clock size={11} /> 시간 범위
           </span>
-          <div className="flex gap-1 bg-slate-800 rounded-lg p-0.5">
+          <div className="flex gap-1 bg-base-800 rounded-lg p-0.5">
             {RANGE_PRESETS.map(r => (
               <button
                 key={r.label}
                 onClick={() => setRangeMinutes(r.minutes)}
                 className={cn(
-                  "px-2.5 py-1 rounded text-[11px] font-bold transition-colors",
-                  rangeMinutes === r.minutes ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200"
+                  "px-2.5 py-1 rounded text-xs font-bold transition-colors",
+                  rangeMinutes === r.minutes ? "bg-brand-600 text-white" : "text-base-400 hover:text-base-200"
                 )}
               >
                 {r.label}
@@ -147,7 +148,7 @@ export default function AuditLogPage() {
           <select
             value={filterActor}
             onChange={e => setFilterActor(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            className="bg-base-800 border border-base-700 rounded-lg px-3 py-1.5 text-sm text-base-200 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           >
             <option value="">전체 사용자</option>
             {uniqueActors.map(a => <option key={a} value={a}>{a}</option>)}
@@ -155,7 +156,7 @@ export default function AuditLogPage() {
           <select
             value={filterAction}
             onChange={e => setFilterAction(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            className="bg-base-800 border border-base-700 rounded-lg px-3 py-1.5 text-sm text-base-200 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           >
             <option value="">전체 액션</option>
             {uniqueActions.map(a => <option key={a} value={a}>{a}</option>)}
@@ -164,12 +165,12 @@ export default function AuditLogPage() {
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
             placeholder="사용자/IP/대상 검색…"
-            className="flex-1 min-w-[180px] bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            className="flex-1 min-w-[180px] bg-base-800 border border-base-700 rounded-lg px-3 py-1.5 text-sm text-base-100 placeholder-base-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           {(filterActor || filterAction || searchText) && (
             <button
               onClick={() => { setFilterActor(''); setFilterAction(''); setSearchText('') }}
-              className="text-[11px] font-semibold text-slate-400 hover:text-slate-200 px-2 py-1.5"
+              className="text-xs font-semibold text-base-400 hover:text-base-200 px-2 py-1.5"
             >
               필터 초기화
             </button>
@@ -178,81 +179,78 @@ export default function AuditLogPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 animate-pulse">
-            <RefreshCcw size={36} className="mb-3 opacity-20 animate-spin" />
-            <p className="font-medium text-sm">감사 로그 불러오는 중...</p>
-          </div>
+          <Loading label="감사 로그 불러오는 중..." />
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-20 text-rose-400 text-center px-6">
             <AlertCircle size={36} className="mb-3 opacity-30" />
             <p className="font-bold text-sm">감사 로그를 불러올 수 없습니다.</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center px-6">
+          <div className="flex flex-col items-center justify-center py-20 text-base-400 text-center px-6">
             <ShieldCheck size={36} className="mb-3 opacity-20" />
             <p className="font-medium text-sm">조건에 맞는 감사 로그가 없습니다.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-800/50 border-b border-slate-800">
+              <thead className="bg-base-800/50 border-b border-base-800">
                 <tr>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-40">시각</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-32">사용자</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-32">IP</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-40">액션</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-40">대상</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide w-24">결과</th>
-                  <th className="px-4 py-3 text-xs font-bold text-slate-400 tracking-wide">상세</th>
+                  <th className="px-4 py-3 text-xs font-bold text-base-400 w-40">시각</th>
+                  <th className="px-4 py-3 text-xs font-bold text-base-400 w-32">사용자</th>
+                  <th className="px-4 py-3 text-xs font-bold text-base-400 w-32">IP</th>
+                  <th className="px-4 py-3 text-xs font-bold text-base-400 w-40">액션</th>
+                  <th className="px-4 py-3 text-xs font-bold text-base-400 w-40">대상</th>
+                  <th className="px-4 py-3 text-xs font-bold text-base-400 w-24">결과</th>
+                  <th className="px-4 py-3 text-xs font-bold text-base-400 ">상세</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-base-800">
                 {filtered.map(e => {
                   const cfg = RESULT_CONFIG[e.result] ?? RESULT_CONFIG.success
                   return (
-                    <tr key={e.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-2.5 whitespace-nowrap text-xs text-slate-300 tabular-nums font-mono">
+                    <tr key={e.id} className="hover:bg-base-800/30 transition-colors">
+                      <td className="px-4 py-2.5 whitespace-nowrap text-xs text-base-300 tabular-nums font-mono">
                         {new Date(e.ts).toLocaleString('ko-KR', {
                           year: 'numeric', month: '2-digit', day: '2-digit',
                           hour: '2-digit', minute: '2-digit', second: '2-digit',
                         })}
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                          <User size={11} className="text-slate-500" />
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-base-300">
+                          <User size={11} className="text-base-500" />
                           <span className="truncate">{e.actor}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-400 font-mono">
+                      <td className="px-4 py-2.5 text-xs text-base-400 font-mono">
                         <div className="flex items-center gap-1">
-                          <Globe size={10} className="text-slate-600" />
+                          <Globe size={10} className="text-base-600" />
                           {e.ip || '—'}
                         </div>
                       </td>
                       <td className="px-4 py-2.5 text-xs font-mono">
-                        <code className="text-indigo-300">{e.action}</code>
+                        <code className="text-brand-300">{e.action}</code>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-400">
+                      <td className="px-4 py-2.5 text-xs text-base-400">
                         {e.target_type ? (
                           <span className="font-mono">
-                            {e.target_type}{e.target_id && <>:<span className="text-slate-300">{e.target_id}</span></>}
+                            {e.target_type}{e.target_id && <>:<span className="text-base-300">{e.target_id}</span></>}
                           </span>
                         ) : '—'}
                       </td>
                       <td className="px-4 py-2.5">
                         <span className={cn(
-                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap",
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap",
                           cfg.bg, cfg.text
                         )}>
                           <cfg.icon size={10} />
                           {cfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-slate-400">
+                      <td className="px-4 py-2.5 text-xs text-base-400">
                         {e.details ? (
-                          <code className="font-mono text-[11px] break-all line-clamp-2" title={JSON.stringify(e.details)}>
+                          <code className="font-mono text-xs break-all line-clamp-2" title={JSON.stringify(e.details)}>
                             {JSON.stringify(e.details)}
                           </code>
                         ) : '—'}
@@ -262,11 +260,11 @@ export default function AuditLogPage() {
                 })}
               </tbody>
             </table>
-            <div className="px-4 py-2.5 bg-slate-800/30 border-t border-slate-800 text-[11px] text-slate-500">
+            <div className="px-4 py-2.5 bg-base-800/30 border-t border-base-800 text-xs text-base-500">
               {filtered.length}건 표시 {entries.length > filtered.length && `(전체 ${entries.length}건 중)`}
               {entries.length >= 1000 && (
                 <span className="ml-2 inline-flex items-center gap-1 text-amber-400">
-                  <AlertCircle size={11} /> 1000건 한도 도달 — 시간 범위 좁히세요
+                  <AlertCircle size={11} /> 1000건 한도 도달. 시간 범위를 좁히세요
                 </span>
               )}
             </div>
