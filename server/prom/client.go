@@ -2,6 +2,7 @@ package prom
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -40,7 +41,9 @@ func QueryAt(prometheusURL, promql string, at time.Time) ([]Result, error) {
 	defer resp.Body.Close()
 
 	var result struct {
-		Data struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+		Data   struct {
 			Result []struct {
 				Metric map[string]string `json:"metric"`
 				Value  [2]interface{}    `json:"value"`
@@ -49,6 +52,10 @@ func QueryAt(prometheusURL, promql string, at time.Time) ([]Result, error) {
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
+	}
+	// 오류 응답을 빈 결과로 넘기면 조회 실패가 "경고 없음"으로 보인다
+	if result.Status != "success" {
+		return nil, fmt.Errorf("prometheus 응답 오류: %s", result.Error)
 	}
 
 	out := make([]Result, 0, len(result.Data.Result))

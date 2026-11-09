@@ -286,8 +286,9 @@ func (c *Checker) checkServerDown() {
 				c.sendAlert(host, "down", "critical", subject, body)
 			}
 		} else {
+			// 패널은 7일 전 끊긴 서버도 보여 주므로 메일 발송 이력 없이 확인될 수 있다. 복귀하면 항상 풀어야 다음 장애 메일이 나간다
+			c.state.ClearAck(host, "down", "critical")
 			if c.state.ClearIfFiring(key) {
-				c.state.ClearAck(host, "down", "critical")
 				subject := fmt.Sprintf("[복구] %s 서버 연결 복구", host)
 				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 복구되었습니다.", host)
 				c.sendAlert(host, "down", "info", subject, body)

@@ -1,6 +1,10 @@
 package alert
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -125,5 +129,24 @@ func TestMaintenance(t *testing.T) {
 	}
 	if got := len(s.MaintenanceHosts()); got != 1 {
 		t.Fatalf("해제 후 1대여야 하는데 %d대", got)
+	}
+}
+
+func TestServerDownRecoveryClearsAckWithoutFiring(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.FormValue("query")
+		if strings.Contains(q, "count(system_cpu_usage_percent)") {
+			fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{"host_name":"web-01"},"value":[0,"1"]}]}}`)
+			return
+		}
+		fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"8"]}]}}`)
+	}))
+	defer srv.Close()
+
+	c := NewChecker(srv.URL, nil, nil, nil)
+	c.state.Ack("web-01", "down", "critical")
+	c.checkServerDown()
+	if c.IsAcked("web-01", "down", "critical") {
+		t.Fatal("서버가 복귀했는데 확인 상태가 남아 다음 장애 메일이 억제된다")
 	}
 }

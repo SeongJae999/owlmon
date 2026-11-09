@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -98,93 +100,161 @@ func (h *StatusHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 var serverStartTime = time.Now()
 
+// 경고 패널과 챗봇이 같은 판정을 쓰도록 한 곳에서 계산한다
+type fleetSnapshot struct {
+	CPU    map[string]float64
+	Mem    map[string]float64
+	Disk   map[string]map[string]float64
+	Seen   map[string]time.Time
+	Down   map[string]bool
+	Maint  []string
+	Alerts []ActiveAlert
+	Failed bool
+}
+
+func (s fleetSnapshot) hosts() []string {
+	out := make([]string, 0, len(s.Seen))
+	for h := range s.Seen {
+		out = append(out, h)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (h *StatusHandler) snapshot() fleetSnapshot {
+	queries := []string{
+		"max(system_cpu_usage_percent) by (host_name)",
+		"max(system_memory_usage_percent) by (host_name)",
+		"max(system_disk_usage_percent) by (host_name, mountpoint)",
+		"max by (host_name) (timestamp(system_cpu_usage_percent))",
+		// 꺼진 지 5분이 넘으면 lookback에서 빠져 위 쿼리에 안 나온다. 7일 이력으로 찾아 계속 표시한다
+		"max by (host_name) (max_over_time(timestamp(system_cpu_usage_percent)[7d:5m]))",
+	}
+	results := make([][]promResult, len(queries))
+	errs := make([]error, len(queries))
+	var wg sync.WaitGroup
+	for i, q := range queries {
+		wg.Add(1)
+		go func(i int, q string) {
+			defer wg.Done()
+			results[i], errs[i] = h.query(q)
+		}(i, q)
+	}
+	wg.Wait()
+
+	snap := fleetSnapshot{
+		CPU:    map[string]float64{},
+		Mem:    map[string]float64{},
+		Disk:   map[string]map[string]float64{},
+		Seen:   map[string]time.Time{},
+		Down:   map[string]bool{},
+		Alerts: []ActiveAlert{},
+	}
+	for _, err := range errs {
+		if err != nil {
+			log.Printf("[status] prometheus 조회 실패: %v", err)
+			snap.Failed = true
+		}
+	}
+
+	// 7일 쿼리는 5분 간격이라 살아 있는 서버도 늦게 보인다. 최신 시각 쿼리가 실패하면 오탐을 내지 않도록 판정을 건너뛴다
+	now := time.Now()
+	if errs[3] == nil && errs[4] == nil {
+		for _, rs := range results[3:5] {
+			for _, r := range rs {
+				t := time.Unix(int64(r.value), 0)
+				if host := r.metric["host_name"]; t.After(snap.Seen[host]) {
+					snap.Seen[host] = t
+				}
+			}
+		}
+		for host, t := range snap.Seen {
+			if now.Sub(t) > 2*time.Minute {
+				snap.Down[host] = true
+			}
+		}
+	}
+
+	cfg := h.configStore.Get()
+	for _, r := range results[0] {
+		host := r.metric["host_name"]
+		snap.CPU[host] = r.value
+		if r.value >= cfg.CPUThreshold && !snap.Down[host] {
+			snap.Alerts = append(snap.Alerts, ActiveAlert{
+				Host:     host,
+				Category: "cpu",
+				Severity: "critical",
+				Value:    r.value,
+				Message:  fmt.Sprintf("CPU %.1f%% (임계값 %.0f%%)", r.value, cfg.CPUThreshold),
+			})
+		}
+	}
+	for _, r := range results[1] {
+		host := r.metric["host_name"]
+		snap.Mem[host] = r.value
+		if r.value >= cfg.MemThreshold && !snap.Down[host] {
+			snap.Alerts = append(snap.Alerts, ActiveAlert{
+				Host:     host,
+				Category: "memory",
+				Severity: "critical",
+				Value:    r.value,
+				Message:  fmt.Sprintf("메모리 %.1f%% (임계값 %.0f%%)", r.value, cfg.MemThreshold),
+			})
+		}
+	}
+	for _, r := range results[2] {
+		host, mount := r.metric["host_name"], r.metric["mountpoint"]
+		if snap.Disk[host] == nil {
+			snap.Disk[host] = map[string]float64{}
+		}
+		snap.Disk[host][mount] = r.value
+		if snap.Down[host] {
+			continue
+		}
+		if r.value >= cfg.DiskCrit {
+			snap.Alerts = append(snap.Alerts, ActiveAlert{
+				Host:     host,
+				Category: "disk",
+				Severity: "critical",
+				Value:    r.value,
+				Message:  fmt.Sprintf("디스크 %s %.1f%% (임계값 %.0f%%)", mount, r.value, cfg.DiskCrit),
+			})
+		} else if r.value >= cfg.DiskWarn {
+			snap.Alerts = append(snap.Alerts, ActiveAlert{
+				Host:     host,
+				Category: "disk",
+				Severity: "warning",
+				Value:    r.value,
+				Message:  fmt.Sprintf("디스크 %s %.1f%% (경고 %.0f%%)", mount, r.value, cfg.DiskWarn),
+			})
+		}
+	}
+	for _, host := range snap.hosts() {
+		if snap.Down[host] {
+			snap.Alerts = append(snap.Alerts, ActiveAlert{
+				Host:     host,
+				Category: "down",
+				Severity: "critical",
+				Message:  "에이전트 연결 끊김",
+			})
+		}
+	}
+
+	if h.checker != nil {
+		snap.Maint = h.checker.MaintenanceHosts()
+		for i := range snap.Alerts {
+			a := &snap.Alerts[i]
+			a.Acked = h.checker.IsAcked(a.Host, a.Category, a.Severity)
+			a.InMaintenance = h.checker.IsInMaintenance(a.Host)
+		}
+	}
+	return snap
+}
+
 // GetStatus는 현재 임계값 초과 중인 항목 목록을 반환합니다.
 func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	cfg := h.configStore.Get()
-	var alerts []ActiveAlert
-
-	// CPU
-	if results, err := h.query("max(system_cpu_usage_percent) by (host_name)"); err == nil {
-		for _, res := range results {
-			if res.value >= cfg.CPUThreshold {
-				alerts = append(alerts, ActiveAlert{
-					Host:     res.metric["host_name"],
-					Category: "cpu",
-					Severity: "critical",
-					Value:    res.value,
-					Message:  fmt.Sprintf("CPU %.1f%% (임계값 %.0f%%)", res.value, cfg.CPUThreshold),
-				})
-			}
-		}
-	}
-
-	// 메모리
-	if results, err := h.query("max(system_memory_usage_percent) by (host_name)"); err == nil {
-		for _, res := range results {
-			if res.value >= cfg.MemThreshold {
-				alerts = append(alerts, ActiveAlert{
-					Host:     res.metric["host_name"],
-					Category: "memory",
-					Severity: "critical",
-					Value:    res.value,
-					Message:  fmt.Sprintf("메모리 %.1f%% (임계값 %.0f%%)", res.value, cfg.MemThreshold),
-				})
-			}
-		}
-	}
-
-	// 디스크
-	if results, err := h.query("max(system_disk_usage_percent) by (host_name, mountpoint)"); err == nil {
-		for _, res := range results {
-			mount := res.metric["mountpoint"]
-			if res.value >= cfg.DiskCrit {
-				alerts = append(alerts, ActiveAlert{
-					Host:     res.metric["host_name"],
-					Category: "disk",
-					Severity: "critical",
-					Value:    res.value,
-					Message:  fmt.Sprintf("디스크 %s %.1f%% (임계값 %.0f%%)", mount, res.value, cfg.DiskCrit),
-				})
-			} else if res.value >= cfg.DiskWarn {
-				alerts = append(alerts, ActiveAlert{
-					Host:     res.metric["host_name"],
-					Category: "disk",
-					Severity: "warning",
-					Value:    res.value,
-					Message:  fmt.Sprintf("디스크 %s %.1f%% (경고 %.0f%%)", mount, res.value, cfg.DiskWarn),
-				})
-			}
-		}
-	}
-
-	// 서버 다운 (2분 내 데이터 없음)
-	if hosts, err := h.labelValues("host_name"); err == nil {
-		for _, host := range hosts {
-			results, err := h.query(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name=%q}[2m])`, host))
-			if err == nil && len(results) == 0 {
-				alerts = append(alerts, ActiveAlert{
-					Host:     host,
-					Category: "down",
-					Severity: "critical",
-					Value:    0,
-					Message:  "에이전트 연결 끊김",
-				})
-			}
-		}
-	}
-
-	if alerts == nil {
-		alerts = []ActiveAlert{}
-	}
-	// acked / in_maintenance 주석 추가
-	if h.checker != nil {
-		for i := range alerts {
-			alerts[i].Acked = h.checker.IsAcked(alerts[i].Host, alerts[i].Category, alerts[i].Severity)
-			alerts[i].InMaintenance = h.checker.IsInMaintenance(alerts[i].Host)
-		}
-	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(alerts)
+	json.NewEncoder(w).Encode(h.snapshot().Alerts)
 }
 
 // GetUptime은 이번 달 호스트별 가동률(%)을 반환합니다.
