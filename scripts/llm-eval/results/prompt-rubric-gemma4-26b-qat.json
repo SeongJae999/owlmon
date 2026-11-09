@@ -1,0 +1,4229 @@
+{
+  "model": "ollama:gemma4:26b-a4b-it-qat",
+  "prompt_hash": "a779d8e7",
+  "at": "2026-11-09T13:01:12.465411+09:00",
+  "split": "all",
+  "repeat": 3,
+  "cases": [
+    {
+      "id": "hist-datastore-120d",
+      "file": "eval-set-history.jsonl",
+      "tags": [
+        "장기지속",
+        "실장애",
+        "few-shot유사"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "NAS 스토리지 연결 끊김 120일째 지속",
+          "root_cause_ko": "네트워크 타임아웃으로 인해 'nas' 스토리지가 오프라인 상태임. 장기간 재발하는 것으로 보아 네트워크 경로 또는 대상 서버(192.168.0.50)의 불안정성이 원인으로 추정",
+          "action_ko": "대상 IP(192.168.0.50)로 ping 테스트 및 스토리지 서비스 상태 확인, 네트워크 스위치/케이블 점검 권장",
+          "latency_ms": 24462,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "NAS 스토리지 연결 끊김 120일째 지속",
+          "root_cause_ko": "네트워크 타임아웃으로 인한 NAS(192.168.0.50) 연결 실패 (장기 재발 중)",
+          "action_ko": "NAS 서버 전원 및 네트워크 상태 확인, pvesm status로 스토리지 가용성 점검, 장기 미해결 건이므로 정밀 점검 필요",
+          "latency_ms": 5744,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "NAS 스토리지 연결 끊김 120일째 지속",
+          "root_cause_ko": "네트워크 타임아웃으로 인해 'nas' 스토리지가 오프라인 상태임. 장기간 반복되는 문제로 네트워크 경로 또는 대상 서버(192.168.0.50) 장애 추정",
+          "action_ko": "대상 IP(192.168.0.50) 핑 테스트 및 스토리지 서비스 상태 확인, 네트워크 스위치/케이블 점검 필요",
+          "latency_ms": 6457,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "hist-backup-5d",
+      "file": "eval-set-history.jsonl",
+      "tags": [
+        "장기지속",
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "백업 스토리지(nas) 연결 실패 5일째 지속",
+          "root_cause_ko": "VM 백업을 위한 'nas' 스토리지가 네트워크 또는 물리적 이유로 접근 불가능함 (추정)",
+          "action_ko": "pvesm status로 스토리지 상태 확인, NAS 서버의 전원 및 네트워크 연결(NFS/SMB) 점검",
+          "latency_ms": 5529,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "VM 백업 실패(nas 스토리지 접근 불가) 5일째 지속",
+          "root_cause_ko": "백업 대상인 'nas' 스토리지가 네트워크 또는 물리적 이유로 연결되지 않음 (추정)",
+          "action_ko": "Proxmox GUI에서 'nas' 스토리지 상태 확인, NAS 서버의 전원 및 네트워크(NFS/SMB) 연결 상태 점검",
+          "latency_ms": 5263,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "VM 백업 실패(nas 스토리지 접근 불가) 5일째 지속",
+          "root_cause_ko": "백업 대상인 'nas' 스토리지에 대한 네트워크 연결 또는 마운트 상태 이상이 장기간 해결되지 않음 (추정)",
+          "action_ko": "pvesm status로 스토리지 상태 확인, NAS 서버의 네트워크 및 NFS/SMB 서비스 정상 여부 점검",
+          "latency_ms": 5385,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "hist-apt-10d",
+      "file": "eval-set-history.jsonl",
+      "tags": [
+        "장기지속",
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "other",
+          "summary_ko": "패키지 업데이트 실패 10일째 지속",
+          "root_cause_ko": "apt-get update 명령이 종료 코드 100으로 실패함. 네트워크 문제, 미러 서버 장애 또는 패키지 리스트 잠금(lock) 파일 충돌로 추정",
+          "action_ko": "터미널에서 'sudo apt-get update'를 직접 실행하여 에러 메시지를 확인하고, 네트워크 연결 및 /var/lib/apt/lists 상태 점검",
+          "latency_ms": 6436,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "other",
+          "summary_ko": "패키지 업데이트 실패 10일째 지속 (재발 중)",
+          "root_cause_ko": "apt-get update 명령이 종료 코드 100으로 실패함. 네트워크 설정 오류 또는 패키지 저장소(Mirror) 접속 불가로 추정",
+          "action_ko": "터미널에서 'apt-get update'를 직접 실행하여 상세 에러 메시지 확인 후, DNS 설정(/etc/resolv.conf)이나 프록시 설정을 점검하십시오.",
+          "latency_ms": 6026,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "other",
+          "summary_ko": "패키지 업데이트(apt-get update) 실패 10일째 지속",
+          "root_cause_ko": "apt-get update 명령이 종료 코드 100으로 실패함. 네트워크 설정 오류 또는 패키지 저장소 미러 서버 접속 불가로 추정",
+          "action_ko": "터미널에서 'apt-get update'를 직접 실행하여 상세 에러 확인, DNS 설정(/etc/resolv.conf) 및 외부 인터넷 연결 상태 점검",
+          "latency_ms": 5896,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "hist-fb0-120d",
+      "file": "eval-set-history.jsonl",
+      "tags": [
+        "장기지속",
+        "환경양성"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "그래픽 장치 접근 권한 오류 (120일째 지속)",
+          "root_cause_ko": "헤드리스 서버에서 디스플레이 장치(/dev/fb0)에 대한 권한 문제로 발생하는 양성 로그(추정)",
+          "action_ko": "서버가 모니터 없이 운영되는 헤드리스 환경이라면 무시해도 됨. 필요 시 X11 설정 확인",
+          "latency_ms": 5609,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "그래픽 장치(/dev/fb0) 접근 권한 오류 (120일째 지속)",
+          "root_cause_ko": "헤드리스 서버에서 디스플레이 프레임버퍼 장치에 대한 권한 문제로 발생하는 무해한 로그(추정)",
+          "action_ko": "서버가 모니터 없이 운영되는 헤드리스 환경이라면 조치 필요 없음",
+          "latency_ms": 5127,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "그래픽 장치 접근 권한 오류 (120일째 지속)",
+          "root_cause_ko": "헤드리스 서버에서 디스플레이 장치(/dev/fb0)에 대한 권한 문제로 발생하는 양성 로그(추정)",
+          "action_ko": "서버가 모니터 없이 운영되는 헤드리스 환경이라면 무시해도 됨. 필요 시 X11 설정 확인",
+          "latency_ms": 5310,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "hist-waitonline-60d",
+      "file": "eval-set-history.jsonl",
+      "tags": [
+        "장기지속",
+        "환경양성"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "네트워크 대기 서비스 시작 실패 (60일째 지속)",
+          "root_cause_ko": "NetworkManager-wait-online.service는 부팅 시 네트워크 연결을 기다리는 서비스로, 실제 통신에 문제가 없다면 무해한 경우가 많음(정상 동작일 가능성 높음)",
+          "action_ko": "실제 외부 네트워크 통신이 정상이라면 조치 불필요. 반복적인 로그가 불편할 경우 해당 유닛 비활성화 고려",
+          "latency_ms": 6287,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "네트워크 대기 서비스 시작 실패 (60일째 지속)",
+          "root_cause_ko": "NetworkManager-wait-online.service의 일시적 또는 설정된 네트워크 인터페이스 미연결로 인한 정상적인 동작 패턴(추정)",
+          "action_ko": "서버의 실제 네트워크 통신에 문제가 없다면 무시 가능. 서비스가 반드시 필요하다면 해당 유닛의 의존성 설정을 확인하십시오.",
+          "latency_ms": 5434,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "네트워크 대기 서비스 시작 실패(60일째 지속)",
+          "root_cause_ko": "NetworkManager-wait-online.service의 일시적 또는 설정된 네트워크 인터페이스 미연결로 인한 정상적인 동작 범위 내 오류 (추정)",
+          "action_ko": "네트워크 연결 상태가 정상이라면 조치 불필요. 서비스 부팅 지연이 문제라면 해당 유닛 비활성화 고려",
+          "latency_ms": 5353,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "hist-pmlogger-90d",
+      "file": "eval-set-history.jsonl",
+      "tags": [
+        "장기지속",
+        "정상종료"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 로그 정리 작업 정상 완료",
+          "root_cause_ko": "pmlogger_daily 배치가 작업을 마치고 정상 종료됨 (반복되는 양성 패턴)",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4247,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 로그 정리 작업 정상 완료",
+          "root_cause_ko": "pmlogger_daily 배치 서비스가 정해진 작업을 마치고 정상 종료됨 (반복되는 양성 패턴)",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4040,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 로그 정리 작업 정상 완료",
+          "root_cause_ko": "pmlogger_daily 배치가 작업을 마치고 정상 종료됨 (반복되는 양성 패턴)",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3885,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "hist-certbot-30d",
+      "file": "eval-set-history.jsonl",
+      "tags": [
+        "장기지속",
+        "여러줄",
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 갱신 실패 30일째 지속 (N일째 지속)",
+          "root_cause_ko": "인증서 자동 갱신 스크립트(/tmp/certbot-dns-hook.sh)를 실행할 경로(PATH) 설정 오류 또는 파일 부재로 인한 인증 실패(추정)",
+          "action_ko": "/etc/letsencrypt/renewal/example.com.template 또는 관련 설정에서 manual-auth-hook 경로가 올바른지 확인하고, 스크립트의 실행 권한을 점검하십시오.",
+          "latency_ms": 7102,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 갱신 실패 30일째 지속 (N일째 지속)",
+          "root_cause_ko": "인증서 자동 갱신 스크립트(/tmp/certbot-dns-hook.sh)를 실행할 경로(PATH) 설정 오류 또는 파일 부재로 인한 인증 실패(추정)",
+          "action_ko": "/etc/letsencrypt/renewal/example.com.template 확인, certbot 실행 환경의 PATH에 스크립트 경로 포함 여부 점검 및 스크립트 권한 확인",
+          "latency_ms": 6553,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 갱신 실패 30일째 지속",
+          "root_cause_ko": "인증서 자동 갱신 스크립트(/tmp/certbot-dns-hook.sh)를 실행할 경로(PATH) 설정 오류 또는 파일 부재로 인한 실패(추정)",
+          "action_ko": "/etc/letsencrypt/renewal/example.com.template 또는 관련 설정에서 hook 경로가 올바른지 확인하고, 스크립트에 실행 권한(chmod +x)이 있는지 점검하십시오.",
+          "latency_ms": 6416,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ctx-write-nospace-disk98",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "실장애"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 데이터 쓰기 실패 (5분간 12회 발생)",
+          "root_cause_ko": "현재 디스크 사용률이 98%로 임계치에 도달하여 /var/lib/app/data.db 파일 쓰기가 불가능한 상태임",
+          "action_ko": "df -h로 용량 확인 후 /var/lib/app/ 하위의 불필요한 로그 또는 임시 파일을 삭제하거나 디스크 용량을 증설하십시오.",
+          "latency_ms": 6490,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 데이터 쓰기 실패 (5분간 12회 발생)",
+          "root_cause_ko": "현재 디스크 사용률이 98%로 임계치에 도달하여 /var/lib/app/ 경로의 파일 쓰기가 불가능한 상태임",
+          "action_ko": "df -h로 용량 확인 후 /var/lib/app/ 내 불필요한 로그 또는 임시 파일 삭제, 필요 시 디스크 증설",
+          "latency_ms": 5899,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 데이터 쓰기 실패 (5분간 12회 발생)",
+          "root_cause_ko": "현재 디스크 사용률이 98%로 임계치에 도달하여 /var/lib/app/data.db 파일 쓰기가 불가능한 상태임",
+          "action_ko": "df -h로 용량 확인 후 /var/lib/app/ 경로 내 불필요한 로그 또는 임시 파일 삭제, 필요 시 디스크 증설",
+          "latency_ms": 5912,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ctx-timeout-cpu-anomaly",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 업스트림 타임아웃 및 CPU 부하 급증 (5분간 40회 발생)",
+          "root_cause_ko": "CPU 사용률이 평소보다 매우 높음(Z=4.2). 백엔드 애플리케이션의 연산 과부하 또는 무한 루프로 인해 응답 지연이 발생하여 Nginx 타임아웃 유발(추정)",
+          "action_ko": "top/htop으로 CPU 점유율 높은 프로세스 확인, 백엔드 서비스 로그 및 DB 쿼리 성능 점검, 필요 시 서비스 재시작",
+          "latency_ms": 7295,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 업스트림 타임아웃 발생 (5분간 40회 반복)",
+          "root_cause_ko": "CPU 사용률 급증(Z=4.2)으로 인한 백엔드 프로세스 응답 지연이 주원인으로 추정",
+          "action_ko": "top 또는 htop으로 CPU 점유율 높은 프로세스 확인, Nginx upstream timeout 설정값 조정 검토, 서비스 부하 분산 고려",
+          "latency_ms": 5666,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 업스트림 타임아웃 및 CPU 부하 급증 (5분간 40회 발생)",
+          "root_cause_ko": "CPU 사용률이 평소보다 매우 높음(Z=4.2). 백엔드 애플리케이션의 연산 과부하로 인해 응답 지연이 발생하여 Nginx 타임아웃 유발(추정)",
+          "action_ko": "top 또는 htop으로 CPU 점유율 높은 프로세스 확인, 백엔드 서비스 로그 및 리소스 상태 점검",
+          "latency_ms": 6452,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ctx-timeout-normal-metrics",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 백엔드 응답 지연 및 타임아웃 발생 (5분간 40회)",
+          "root_cause_ko": "백엔드 애플리케이션(Upstream)이 요청을 처리하는 데 너무 오래 걸려 Nginx가 연결을 끊음. 시스템 자원(CPU/MEM)은 여유로우나 특정 프로세스 부하 또는 DB 병목 추정",
+          "action_ko": "백엔드 서비스(PHP-FPM, Python, Node.js 등)의 로그 및 상태 확인, DB 쿼리 성능 점검, Nginx upstream timeout 설정값 검토",
+          "latency_ms": 7231,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 백엔드 응답 지연 및 타임아웃 발생 (5분간 40회)",
+          "root_cause_ko": "백엔드 애플리케이션(Upstream)이 요청을 처리하는 데 너무 오래 걸려 Nginx가 연결을 끊음. CPU/메모리는 여유로우나 특정 프로세스의 병목이나 DB 지연 추정",
+          "action_ko": "백엔드 서비스(PHP-FPM, Python, Node.js 등)의 로그 및 상태 확인, nginx.conf에서 proxy_read_timeout 설정값 검토, DB 쿼리 성능 점검",
+          "latency_ms": 7017,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 백엔드 응답 지연 및 타임아웃 발생 (5분간 40회)",
+          "root_cause_ko": "백엔드 애플리케이션(Upstream)의 처리 속도가 Nginx 설정된 타임아웃보다 느려 연결이 끊김. CPU/메모리는 여유로우나 특정 요청 처리에 병목 발생 추정",
+          "action_ko": "백엔드 서비스 로그 확인, nginx.conf의 proxy_read_timeout 값 검토 또는 백엔드 애플리케이션 성능 최적화 필요",
+          "latency_ms": 6596,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ctx-oom-mem97",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "메모리 부족으로 Java 프로세스 강제 종료",
+          "root_cause_ko": "시스템 메모리 고갈(현재 97%)로 인해 커널이 OOM Killer를 작동시켜 java 프로세스를 종료시킴 (평소 대비 급격한 상승)",
+          "action_ko": "free -h로 여유 메모리 확인, Java Heap Size(-Xmx) 설정값 점검 및 애플리케us 서비스의 메모리 누수(Memory Leak) 여부 조사",
+          "latency_ms": 6292,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "메모리 부족으로 Java 프로세스 강제 종료",
+          "root_cause_ko": "시스템 메모리 고갈(현재 97%)로 인해 커널이 OOM Killer를 작동시켜 java 프로세스를 종료시킴 (평소 대비 급격한 상승)",
+          "action_ko": "free -h로 여유 메모리 확인, Java의 Heap Size(-Xmx) 설정값 점검 및 시스템 전체 메모리 사용량 모니터링",
+          "latency_ms": 5632,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "메모리 부족으로 Java 프로세스 강제 종료",
+          "root_cause_ko": "시스템 메모리 고갈(현재 97%)로 인해 커널이 OOM Killer를 작동시켜 java 프로세스를 종료시킴 (평소 대비 급격한 상승)",
+          "action_ko": "free -h로 여유 메모리 확인, Java Heap Size(-Xmx) 설정값 점검 및 시스템 전체 메모리 사용량 모니터링",
+          "latency_ms": 5628,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ctx-io-error",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "실장애"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "sdb 장치에서 반복적인 I/O 읽기 오류 발생",
+          "root_cause_ko": "물리 디스크(sdb)의 배드 섹터 또는 하드웨어 결함으로 인한 데이터 읽기 실패(추정)",
+          "action_ko": "smartsctl -a /dev/sdb로 디스크 상태 점검, 중요 데이터 즉시 백업 후 디스크 교체 검토",
+          "latency_ms": 5749,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "sdb 장치에서 반복적인 I/O 읽기 오류 발생",
+          "root_cause_ko": "물리 디스크(sdb)의 배드 섹터 또는 하드웨어 결함으로 인한 데이터 읽기 실패(추정)",
+          "action_ko": "smartsctl -a /dev/sdb로 디스크 상태 점검, 중요 데이터 즉시 백업 후 디스크 교체 검토",
+          "latency_ms": 5299,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "sdb 장치에서 반복적인 I/O 읽기 오류 발생",
+          "root_cause_ko": "물리 디스크(sdb)의 배드 섹터 또는 하드웨어 결함으로 인한 데이터 읽기 실패(추정)",
+          "action_ko": "smartctl -a /dev/sdb로 디스크 상태 점검, 중요 데이터 즉시 백업 후 디스크 교체 검토",
+          "latency_ms": 5334,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ctx-slow-query-cpu",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "애매"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 쿼리 지연 발생 및 CPU 부하 급증 (15회 반복)",
+          "root_cause_ko": "특정 SELECT 쿼리가 약 12초간 지속되며 시스템 CPU 사용률을 95%까지 상승시킴(Z-score 3.5). 인덱스 미설정 또는 데이터량 증가로 인한 풀 스캔 추정",
+          "action_ko": "EXPLAIN ANALYZE로 해당 쿼리 실행 계획 확인, attendance 테이블의 student_id 컬럼에 인덱스 생성 여부 점검",
+          "latency_ms": 7010,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 쿼리 지연 및 CPU 부하 급증 발생",
+          "root_cause_ko": "특정 SELECT 쿼리가 약 12초간 지속되어 시스템 CPU 사용률을 95%까지 상승시킨 것으로 추정 (인덱스 미설정 또는 데이터량 증가)",
+          "action_ko": "EXPLAIN ANALYZE로 해당 쿼리 실행 계획 확인, attendance 테이블의 student_id 컬럼에 인덱스(Index) 생성 여부 점검",
+          "latency_ms": 5994,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 쿼리 지연 및 CPU 부하 급증 발생",
+          "root_cause_ko": "특정 SELECT 쿼리가 약 12초간 지속되어 시스템 CPU 사용률을 95%까지 끌어올림(Z-score 3.5로 이상치). 인덱스 누락 또는 데이터량 증가가 원인으로 추정",
+          "action_ko": "EXPLAIN ANALYZE로 해당 쿼리 실행 계획 확인, attendance 테이블의 student_id 컬럼에 인덱스 생성 여부 점검",
+          "latency_ms": 6446,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ctx-benign-high-cpu",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "정상종료"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "로그 로테이션 작업 정상 완료",
+          "root_cause_ko": "logrotate 배치 서비스가 정해진 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3998,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "로그 로테이션 작업 정상 완료",
+          "root_cause_ko": "logrotate 배치 서비스가 설정된 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3688,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "로그 로테이션 작업 정상 완료",
+          "root_cause_ko": "logrotate 배치 서비스가 정해진 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3684,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "ctx-refused-once-nodata",
+      "file": "eval-set-hostctx.jsonl",
+      "tags": [
+        "호스트상태",
+        "일시적"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "백엔드 서비스 연결 일시 실패 (1회)",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림(애플리케이션) 서버로부터 연결을 거부함. 백엔드 프로세스 재시작 등 일시적 현상일 가능성 높음",
+          "action_ko": "백엔드 서비스(예: PHP-FPM, Python/Node.js 앱 등)의 상태를 확인하고, 동일 오류가 반복되는지 모니터링할 것",
+          "latency_ms": 6432,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "백엔드 서비스 연결 일시 실패(1회)",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림(애플리케이션) 서버로부터 연결을 거부함. 백엔드 프로세스 재시작 등 일시적 원인 추정",
+          "action_ko": "백엔드 서비스(예: PHP-FPM, Python/Node.js 앱 등)의 상태를 확인하고, 동일 현상 반복 시 로그 분석 필요",
+          "latency_ms": 5807,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "백엔드 서비스 연결 일시 실패(1회)",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림(애플리케이션) 서버로부터 연결을 거부함. 백엔드 프로세스 재시작 등 일시적 원인 추정",
+          "action_ko": "백엔드 서비스(예: PHP-FPM, Python/Node.js 앱 등)의 상태를 확인하고, 동일 현상 반복 시 로그 분석 필요",
+          "latency_ms": 5811,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "ml-nas-same-target",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "백업 스토리지(PBS) 연결 불가 (5분간 24회 반복)",
+          "root_cause_ko": "대상 IP(10.0.0.50)로의 네트워크 경로가 차단되었거나 대상 서버(PBS/NFS)가 다운된 상태임",
+          "action_ko": "백업 서버(10.0.0.50)의 전원 및 네트워크 연결 확인, `ping 10.0.0.50`으로 통신 여부 점검, 스위치/방화벽 설정 확인",
+          "latency_ms": 7129,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "백업 서버(PBS) 연결 불가 및 네트워크 경로 단절 (5분간 24회 반복)",
+          "root_cause_ko": "대상 IP(10.0.0.50)로의 네트워크 경로가 끊겼거나, 백업 서버 자체가 다운된 것으로 추정",
+          "action_ko": "백업 서버(PBS)의 전원 및 네트워크 상태 확인, `ping 10.0.0.50` 명령어로 통신 여부 점검, 스위치/케이블 등 물리 계층 확인",
+          "latency_ms": 6459,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "백업 스토리지(PBS) 연결 불가 (5분간 24회 반복)",
+          "root_cause_ko": "대상 IP(10.0.0.50)로의 네트워크 경로가 차단되었거나 대상 서버가 다운된 상태임",
+          "action_ko": "백업 서버(10.0.0.50)의 전원 및 네트워크 연결 확인, `ping 10.0.0.50`으로 통신 여부 점검, 스위치/방화벽 설정 확인",
+          "latency_ms": 6450,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ml-nginx-port-busy",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "실장애"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 포트 충돌로 인한 서비스 시작 실패 (5분 내 4회 반복)",
+          "root_cause_ko": "이미 다른 프로세스가 80번 포트를 사용 중이거나, 이전 Nginx 프로세스가 비정상 종료되어 포트를 점유하고 있음(Address already in use)",
+          "action_ko": "sudo lsof -i :80 또는 sudo netstat -lnp | grep :80로 포트 점유 프로세스 확인 후 종료, 이후 nginx 재시작 (systemctl restart nginx)",
+          "latency_ms": 6760,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 포트 충돌로 인한 서비스 시작 실패 (5분 내 4회 반복)",
+          "root_cause_ko": "이미 다른 프로세스가 80번 포트를 사용 중이거나, 이전 Nginx 프로세스가 비정상 종료되어 포트를 점유하고 있음(Address already in use)",
+          "action_ko": "sudo lsof -i :80 또는 sudo netstat -lnp | grep :80로 포트 점유 프로세스 확인 후 종료, 이후 nginx 재시작 (systemctl restart nginx)",
+          "latency_ms": 6284,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 포트 충돌로 인한 서비스 시작 실패 (5분 내 4회 반복)",
+          "root_cause_ko": "이미 다른 프로세스가 80번 포트를 사용 중이거나, 이전 Nginx 프로세스가 비정상 종료되어 포트를 점유하고 있음(Address already in use)",
+          "action_ko": "sudo lsof -i :80 또는 sudo netstat -lnp | grep :80로 포트 점유 프로세스 확인 후 종료, 이후 nginx 재시작 (systemctl restart nginx)",
+          "latency_ms": 6284,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ml-postgres-nospace",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 DB 쓰기 실패 및 서비스 중단",
+          "root_cause_ko": "PostgreSQL 저장 경로의 디스크 용량이 가득 차서 데이터 확장(write)이 불가능하며, 이로 인해 DB 프로세스가 비정상 종료됨",
+          "action_ko": "df -h 명령어로 디스크 잔여 용량 확인. PostgreSQL 로그/데이터 파일 또는 시스템 임시 파일을 정리하거나 스토리지 증설 필요. 긴급 조치 요망.",
+          "latency_ms": 6203,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 DB 쓰기 실패 및 서비스 중단",
+          "root_cause_ko": "PostgreSQL 저장 경로의 디스크 용량이 가득 차서 데이터 확장(extend)이 불가능하며, 이로 인해 DB 프로세스가 비정상 종료됨",
+          "action_ko": "df -h 명령어로 디스크 잔여 용량 확인. PostgreSQL 데이터 디렉토리(`/var/lib/postgresql` 등)가 포함된 파티션의 불필요한 로그나 파일을 정리하거나 스토리지 증설 필요",
+          "latency_ms": 6229,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 DB 쓰기 실패 및 서비스 중단",
+          "root_cause_ko": "PostgreSQL 저장 경로의 디스크 용량이 가득 차서 데이터 확장(write)이 불가능하며, 이로 인해 DB 프로세스가 비정상 종료됨",
+          "action_ko": "df -h 명령어로 디스크 잔여 용량 확인. PostgreSQL 로그/데이터 파일 또는 시스템 임시 파일을 정리하거나 스토리지 증설 필요. 긴급 조치 요망.",
+          "latency_ms": 5799,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ml-restart-loop",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "실장애"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(myapp) 무한 재시작 및 실행 실패 반복",
+          "root_cause_ko": "서비스가 비정상 종료된 후 systemd의 재시작 정책에 의해 짧은 시간 내 반복 재시작을 시도하다 'Start request repeated too quickly' 오류로 차단됨 (추정)",
+          "action_ko": "journalctl -u myapp.service를 통해 상세 에러 로그 확인, 애플리케이션 설정 파일 및 실행 권한 점검",
+          "latency_ms": 6466,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(myapp) 무한 재시작 및 실행 실패 반복",
+          "root_cause_ko": "서비스가 비정상 종료된 후 systemd의 재시작 정책에 의해 짧은 시간 내 반복 재시작을 시도하다 'Start request repeated too quickly' 오류로 차단됨 (추정)",
+          "action_ko": "journalctl -u myapp.service를 통해 상세 에러 로그 확인, 애플리케이션 설정 파일 및 실행 권한 점검",
+          "latency_ms": 6042,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(myapp) 무한 재시작 및 실행 실패 반복",
+          "root_cause_ko": "서비스가 비정상 종료된 후 systemd의 재시작 정책에 의해 짧은 시간 내 반복 재시작을 시도하다 'Start request repeated too quickly' 오류로 차단됨 (추정)",
+          "action_ko": "journalctl -u myapp.service를 통해 상세 에러 로그 확인, 애플리케이션 설정 파일 및 실행 권한 점검",
+          "latency_ms": 6040,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ml-app-db-refused",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 실패가 5분간 40회 급증 (지속 발생)",
+          "root_cause_ko": "대상 IP(10.0.0.12)의 5432 포트에서 응답이 없음. DB 서비스 중단 또는 네트워크 차단 추정",
+          "action_ko": "DB 서버(10.0.0.12)의 PostgreSQL 서비스 상태 확인 및 네트워크 연결성(ping, telnet) 점검",
+          "latency_ms": 6349,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 실패가 짧은 시간 내 40회 급증",
+          "root_cause_ko": "대상 IP(10.0.0.12)의 DB 서비스(5432 포트)가 중단되었거나 네트워크 통신이 거부됨 (추정)",
+          "action_ko": "DB 서버(10.0.0.12)의 상태 확인, PostgreSQL/MySQL 등 DB 서비스 구동 여부 및 방화벽 설정 점검",
+          "latency_ms": 6042,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 실패가 짧은 시간 내 40회 급증",
+          "root_cause_ko": "대상 IP(10.0.0.12)의 5432 포트에서 서비스가 응답하지 않음 (DB 프로세스 다운 또는 네트워크 차단 추정)",
+          "action_ko": "대상 서버(10.0.0.12)의 DB 서비스 상태 확인 및 포트(5432) 오픈 여부 점검",
+          "latency_ms": 6042,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ml-backup-normal",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "정상종료"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 백업 작업 정상 완료",
+          "root_cause_ko": "Nightly backup 서비스가 설정된 작업을 모두 마치고 정상적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4094,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 백업 작업 정상 완료",
+          "root_cause_ko": "Nightly backup 서비스가 설정된 작업을 모두 마치고 정상적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3670,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 백업 작업 정상 완료",
+          "root_cause_ko": "Nightly backup 서비스가 설정된 작업을 모두 마치고 정상적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3701,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "ml-ssh-spray",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "보안"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 무차별 대입 공격 시도 (5분간 120회)",
+          "root_cause_ko": "공격자가 존재하지 않는 계정(admin, oracle 등)으로 로그인을 지속적으로 시도하는 전형적인 스캔/무차별 대입 공격임",
+          "action_ko": "해당 IP(203.0.113.77)를 방화벽에서 차단하고, fail2ban 설치 또는 SSH 포트 변경 및 키 인증 사용을 강력 권장함",
+          "latency_ms": 7002,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 무차별 대입 공격 시도 (5분간 120회)",
+          "root_cause_ko": "공격자가 존재하지 않는 계정(admin, oracle 등)으로 로그인을 반복 시도하는 전형적인 스캐닝/무차별 대입 공격임",
+          "action_ko": "해당 IP(203.0.113.77)를 방화벽에서 차단하고, fail2ban 설치 또는 SSH 포트 변경 및 키 인증 사용 권장",
+          "latency_ms": 6353,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 무차별 대입 공격 시도 (5분간 120회)",
+          "root_cause_ko": "공격자가 존재하지 않는 계정(admin, oracle 등)으로 로그인을 지속적으로 시도하는 전형적인 스캐닝/무차별 대입 공격임",
+          "action_ko": "해당 IP(203.0.113.77)를 방화벽에서 차단하고, fail2ban 설치 또는 SSH 포트 변경 및 키 기반 인증 사용 권장",
+          "latency_ms": 6443,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "ml-nfs-flap-recovered",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "일시적"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "NFS 스토리지 연결 일시적 끊김 발생",
+          "root_cause_ko": "네트워크 지연 또는 NFS 서버(10.0.0.20)의 일시적인 응답 불능으로 인한 타임아웃 (추정)",
+          "action_ko": "NFS 서버(10.0.0.20)의 네트워크 상태 및 서비스 가동 여부 확인, 스위치/케이블 등 물리 계층 점검",
+          "latency_ms": 6209,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "NFS 스토리지 연결 일시적 끊김 발생",
+          "root_cause_ko": "네트워크 지연 또는 NFS 서버(10.0.0.20)의 일시적인 응답 불능으로 인한 타임아웃 (이후 정상 복구됨)",
+          "action_ko": "NFS 서버(10.0.0.20)의 네트워크 상태 및 서비스 가동 여부 점검. 반복 발생 시 스위치 또는 물리 케이블 확인",
+          "latency_ms": 5967,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "NFS 스토리지 연결 일시적 끊김 발생",
+          "root_cause_ko": "네트워크 지연 또는 NFS 서버(10.0.0.20)의 일시적인 응답 불능으로 인한 타임아웃 (이후 정상 복구됨)",
+          "action_ko": "NFS 서버(10.0.0.20)의 네트워크 상태 및 서비스 가동 여부 점검. 반복 발생 시 스위치 또는 물리 케이블 확인",
+          "latency_ms": 6013,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ml-cert-renew-ok",
+      "file": "eval-set-multiline.jsonl",
+      "tags": [
+        "여러줄",
+        "정상종료"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SSL 인증서 갱신 작업 정상 완료",
+          "root_cause_ko": "certbot 서비스가 정기적인 인증서 갱신 작업을 성공적으로 마치고 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4300,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SSL 인증서 갱신 작업 정상 완료",
+          "root_cause_ko": "certbot 서비스가 정기적인 인증서 갱신 작업을 성공적으로 마치고 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3917,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SSL 인증서 갱신 작업 정상 완료",
+          "root_cause_ko": "certbot 서비스가 정기적인 인증서 갱신 작업을 성공적으로 마치고 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3967,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-vm-powerdown",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성",
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "VM 종료 명령 타임아웃 발생 (1회)",
+          "root_cause_ko": "VM이 지정된 시간 내에 정상적으로 전원 종료(Power down)되지 않음 (추정)",
+          "action_ko": "해당 VM의 내부 OS 상태를 확인하거나, 응답이 없을 경우 Proxmox GUI에서 'Stop' 명령으로 강제 종료 후 재시작 권장",
+          "latency_ms": 5734,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "VM 종료 명령 타임아웃 발생 (1회)",
+          "root_cause_ko": "VM이 지정된 시간 내에 정상적으로 전원 종료(Power down)되지 않음 (추정)",
+          "action_ko": "해당 VM의 내부 OS 상태를 확인하거나, 응답이 없을 경우 Proxmox GUI에서 'Stop' 명령으로 강제 종료 후 재시작 권장",
+          "latency_ms": 5212,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "VM 종료 명령 타임아웃 발생 (1회)",
+          "root_cause_ko": "VM이 지정된 시간 내에 정상적으로 전원 종료(Power down)되지 않음 (추정)",
+          "action_ko": "해당 VM의 내부 OS 상태를 확인하거나, 응답이 없을 경우 Proxmox GUI에서 'Stop' 명령으로 강제 종료 후 재시작 권장",
+          "latency_ms": 5155,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-apt-update",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "일시적"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "패키지 업데이트(apt-get update) 실패",
+          "root_cause_ko": "네트워크 연결 문제 또는 패키지 저장소 미러 서버의 일시적 오류로 인해 apt-get update가 비정상 종료됨 (exit code 100)",
+          "action_ko": "터미널에서 'apt-get update'를 수동으로 실행하여 상세 에러 확인. 네트워크 설정 및 외부 저장소 접속 가능 여부 점검",
+          "latency_ms": 6018,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "패키지 업데이트(apt-get update) 실패",
+          "root_cause_ko": "네트워크 연결 문제 또는 패키지 저장소 미러 서버의 일시적 오류로 인해 apt-get update가 비정상 종료됨 (exit code 100)",
+          "action_ko": "터미널에서 'apt-get update'를 수동으로 실행하여 상세 에러 확인. 네트워크 설정 및 외부 리포지토리 접속 가능 여부 점검",
+          "latency_ms": 5834,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "패키지 업데이트(apt-get update) 실패",
+          "root_cause_ko": "네트워크 연결 문제 또는 패키지 저장소 미러 서버의 일시적 오류로 인해 apt-get update가 비정상 종료됨 (exit code 100)",
+          "action_ko": "터미널에서 'apt-get update'를 수동으로 실행하여 상세 에러 확인. 네트워크 설정 및 외부 인터넷 연결 상태 점검 필요",
+          "latency_ms": 5638,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-backup-fail",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "실장애"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "백업 작업이 외부 신호에 의해 중단됨",
+          "root_cause_ko": "백업 프로세스가 실행 중 시스템 종료, 재부팅 또는 사용자의 강제 종료(SIGINT/SIGTERM 등) 신호를 받아 중단된 것으로 추정",
+          "action_ko": "백업 로그를 확인하여 수동 작업이나 스케줄링 충돌이 있었는지 점검하고, 백업 완료 여부를 재확인하십시오.",
+          "latency_ms": 5831,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "백업 작업이 외부 신호에 의해 중단됨",
+          "root_cause_ko": "백업 프로세스가 실행 중 시스템 종료, 재부팅 또는 사용자의 강제 종료(SIGINT/SIGTERM 등) 신호를 받아 중단된 것으로 추정",
+          "action_ko": "백업 로그를 확인하여 수동 작업이나 스케줄링 충돌이 있었는지 점검하고, 백업 완료 여부를 재확인하십시오.",
+          "latency_ms": 5567,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "백업 작업이 외부 신호에 의해 중단됨",
+          "root_cause_ko": "백업 프로세스가 실행 중 시스템 종료, 재부팅 또는 사용자의 강제 종료(SIGINT/SIGTERM 등) 신호를 받아 중단된 것으로 추정",
+          "action_ko": "백업 로그를 확인하여 수동 작업이나 스케줄링 충돌이 있었는지 점검하고, 백업 완료 여부를 재확인하십시오.",
+          "latency_ms": 5547,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-backup-vm100",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "VM 100 백업 작업 중단됨 (신호에 의한 중단)",
+          "root_cause_ko": "백업 프로세스가 외부 신호(SIGINT, SIGTERM 등)를 받아 강제 종료된 것으로 추정",
+          "action_ko": "백업 스케줄이 겹치는지 확인하거나, 백업 실행 중 관리자가 수동으로 중단했는지 점검. 반복 시 로그 확인 필요",
+          "latency_ms": 5727,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "VM 100 백업 작업 중단됨 (신호에 의한 중단)",
+          "root_cause_ko": "백업 프로세스가 외부 신호(SIGINT, SIGTERM 등)를 받아 강제 종료된 것으로 추정",
+          "action_ko": "백업 스케줄이 겹치는지 확인하거나, 백업 실행 중 관리자가 수동으로 중단했는지 점검. 반복 시 로그 확인 필요",
+          "latency_ms": 5481,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "VM 100 백업 작업 중단됨 (신호에 의한 중단)",
+          "root_cause_ko": "백업 프로세스가 외부 신호(SIGINT, SIGTERM 등)를 받아 강제 종료된 것으로 추정",
+          "action_ko": "백업 스케줄이 겹치는지 확인하거나, 백업 실행 중 관리자가 수동으로 중단했는지 점검. 반복 시 로그 확인 필요",
+          "latency_ms": 5463,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-erst",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "시스템 하드웨어 로그 주소 획득 실패 (양성 메시지)",
+          "root_cause_ko": "BIOS/펌웨어 수준에서 ERST(Error Record Serialization Table) 정보를 가져오지 못함. 서버 운영에 지장 없는 흔한 양성 경고임",
+          "action_ko": "조치 필요 없음 (하드웨어 펌웨어 관련 무해 메시지)",
+          "latency_ms": 5317,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "시스템 하드웨어 로그 주소 획득 실패 (양성 메시지)",
+          "root_cause_ko": "BIOS/펌웨어 수준에서 ERST(Error Record Serialization Table) 정보를 가져오지 못함. 서버 운영에 지장 없는 흔한 양성 경고임",
+          "action_ko": "조치 필요 없음 (하드웨어 펌웨어 관련 무해 메시지)",
+          "latency_ms": 5035,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "시스템 하드웨어 에러 로그(ERST) 정보 획득 실패",
+          "root_cause_ko": "BIOS/펌웨어가 특정 하드웨어 에러 로그 주소 범위를 제공하지 못함 (일반적인 양성 메시지)",
+          "action_ko": "조치 필요 없음. 시스템 운영에 영향이 없는 알려진 펌웨어 경고임",
+          "latency_ms": 4969,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-nm-wait",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "네트워크 대기 서비스 시작 실패 (무해)",
+          "root_cause_ko": "부팅 시 네트워크 연결이 완료될 때까지 기다리는 서비스가 타임아웃되었으나, 실제 통신에는 영향이 없는 흔한 현상임",
+          "action_ko": "조치 필요 없음. 시스템 부팅 및 일반적인 네트워크 사용에 지장이 없다면 무시 가능",
+          "latency_ms": 5324,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "네트워크 대기 서비스 시작 실패 (일시적)",
+          "root_cause_ko": "부팅 시 네트워크 연결이 완료될 때까지 기다리는 서비스가 타임아웃되었으나, 시스템 운영에는 큰 영향이 없는 흔한 현상임",
+          "action_ko": "조치 필요 없음. 네트워크 설정에 문제가 없다면 무시해도 됨",
+          "latency_ms": 4831,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "네트워크 대기 서비스 시작 실패 (무해)",
+          "root_cause_ko": "부팅 시 네트워크 연결이 완료될 때까지 기다리는 서비스가 타임아웃되었으나, 실제 통신에는 영향이 없는 흔한 현상임",
+          "action_ko": "조치 필요 없음. 시스템 부팅 및 일반적인 네트워크 사용에 지장이 없다면 무시 가능",
+          "latency_ms": 4958,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-fstat",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "실장애",
+        "애매"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "가상 머신 디스크 장치 인식 오류 발생",
+          "root_cause_ko": "스토리지 볼륨(/dev/VMDK_Volume) 내 특정 VM 디스크의 파일 시스템 상태 또는 장치 경로 변경으로 인한 일시적 접근 실패(추정)",
+          "action_ko": "pvesm status로 스토리지 연결 상태 확인, 해당 VM의 디스크 매핑 상태 점검. 반복 발생 시 스토리지 컨트롤러/네트워크 점검 필요",
+          "latency_ms": 6116,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "가상 머신 디스크 장치 인식 오류 발생",
+          "root_cause_ko": "스토리지 볼륨(/dev/VMDK_Volume) 내 특정 VM 디스크의 장치 식별자(ID) 변경 또는 연결 일시적 끊김으로 추정",
+          "action_ko": "pvesm status로 스토리지 상태 확인, 해당 VM의 디스크 경로가 유효한지 점검. 반복 발생 시 스토리지 컨트롤러/네트워크 점검 필요",
+          "latency_ms": 5901,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "가상 머신 디스크 장치 인식 오류 발생",
+          "root_cause_ko": "스토리지 볼륨(/dev/VMDK_Volume)의 경로 변경 또는 스토리지 연결 일시적 불안정으로 인한 장치 식별 실패(추정)",
+          "action_ko": "pvesm status로 스토리지 상태 확인, VM이 실행 중이라면 해당 VM의 디스크 연결 상태 및 스토리지 서버 네트워크 점검",
+          "latency_ms": 5524,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-qmclone",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "실장애",
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "VM 클론 작업 실패 (copy failed)",
+          "root_cause_ko": "VM 복제(qmclone) 과정 중 파일 복사 단계에서 오류 발생 (추정: 스토리지 연결 불안정 또는 대상 디스크 용량 부족)",
+          "action_ko": "대상 스토리지의 여유 공간을 확인하고, 네트워크/스토리지 경로의 안정성을 점검하십시오. 반복될 경우 로그를 상세히 분석해야 합니다.",
+          "latency_ms": 5868,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "VM 클론 작업 실패 (copy failed)",
+          "root_cause_ko": "VM 복제(qmclone) 과정에서 파일 복사 중 오류 발생. 스토리지 연결 문제 또는 대상 디스크 공간 부족 추정",
+          "action_ko": "대상 스토리지의 여유 공간 확인(df -h), 스토리지 네트워크 상태 점검, 로그 상세 분석을 통해 원인 파악 필요",
+          "latency_ms": 5218,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "VM 클론 작업 실패 (copy failed)",
+          "root_cause_ko": "VM 복제(qmclone) 과정에서 파일/데이터 복사 중 오류 발생 (추정: 스토리지 연결 불안정 또는 대상 디스크 용량 부족)",
+          "action_ko": "대상 스토리지의 여유 공간을 확인하고, 네트워크 기반 스토리지인 경우 네트워크 상태를 점검하십시오. 재시도 전 로그 상세 분석 필요",
+          "latency_ms": 5461,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-netplan",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "실장애",
+        "애매"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "네트워크 인터페이스 활성화 실패 반복 발생",
+          "root_cause_ko": "특정 네트워크 장치(enp195s0f0np0)가 설정된 프로필(netplan-enp195s)로 연결을 시도했으나 지속적으로 실패함 (추정)",
+          "action_ko": "ip link show로 인터페이스 상태 확인, 'sudo netplan apply' 실행 후 로그 모니터링, 케이블 또는 스위치 포트 물리적 점검",
+          "latency_ms": 6438,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "네트워크 인터페이스 활성화 실패 반복 발생",
+          "root_cause_ko": "특정 네트워크 장치(enp195s0f0np0)가 설정된 프로필(netplan-enp195s)로 연결을 시도했으나 계속 실패함 (추정)",
+          "action_ko": "ip link show로 인터페이스 상태 확인, 'sudo netplan apply' 실행 후 로그 모니터링, 케이블 또는 스위치 포트 점검",
+          "latency_ms": 6001,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "네트워크 인터페이스 활성화 실패 반복 발생",
+          "root_cause_ko": "특정 네트워크 장치(enp195s0f0np0)가 설정된 프로필(netplan-enp195s)로 연결을 시도했으나 계속 실패함 (추정)",
+          "action_ko": "ip link show로 인터페이스 상태 확인, 'sudo netplan apply' 실행 후 로그 모니터링, 케이블 또는 스위치 포트 물리적 점검",
+          "latency_ms": 6085,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-fb0",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "그래픽 디스플레이 장치 접근 권한 오류 (무해)",
+          "root_cause_ko": "헤드리스 서버에서 그래픽 프레임버퍼(/dev/fb0)에 대한 권한이 없어 발생하는 일반적인 메시지",
+          "action_ko": "조치 필요 없음 (서버 운영에 영향 없는 양성 로그)",
+          "latency_ms": 5069,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "디스플레이 장치 접근 권한 오류 (무해)",
+          "root_cause_ko": "헤드리스 서버에서 그래픽/프레임버퍼(/dev/fb0) 장치에 대한 권한이 없어 발생하는 일반적인 메시지",
+          "action_ko": "조치 필요 없음 (서버 운영에 영향 없는 양성 로그)",
+          "latency_ms": 4819,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "그래픽 디스플레이 장치 접근 권한 오류 (무해)",
+          "root_cause_ko": "헤드리스 서버에서 그래픽 프레임버퍼(/dev/fb0)에 대한 권한이 없어 발생하는 일반적인 메시지",
+          "action_ko": "조치 필요 없음 (서버 운영에 영향 없는 양성 로그)",
+          "latency_ms": 4717,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-pbs-off-nocontext",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "실장애",
+        "장기지속"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "PBS 스토리지 연결 불가 120일째 지속 (재발 중)",
+          "root_cause_ko": "Proxmox Backup Server(192.168.0.50)로의 네트워크 경로가 끊겼거나 대상 서버가 다운된 것으로 추정",
+          "action_ko": "PBS 서버(192.168.0.50)의 전원 및 네트워크 상태 확인, `ping 192.168.0.50`으로 통신 여부 점검",
+          "latency_ms": 6901,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "PBS 스토리지 연결 실패 120일째 지속",
+          "root_cause_ko": "Proxmox Backup Server(192.168.0.50)로의 네트워크 경로가 끊김 (No route to host). 장기간 반복되는 문제임.",
+          "action_ko": "PBS 서버(192.168.0.50)의 전원 및 네트워크 상태 확인, 게이트웨이/스위치 라우팅 테이블 점검",
+          "latency_ms": 6092,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "PBS 스토리지 연결 실패 120일째 지속",
+          "root_cause_ko": "Proxmox Backup Server(192.168.0.50)로의 네트워크 경로가 끊김 (No route to host). 장기간 반복되는 문제임.",
+          "action_ko": "PBS 서버(192.168.0.50)의 전원 및 네트워크 상태 확인, 게이트웨이/스위치 라우팅 테이블 점검",
+          "latency_ms": 6074,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-pbs-off-context",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "맥락주입",
+        "환경양성"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "PBS 백업 서버 연결 실패가 120일째 재발 중",
+          "root_cause_ko": "백업 서버(192.168.0.50)의 전원이 꺼져 있어 네트워크 경로를 찾을 수 없음 (의도적 종료 상태)",
+          "action_ko": "백업이 필요할 경우 PBS 서버 전원을 켜고, 불필요한 알림은 Proxmox GUI에서 해당 스토리지 연결 해제 또는 삭제",
+          "latency_ms": 6274,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "violations": [
+            "전원을 켜"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "PBS 백업 서버 연결 실패가 120일째 재발 중",
+          "root_cause_ko": "백업 서버(192.168.0.50)의 전원이 꺼져 있어 네트워크 경로를 찾을 수 없음 (의도적 종료 상태)",
+          "action_ko": "백업이 필요한 경우 PBS 서버 전원을 켜고, 불필요한 알림은 Proxmox GUI에서 해당 스토리지 연결 해제 또는 삭제",
+          "latency_ms": 5925,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "violations": [
+            "전원을 켜"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "PBS 백업 서버 연결 실패가 120일째 재발 중",
+          "root_cause_ko": "백업 서버(192.168.0.50)의 전원이 꺼져 있어 네트워크 경로를 찾을 수 없음 (의도적 종료 상태)",
+          "action_ko": "백업이 필요할 경우 PBS 서버 전원을 켜고, 불필요한 알림은 Proxmox GUI에서 해당 스토리지 연결 해제 또는 삭제",
+          "latency_ms": 5981,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "violations": [
+            "전원을 켜"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-no-quorum",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "실장애",
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "클러스터 쿼럼(Quorum) 상실로 인한 복제 서비스 장애 (5분간 48회 반복)",
+          "root_cause_ko": "네트워크 분할(Network Partition) 또는 노드 간 통신 문제로 인해 클러스터 과반수 투표권(Quorum)을 확보하지 못함",
+          "action_ko": "클러스터 전체 노드의 네트워크 연결 상태 확인, `pvecm status` 명령어로 쿼럼 상태 점검, 노드 간 통신 지연 여부 확인",
+          "latency_ms": 6774,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "클러스터 쿼럼(Quorum) 상실로 인한 복제 기능 장애 (5분간 48회 반복)",
+          "root_cause_ko": "클러스터 노드 간 통신 문제 또는 과반수 이상의 노드 다운으로 인해 클러스터 합의(Quorum)를 이루지 못함",
+          "action_ko": "모든 클러스터 노드의 네트워크 연결 상태 확인, 노드 전원 및 서비스(pve-cluster) 상태 점검, 필요 시 'pvecm status'로 쿼럼 상태 확인",
+          "latency_ms": 6552,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "클러스터 쿼럼(Quorum) 상실로 인한 복제 서비스 장애 (5분간 48회 반복)",
+          "root_cause_ko": "클러스터 노드 간 통신 문제 또는 과반수 이상의 노드 다운으로 인해 클러스터 합의(Quorum)를 이루지 못함",
+          "action_ko": "모든 클러스터 노드의 네트워크 연결 상태 확인, 노드 전원 및 서비스(pve-cluster) 상태 점검, 필요 시 `pvecm status`로 쿼럼 상태 확인",
+          "latency_ms": 6554,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-amd-exporter",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "애매",
+        "사용여부모름"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "GPU 모니터링 서비스(amd_gpu_exporter) 반복적 종료 발생",
+          "root_cause_ko": "AMD GPU 상태를 수집하는 exporter 서비스가 비정상적인 종료 코드(exit-code)와 함께 짧은 시간 내 1200회 이상 무한 재시작 중인 것으로 추정",
+          "action_ko": "systemctl status amd_gpu_exporter.service로 상세 에러 확인, journalctl -u amd_gpu_exporter.service로 로그 분석 후 서비스 설정 또는 드라이버 점검",
+          "latency_ms": 6795,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "GPU 모니터링 서비스(amd_gpu_exporter) 반복적 종료 발생",
+          "root_cause_ko": "AMD GPU 상태를 수집하는 exporter 서비스가 비정상적인 종료 코드(exit-code)와 함께 짧은 시간 내에 1,200회 이상 무한 재시작 중인 것으로 추정",
+          "action_ko": "systemctl status amd_gpu_exporter.service로 상세 에러 확인, journalctl -u amd_gpu_exporter.service로 로그 분석 후 서비스 설정 또는 드라이버 점검",
+          "latency_ms": 6516,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "GPU 모니터링 서비스(amd_gpu_exporter) 반복적 실행 실패",
+          "root_cause_ko": "AMD GPU 상태를 수집하는 exporter 서비스가 비정상 종료(exit-code) 후 무한 재시작 중인 것으로 추정",
+          "action_ko": "systemctl status amd_gpu_exporter.service로 상세 에러 확인, journalctl -u amd_gpu_exporter.service로 로그 분석 및 설정값 점검",
+          "latency_ms": 5737,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-llama-coredump",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "애매",
+        "사용여부모름"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "llama-26b 서비스 코어 덤프 발생 및 비정상 종료",
+          "root_cause_ko": "애플리케이션(llama-26b)이 치명적인 오류로 인해 메모리 상태를 기록하며 강제 종료됨 (core-dump)",
+          "action_ko": "서비스 로그 확인(`journalctl -u llama-26b`), 코어 덤프 파일 분석을 통한 메모리 부족(OOM) 또는 라이브러리 충돌 여부 점검",
+          "latency_ms": 6404,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "llama-26b 서비스 코어 덤프 발생 및 비정상 종료",
+          "root_cause_ko": "애플리케이션(llama-26b)이 치명적인 오류로 인해 메모리 상태를 기록하며 강제 종료됨 (core-dump)",
+          "action_ko": "/var/log/syslog 또는 journalctl -u llama-26b 확인, 코어 덤프 파일 분석을 통해 세그멘테이션 폴트(Segmentation fault) 등 코드 오류 점검",
+          "latency_ms": 6097,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "llama-26b 서비스 코어 덤프 발생 및 종료",
+          "root_cause_ko": "애플리케이션(llama-26b)이 치명적인 오류로 인해 비정상 종료되며 메모리 상태를 파일로 기록함(core-dump)",
+          "action_ko": "/var/log/syslog 또는 journalctl -u llama-26b 확인, 애플리케이션 로그 및 코어 덤프 분석을 통해 메모리 부족(OOM) 또는 코드 오류 점검",
+          "latency_ms": 6136,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-firmware-notifier",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "여러줄",
+        "환경양성"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "펌웨어 업데이트 알림 서비스 실행 실패",
+          "root_cause_ko": "데스크톱 환경의 펌웨어 업데이트 알림 데몬이 비정상 종료됨 (서버 운영에 영향 없음)",
+          "action_ko": "조치 필요 없음. 서버 용도라면 무시해도 되는 일반적인 구성 요소 오류임",
+          "latency_ms": 4961,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "펌웨어 업데이트 알림 서비스 실행 실패",
+          "root_cause_ko": "데스크톱 환경의 펌웨어 업데이트 알림 데몬이 비정상 종료됨 (서버 운영에 영향 없음)",
+          "action_ko": "조치 필요 없음. 서버 용도라면 무시해도 되는 일반적인 구성 요소 오류임",
+          "latency_ms": 4550,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "펌웨어 업데이트 알림 서비스 실행 실패",
+          "root_cause_ko": "데스크톱 환경의 펌웨어 업데이트 알림(snap) 서비스가 비정상 종료됨 (서버 운영에는 무해한 구성요소)",
+          "action_ko": "조치 필요 없음. 서버 용도라면 해당 snap 패키지 삭제 또는 무시 가능",
+          "latency_ms": 4787,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-certbot-hook",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "여러줄",
+        "실장애"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 갱신 실패 (5분 내 7회 반복)",
+          "root_cause_ko": "인증서 갱신 스크립트(/tmp/certbot-dns-hook.sh)를 실행할 수 있는 경로(PATH) 설정 문제 또는 파일 부재",
+          "action_ko": "/etc/environment 또는 certbot 설정에서 해당 스크립트의 절대 경로가 포함된 PATH 확인, /tmp/certbot-dns-hook.sh 파일 존재 여부 및 실행 권한(chmod +x) 점검",
+          "latency_ms": 6994,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 갱신 실패 (5분 내 7회 반복)",
+          "root_cause_ko": "인증서 갱신 스크립트(/tmp/certbot-dns-hook.sh)를 실행할 수 있는 경로(PATH) 설정 문제 또는 파일 부재",
+          "action_ko": "/etc/letsencrypt/renewal/ 폴더 내 설정 확인, certbot-dns-hook.sh 파일의 실행 권한 및 절대 경로가 올바른지 점검",
+          "latency_ms": 6011,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 갱신 실패 (5분 내 7회 반복)",
+          "root_cause_ko": "인증서 갱신 스크립트(/tmp/certbot-dns-hook.sh)를 실행할 경로(PATH) 설정 오류 또는 파일 부재로 인한 실패",
+          "action_ko": "/etc/letsencrypt/renewal/ 폴더 내 설정 확인, certbot-dns-hook.sh 파일의 존재 여부 및 실행 권한(chmod +x) 점검, 스크립트 호출 경로를 절대 경로로 수정",
+          "latency_ms": 6581,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "prod-ssh-scanner-wp",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "보안",
+        "애매"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 포트로의 웹 공격 시도 감지",
+          "root_cause_ko": "공격자가 SSH(22번) 포트에 HTTP 프로토콜을 사용하여 취약한 워드프레스 플러그인 경로를 스캔함 (비정상적인 프로토콜 식별자 전송)",
+          "action_ko": "SSH 포트가 외부에 노출되어 있다면 22번 대신 다른 포트로 변경하거나, 특정 IP만 허용하도록 방화벽(ufw/iptables) 설정 권장",
+          "latency_ms": 6657,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 포트로의 웹 공격 시도 감지",
+          "root_cause_ko": "공격자가 SSH(22번) 포트로 HTTP 프로토콜을 사용하여 취약한 워드프레스 플러그인 경로를 스캔함 (비정상적인 프로토콜 식별자 전송)",
+          "action_ko": "SSH 포트가 외부에 노출되어 있다면 22번 포트를 변경하거나, 특정 IP만 허용하도록 방화벽(ufw/iptables) 설정. fail2ban 설치 권장",
+          "latency_ms": 6371,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 포트로의 웹 공격 시도 감지",
+          "root_cause_ko": "공격자가 SSH(22번) 포트를 대상으로 HTTP 프로토콜을 사용하여 취약한 PHP 파일 경로를 스캔함 (비정상적인 프로토콜 식별자 전송)",
+          "action_ko": "SSH 포트가 외부에 노출되어 있다면 22번 대신 다른 포트로 변경하거나, 특정 IP만 허용하도록 방화벽(ufw/iptables) 설정 권장",
+          "latency_ms": 6060,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-ssh-scanner-cgi",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "보안",
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 프로토콜을 위장한 웹 취약점 공격 시도 감지",
+          "root_cause_ko": "공격자가 SSH 포트로 HTTP POST 요청(경로 조작)을 보내는 비정상적인 패킷 전송 (취약점 스캔/공격 시도)",
+          "action_ko": "SSH 포트가 22번인 경우 외부 노출 최소화, fail2ban 설치 및 적용, SSH 키 인증 사용 권장",
+          "latency_ms": 6028,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 프로토콜을 위장한 웹 취약점 공격 시도 감지",
+          "root_cause_ko": "공격자가 SSH 포트로 HTTP POST 요청(경로 조작)을 보내는 비정상적인 패킷 전송 (취약점 스캔/공격 시도)",
+          "action_ko": "SSH 포트가 22번인 경우 외부 노출 최소화, fail2ban 설치 및 특정 IP 차단, SSH 키 인증 사용 권장",
+          "latency_ms": 5867,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 프로토콜을 위장한 웹 취약점 공격 시도 감지",
+          "root_cause_ko": "공격자가 SSH 포트로 HTTP POST 요청(경로 조작)을 보내는 비정상적인 패킷 전송 (취약점 스캔/공격 시도)",
+          "action_ko": "SSH 포트가 22번인 경우 외부 노출 최소화, fail2ban 설치 및 특정 IP 차단, SSH 키 인증 사용 권장",
+          "latency_ms": 5865,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-kex-closed",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "보안",
+        "일시적"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 연결 시도 중 원격지에서 연결 강제 종료 (5분 내 3회)",
+          "root_cause_ko": "외부로부터의 SSH 스캔 또는 비정상적인 접속 시도로 인해 연결이 조기 차단됨(추정)",
+          "action_ko": "SSH 로그(/var/log/auth.log)를 확인하여 특정 IP의 반복적 접근 여부 점검, fail2ban 설치 권장",
+          "latency_ms": 5759,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 연결 시도 중 원격지에서 연결 강제 종료 발생 (5분 내 3회)",
+          "root_cause_ko": "외부로부터의 SSH 스캔 또는 비정상적인 접속 시도로 인해 연결이 조기 차단됨(추정)",
+          "action_ko": "SSH 로그(/var/log/auth.log)를 확인하여 특정 IP의 반복적 접근 여부 점검, 필요시 fail2ban 설치 및 방화벽 설정 강화",
+          "latency_ms": 5688,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSH 연결 시도 중 원격지에서 연결이 강제 종료됨 (5분 내 3회)",
+          "root_cause_ko": "SSH 프로토콜 교환 단계(kex)에서 상대방 호스트가 연결을 끊음. 단순 네트워크 불안정 또는 스캔/공격 시도로 추정",
+          "action_ko": "로그인 실패 기록 확인(/var/log/auth.log), 특정 IP의 반복적 접근 여부 점검 및 필요시 방화벽(iptables/ufw) 차단",
+          "latency_ms": 6243,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-postfix-pickup",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "애플리케이션 파일 경로 참조 오류 (1회 발생)",
+          "root_cause_ko": "설정된 특정 경로(public/pickup)를 찾을 수 없어 발생하는 경고 메시지임 (추정)",
+          "action_ko": "애플리케이션 설정 파일에서 'public/pickup' 경로가 올바른지 확인하거나, 해당 디렉토리가 존재하는지 점검",
+          "latency_ms": 5568,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "애플리케이션 파일 경로 참조 오류 (1회 발생)",
+          "root_cause_ko": "애플리케이션이 'public/pickup' 파일을 찾으려 했으나 해당 경로에 파일이 없음(추정)",
+          "action_ko": "애플리케이션 설정 내 파일 경로가 올바른지 확인하거나, 누락된 파일이 있는지 점검",
+          "latency_ms": 5016,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "애플리케이션 파일 경로 참조 오류 (1회 발생)",
+          "root_cause_ko": "애플리케이션이 'public/pickup' 파일을 찾으려 했으나 해당 경로에 파일이 없음(추정)",
+          "action_ko": "애플리케이션 설정에서 파일 경로가 올바른지 확인하거나, 누락된 파일이 있는지 점검",
+          "latency_ms": 4974,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-dnf-makecache",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "여러줄",
+        "일시적"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "패키지 캐시 업데이트 서비스(dnf-makecache) 실행 실패",
+          "root_cause_ko": "DNF 패키지 매니저의 메타데이터 갱신 과정에서 네트워크 오류 또는 저장소 설정 문제로 인해 종료됨 (추정)",
+          "action_ko": "sudo dnf makecache 명령어를 수동으로 실행하여 에러 메시지를 확인하고, 인터넷 연결 및 리포지토리(Repository) 설정을 점검하십시오.",
+          "latency_ms": 5982,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "패키지 캐시 업데이트 서비스(dnf-makecache) 실행 실패",
+          "root_cause_ko": "DNF 패키지 매니저의 메타데이터 갱신 과정에서 네트워크 오류 또는 저장소 설정 문제로 인해 종료됨 (추정)",
+          "action_ko": "sudo dnf makecache 명령어를 직접 실행하여 에러 메시지 확인 후, 네트워크 연결 상태나 리포지토리(repo) 설정을 점검하십시오.",
+          "latency_ms": 5586,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "패키지 캐시 업데이트(dnf) 실패 (5분 내 2회 발생)",
+          "root_cause_ko": "DNF 패키지 메타데이터를 갱신하는 과정에서 네트워크 오류 또는 리포지토리 서버 응답 지연으로 인해 종료됨(추정)",
+          "action_ko": "dnf makecache 명령어를 수동으로 실행하여 에러 메시지 확인, 인터넷 연결 및 외부 미러 서버 상태 점검",
+          "latency_ms": 5550,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-sssd-socket",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "auth",
+          "summary_ko": "SSSD 인증 관련 소켓 의존성 오류 발생",
+          "root_cause_ko": "SSSD PAM 서비스의 소켓 생성 또는 연결 과정에서 일시적인 의존성 충돌이 발생한 것으로 추정",
+          "action_ko": "systemctl status sssd-pam.socket 및 sssd 서비스 상태 확인, 필요 시 'systemctl restart sssd' 실행",
+          "latency_ms": 5312,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "SSSD 인증 관련 소켓 의존성 오류 발생",
+          "root_cause_ko": "SSSD PAM 서비스의 소켓 생성 또는 종속된 서비스 실행 실패(추정)",
+          "action_ko": "systemctl status sssd-pam.socket 및 sssd 서비스 상태 확인, 필요 시 'systemctl restart sssd' 실행",
+          "latency_ms": 4747,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "SSSD 인증 관련 소켓 의존성 오류 발생",
+          "root_cause_ko": "SSSD PAM 서비스의 소켓 생성 또는 종속된 서비스 실행 실패(추정)",
+          "action_ko": "systemctl status sssd-pam.socket 및 sssd 서비스 상태 확인, 필요 시 'systemctl restart sssd' 실행",
+          "latency_ms": 4689,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-amdgpu-eeprom",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "애매"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "AMD GPU EEPROM 헤더 읽기 실패 (양성 메시지 가능성)",
+          "root_cause_ko": "GPU 펌웨어(EEPROM) 정보를 읽는 과정에서 발생한 하드웨어 통신 오류이나, 시스템 운영에 지장이 없는 일반적인 드라이버 경고일 가능성이 높음",
+          "action_ko": "현재 서비스 중단이 없다면 조치 불필요. GPU 가속 기능 사용 시 성능 저하 여부만 확인",
+          "latency_ms": 6164,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "AMD GPU EEPROM 헤더 읽기 실패 (양성 메시지 가능성)",
+          "root_cause_ko": "GPU 펌웨어(EEPROM) 정보를 읽는 과정에서 발생한 하드웨어 통신 오류이나, 시스템 운영에 영향이 없는 일반적인 드라이버 경고일 가능성이 높음",
+          "action_ko": "정상 동작 중 발생하는 무해한 로그일 가능성이 크므로 별도 조치 불필요. GPU 가속 기능 사용 시에만 하드웨어 점검 권장",
+          "latency_ms": 6245,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "AMD GPU EEPROM 헤더 읽기 실패 (양성 메시지 가능성)",
+          "root_cause_ko": "GPU 펌웨어(EEPROM) 정보를 읽는 과정에서 발생한 하드웨어 통신 오류이나, 시스템 운영에 지장이 없는 일반적인 커널 경고일 가능성이 높음",
+          "action_ko": "정상 동작 중 발생하는 무해한 메시지일 확률이 높으므로 별도 조치 불필요. GPU 가속 기능 사용 시에만 하드웨어 점검 권장",
+          "latency_ms": 6247,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-gnome-keybinding",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "시스템 절전(hibernate) 관련 가속기 할당 실패",
+          "root_cause_ko": "데스크톱 환경의 키바인딩 설정 중 절전 모드와 관련된 그래픽/하드웨어 가속기 점유에 일시적 오류 발생 (정상 동작일 가능성 높음)",
+          "action_ko": "조치 필요 없음. 데스크톱 세션 사용 중 발생하는 일반적인 경고 메시지임",
+          "latency_ms": 5734,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "시스템 절전(hibernate) 관련 가속기 할당 실패",
+          "root_cause_ko": "데스크톱 환경의 키바인딩 설정 중 하이버네이션(절전) 기능과 그래픽 가속기 간의 일시적 충돌 또는 권한 문제로 추정",
+          "action_ko": "서버 운영에 지장이 없는 데스크톱 구성요소 오류이므로 조치 필요 없음 (무해한 메시지)",
+          "latency_ms": 5630,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "시스템 절전(hibernate) 관련 가속기 할당 실패",
+          "root_cause_ko": "데스크톱 환경의 키바인딩 설정 중 하이버네이션(절전) 기능과 GPU 가속 간의 일시적 충돌 또는 권한 문제로 추정",
+          "action_ko": "서버 운영에 지장이 없는 데스크톱 구성요소 오류이므로 조치 필요 없음 (무해한 메시지)",
+          "latency_ms": 5510,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-upower",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "전원 관리 서비스(UPower) 통신 오류 발생",
+          "root_cause_ko": "데스크톱 환경의 전원 관리 데몬(UPower)이 실행 중이지 않거나, 헤드리스 서버에서 관련 기능 호출 시 발생하는 무해한 메시지일 가능성 높음",
+          "action_ko": "조치 필요 없음 (서버 운영에 영향 없는 단순 경고)",
+          "latency_ms": 5439,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "전원 관리 서비스(UPower) 통신 오류 발생",
+          "root_cause_ko": "데스크톱 환경의 전원 관리 데몬(UPower)이 실행 중이지 않거나, 헤드리스 서버에서 관련 서비스가 활성화되지 않아 발생하는 무해한 메시지임",
+          "action_ko": "조치 필요 없음 (서버 운영에 영향 없는 양성 로그)",
+          "latency_ms": 5130,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "전원 관리 서비스(UPower) 통신 오류 발생",
+          "root_cause_ko": "데스크톱 환경의 전원 관리 데몬(UPower)이 실행 중이지 않거나, 헤드리스 서버에서 관련 서비스를 호출할 때 발생하는 일반적인 메시지임",
+          "action_ko": "서버가 모니터/배터리가 없는 헤드리스 상태라면 무시해도 됨. 필요 시 upower 서비스 상태 확인(systemctl status upower)",
+          "latency_ms": 5802,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-tpm",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "환경양성"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "TPM 장치 미검출로 인한 대체 인증 방식 사용",
+          "root_cause_ko": "시스템에서 하드웨어 TPM(Trusted Platform Module)을 찾지 못해 소프트웨어 방식(GKeyFile)으로 전환됨 (정상 동작일 가능성 높음)",
+          "action_ko": "하드웨어 보안 모듈이 필수적인 환경이 아니라면 조치 필요 없음. BIOS/UEFI에서 TPM 설정 확인",
+          "latency_ms": 5765,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "security",
+          "summary_ko": "TPM 장치 미검출로 인한 인증 방식 자동 전환",
+          "root_cause_ko": "시스템에서 하드웨어 TPM(신뢰 플랫폼 모듈)을 찾지 못해 소프트웨어 방식(GKeyFile)으로 대체하여 실행됨 (정상 동작일 가능성 높음)",
+          "action_ko": "하드웨어 보안 기능이 필수적인 환경이 아니라면 조치 필요 없음. BIOS에서 TPM 설정 확인은 가능",
+          "latency_ms": 5609,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "security",
+          "summary_ko": "TPM 장치 미검출로 인한 인증 방식 자동 전환",
+          "root_cause_ko": "시스템에서 하드웨어 TPM(Trusted Platform Module)을 찾지 못해 소프트웨어 방식(GKeyFile)으로 대체함 (정상 동작일 가능성 높음)",
+          "action_ko": "하드웨어 보안 모듈 사용이 필수적인 환경이 아니라면 조치 필요 없음",
+          "latency_ms": 5141,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-sshd-forward-fail",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "특정 IP(172.30.1.159)로의 네트워크 연결 실패",
+          "root_cause_ko": "대상 서버(17000 포트)가 다운되었거나, 네트워크 경로 문제 또는 방화벽에 의해 연결이 차단된 것으로 추정",
+          "action_ko": "ping 172.30.1.159로 통신 확인, 대상 서버의 17000 포트 서비스 상태 및 방화벽 설정 점검",
+          "latency_ms": 6503,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "원격 대상 IP(172.30.1.159)로의 연결 실패",
+          "root_cause_ko": "대상 서버(17000 포트)가 다운되었거나 네트워크 경로에 문제가 있는 것으로 추정",
+          "action_ko": "대상 서버(172.30.1.159)의 서비스 상태와 17000번 포트 개방 여부 확인, ping 테스트 수행",
+          "latency_ms": 5724,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "특정 IP(172.30.1.159)로의 네트워크 연결 실패",
+          "root_cause_ko": "대상 서버(17000 포트)가 다운되었거나, 네트워크 경로 문제 또는 방화벽에 의해 연결이 차단된 것으로 추정",
+          "action_ko": "ping 172.30.1.159로 통신 확인, 대상 서버의 17000 포트 서비스 상태 및 방화벽(iptables/ufw) 설정 점검",
+          "latency_ms": 6503,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "prod-firmware-notifier-hist",
+      "file": "eval-set-prod.jsonl",
+      "tags": [
+        "여러줄",
+        "환경양성",
+        "장기지속"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "펌웨어 업데이트 알림 서비스 오류 3일째 지속",
+          "root_cause_ko": "snap 기반의 펌웨어 알림 데몬이 실행 중 오류 발생(정상 동작 방해 요소이나 시스템 핵심 기능은 아님)",
+          "action_ko": "조치 필요 없음. 해당 서비스는 사용자에게 업데이트를 알려주는 부가 기능이며, 서버 운영에 직접적인 영향을 주지 않음",
+          "latency_ms": 5842,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "펌웨어 업데이트 알림 서비스 오류 3일째 지속",
+          "root_cause_ko": "snap 기반의 펌웨어 알림 데몬이 실행 중 오류 발생(정상 동작 방해 요소이나 시스템 핵심 기능은 아님)",
+          "action_ko": "조치 필요 없음. 해당 서비스는 사용자에게 업데이트를 알려주는 부가 기능이며, 서버 운영에 직접적인 영향을 주지 않음",
+          "latency_ms": 5315,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "펌웨어 업데이트 알림 서비스 오류 3일째 지속",
+          "root_cause_ko": "snap 기반의 펌웨어 알림 데몬이 실행 중 오류 발생(정상 동작 방해 가능성 낮음)",
+          "action_ko": "서비스 영향도가 낮은 데스크톱 구성요소이므로 무시해도 무방함. 필요 시 'sudo snap remove firmware-updater'로 제거",
+          "latency_ms": 5208,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "normal-pmlogger",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료",
+        "few-shot유사"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 로그 정리 작업 정상 완료",
+          "root_cause_ko": "배치 서비스(pmlogger_daily)가 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4165,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 로그 정리 작업 정상 완료",
+          "root_cause_ko": "배치 서비스(pmlogger_daily)가 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3845,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 로그 정리 작업 정상 완료",
+          "root_cause_ko": "배치 서비스(pmlogger_daily)가 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3891,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "normal-logrotate",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료",
+        "few-shot유사"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "로그 로테이션 작업 정상 완료",
+          "root_cause_ko": "logrotate 배치 서비스가 설정된 작업을 마치고 정상적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3995,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "로그 로테이션 작업 정상 완료",
+          "root_cause_ko": "logrotate 배치 서비스가 설정된 작업을 마치고 정상적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3684,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "로그 로테이션 작업 정상 완료",
+          "root_cause_ko": "logrotate 배치 서비스가 설정된 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3639,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "normal-certbot",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SSL 인증서 갱신 작업 정상 완료",
+          "root_cause_ko": "certbot-renew 배치 서비스가 인증서 갱신 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4144,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SSL 인증서 갱신 작업 정상 완료",
+          "root_cause_ko": "certbot-renew 배치 서비스가 인증서 갱신 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3827,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SSL 인증서 갱신 작업 정상 완료",
+          "root_cause_ko": "certbot-renew 배치 서비스가 인증서 갱신 작업을 마치고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3851,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "normal-anacron",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 작업(cron.daily) 정상 완료",
+          "root_cause_ko": "anacron에 의해 예약된 일일 정기 작업이 성공적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4215,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 작업(cron.daily) 정상 완료",
+          "root_cause_ko": "anacron에 의해 예약된 일일 정기 작업이 성공적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3873,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 작업(cron.daily) 정상 완료",
+          "root_cause_ko": "anacron에 의해 예약된 일일 정기 작업이 성공적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3893,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "normal-tmpfiles",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "임시 파일 정리 작업 정상 완료",
+          "root_cause_ko": "systemd-tmpfiles-clean 서비스가 설정된 주기에 따라 임시 파일을 정리하고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4263,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "임시 파일 정리 작업 정상 완료",
+          "root_cause_ko": "systemd-tmpfiles-clean 서비스가 설정된 주기에 따라 임시 파일을 정리하고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4028,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "임시 파일 정리 작업 정상 완료",
+          "root_cause_ko": "systemd-tmpfiles-clean 서비스가 설정된 주기에 따라 임시 파일을 정리하고 정상 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3993,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "normal-session",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "auth",
+          "summary_ko": "사용자(deploy)의 SSH 세션 접속 성공",
+          "root_cause_ko": "정상적인 사용자 로그인에 의한 세션 생성",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4096,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "auth",
+          "summary_ko": "사용자(deploy)의 SSH 세션 접속 성공",
+          "root_cause_ko": "정상적인 사용자 로그인에 의한 세션 생성",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3687,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "auth",
+          "summary_ko": "사용자(deploy)의 SSH 세션 접속 성공",
+          "root_cause_ko": "정상적인 사용자 로그인에 의한 세션 생성",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3630,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "disk-full",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "실장애",
+        "few-shot유사"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 DB 쓰기 실패 및 중단 위험",
+          "root_cause_ko": "PostgreSQL의 WAL(Write Ahead Log) 저장 경로에 물리적 디스크 공간이 가득 참",
+          "action_ko": "df -h로 디스크 용량 확인 후, 불필요한 로그/파일 정리 또는 스토리지 증설. 즉시 조치 필요",
+          "latency_ms": 5362,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 DB 쓰기 실패 및 중단 위험",
+          "root_cause_ko": "PostgreSQL의 WAL(Write Ahead Log) 저장 경로에 물리적 디스크 공간이 가득 참",
+          "action_ko": "df -h로 디스크 용량 확인 후, 불필요한 로그/파일 정리 또는 스토리지 증설. 즉시 조치 필요",
+          "latency_ms": 5015,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 DB 쓰기 실패 및 중단 위험",
+          "root_cause_ko": "PostgreSQL의 WAL(Write Ahead Log) 저장 경로에 물리적 디스크 공간이 가득 참",
+          "action_ko": "df -h로 디스크 용량 확인 후 불필요한 로그/파일 정리 또는 스토리지 증설. DB 서비스 재시작 필요할 수 있음",
+          "latency_ms": 5133,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "oom-mysqld",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "실장애",
+        "few-shot유사"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "메모리 부족으로 DB 프로세스(mysqld) 강제 종료",
+          "root_cause_ko": "시스템 메모리 고갈로 인해 커널이 mysqld 프로세스를 강제 종료함(OOM Killer 작동)",
+          "action_ko": "free -h로 가용 메모리 확인, /var/log/mysql/error.log 등 DB 로그 점검, 필요 시 DB 설정의 buffer pool 크기 조정 또는 서버 메모리 증설",
+          "latency_ms": 5890,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "메모리 부족으로 DB 프로세스(mysqld) 강제 종료",
+          "root_cause_ko": "시스템 메모리 고갈로 인해 커널이 mysqld 프로세스를 강제 종료함(OOM Killer 작동)",
+          "action_ko": "free -h로 여유 메모리 확인, /var/log/mysql/error.log 등 DB 로그 점검, 필요 시 DB 설정의 buffer pool 크기 조정 또는 서버 메모리 증설",
+          "latency_ms": 5576,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "메모리 부족으로 DB 프로세스(mysqld) 강제 종료",
+          "root_cause_ko": "시스템 메모리 고갈로 인해 커널이 mysqld 프로세스를 강제 종료함(OOM Killer 작동)",
+          "action_ko": "free -h로 가용 메모리 확인, /var/log/mysql/error.log 등 DB 로그 점검, 필요 시 DB 설정의 buffer pool 크기 조정 또는 서버 메모리 증설",
+          "latency_ms": 5579,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "ssh-brute",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "보안",
+        "few-shot유사"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 무차별 대입 공격 시도",
+          "root_cause_ko": "공격자가 root 계정을 대상으로 짧은 시간 내에 다수의 비밀번호를 반복 시도함(Brute-force attack)",
+          "action_ko": "해당 IP(203.0.113.9) 차단, fail2ban 설치 권장, SSH 포트 변경 및 키 기반 인증 사용 고려",
+          "latency_ms": 5808,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 무차별 대입 공격 시도",
+          "root_cause_ko": "공격자가 root 계정을 대상으로 짧은 시간 내에 다수의 비밀번호를 반복 시도함(Brute-force attack)",
+          "action_ko": "해당 IP(203.0.113.9)를 방화벽에서 차단하고, fail2ban 설치 또는 SSH 키 인증 사용을 강력히 권장함",
+          "latency_ms": 5566,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 무차별 대입 공격 시도",
+          "root_cause_ko": "공격자가 root 계정을 대상으로 짧은 시간 내에 다수의 비밀번호를 반복 시도함(Brute-force attack)",
+          "action_ko": "해당 IP(203.0.113.9) 차단, fail2ban 설치 권장, SSH 포트 변경 및 루트 로그인 금지 설정 확인",
+          "latency_ms": 5477,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "disk-90",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "루트(/) 디스크 사용량 임계치 초과 (92%)",
+          "root_cause_ko": "루트 파티션의 디스크 사용량이 경고 임계치(90%)를 넘어섬",
+          "action_ko": "df -h로 용량 확인 후 / 경로 내 불필요한 로그 파일이나 임시 파일 정리 권장",
+          "latency_ms": 5326,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "루트(/) 디스크 사용량 임계치 초과 (92%)",
+          "root_cause_ko": "루트 파티션의 디스크 사용량이 경고 임계치(90%)를 넘어섬",
+          "action_ko": "df -h로 용량 확인 후 / 경로 내 불필요한 로그 파일이나 임시 파일 정리 권장",
+          "latency_ms": 4965,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "루트(/) 디스크 사용량 임계치 초과 (92%)",
+          "root_cause_ko": "루트 파티션의 디스크 사용량이 경고 임계치(90%)를 넘어섬",
+          "action_ko": "df -h로 용량 확인 후 / 경로 내 불필요한 로그 파일이나 임시 파일 정리 권장",
+          "latency_ms": 4910,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "nginx-502-repeat",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "백엔드 서비스 연결 실패가 38회 반복됨",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림(애플리케이션 서버)이 현재 응답하지 않거나 다운된 상태임 (추정)",
+          "action_ko": "백엔드 서비스(예: PHP-FPM, Python/Node.js 앱 등)의 동작 상태를 확인하고 재시작을 검토하십시오.",
+          "latency_ms": 5892,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "백엔드 서비스 연결 실패가 38회 반복됨",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림(애플리케이션 서버)이 현재 응답하지 않거나 다운된 상태임 (추정)",
+          "action_ko": "백엔드 서비스(예: PHP-FPM, Python/Node.js 앱 등)의 동작 상태를 확인하고 재시작을 검토하십시오.",
+          "latency_ms": 5542,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "백엔드 서비스 연결 실패가 38회 반복됨",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림(애플리케이션/WAS) 서버가 응답하지 않거나 꺼져 있음 (추정)",
+          "action_ko": "백엔드 서비스(예: PHP-FPM, Node.js, Python 등)의 상태를 확인하고 재시작(`systemctl status \u003c서비스명\u003e`) 하십시오.",
+          "latency_ms": 5711,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "nginx-502-once",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "일시적",
+        "few-shot유사"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "백엔드 서비스 연결 일시 실패(1회)",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림 서버/프로세스로의 연결이 거부됨 (일시적 오류 추정)",
+          "action_ko": "업스트림 애플리케이션(PHP-FPM, Python, Node.js 등)의 상태를 확인하고 서비스 재시작 여부를 점검하십시오.",
+          "latency_ms": 5615,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "백엔드 서비스 연결 일시 실패(1회)",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림 서버/프로세스로의 연결이 거부됨 (일시적 오류 추정)",
+          "action_ko": "업스트림 애플리케이션(PHP-FPM, Python, Node.js 등)의 상태를 확인하고 서비스 재시작 여부를 점검하십시오.",
+          "latency_ms": 5351,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "network",
+          "summary_ko": "백엔드 서비스 연결 일시 실패(1회)",
+          "root_cause_ko": "Nginx가 요청을 전달할 업스트림 서버/프로세스로의 연결이 거부됨 (일시적 오류 추정)",
+          "action_ko": "업스트림 애플리케이션(PHP-FPM, Node.js, Python 등)의 상태를 확인하고 서비스가 정상 동작 중인지 점검하십시오.",
+          "latency_ms": 5400,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "db-deadlock",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "PostgreSQL 데드락(Deadlock) 발생",
+          "root_cause_ko": "두 개 이상의 트랜잭션이 서로가 가진 자원을 점유한 채 상대방의 자원을 기다리는 교착 상태 발생 (추정)",
+          "action_ko": "DB 쿼리 로그를 확인하여 충돌하는 트랜잭션 식별 및 애플리케틱이션 로직(트랜잭션 순서 등) 최적화 검토",
+          "latency_ms": 5872,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "PostgreSQL 데드락(Deadlock) 발생",
+          "root_cause_ko": "두 개 이상의 트랜잭션이 서로가 가진 자원을 점유한 채 상대방의 자원을 기다리는 교착 상태 발생 (추정)",
+          "action_ko": "DB 쿼리 로그를 확인하여 충돌하는 트랜잭션/SQL 식별. 애플리케이션 로직에서 데이터 접근 순서 최적화 필요",
+          "latency_ms": 5420,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "PostgreSQL 데드락(Deadlock) 발생",
+          "root_cause_ko": "두 개 이상의 트랜잭션이 서로가 점유한 자원을 기다리며 충돌함 (추정)",
+          "action_ko": "DB 쿼리 로그를 확인하여 충돌하는 트랜잭션 식별 및 로직 최적화(트랜잭션 범위 축소 등) 수행",
+          "latency_ms": 5080,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "cert-expire",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "애매"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 만료 임박 (5일 남음)",
+          "root_cause_ko": "example.com의 SSL/TLS 인증서 유효 기간이 5일 후 종료될 예정임",
+          "action_ko": "인증서 갱신(certbot 등)을 수행하거나 관리자에게 알림을 보내 만료 전 갱신 조치 필요",
+          "latency_ms": 5225,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 만료 임박 (5일 남음)",
+          "root_cause_ko": "example.com의 SSL/TLS 인증서 유효 기간이 5일 후 종료될 예정임",
+          "action_ko": "인증서 갱신(Certbot 등)을 수행하거나 관리자에게 만료 일정 확인 요청",
+          "latency_ms": 4600,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "SSL 인증서 만료 임박 (5일 남음)",
+          "root_cause_ko": "example.com의 SSL/TLS 인증서 유효 기간이 5일 후 종료될 예정임",
+          "action_ko": "인증서 갱신(Certbot 등)을 수행하거나 관리자에게 인증서 만료 여부 확인 요청",
+          "latency_ms": 4716,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "tcp-oom-once",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "일시적"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "TCP 메모리 부족으로 인한 네트워크 통신 장애 위험",
+          "root_cause_ko": "시스템의 TCP 스택을 위한 커널 메모리가 고갈되어 새로운 연결 생성이 제한됨(추정)",
+          "action_ko": "sysctl -a | grep tcp_mem로 현재 설정값 확인, 트래픽 급증 여부 점검 및 필요 시 /etc/sysctl.conf에서 tcp_mem 튜닝",
+          "latency_ms": 5706,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "TCP 메모리 부족으로 인한 네트워크 통신 장애 위험",
+          "root_cause_ko": "시스템의 TCP 스택을 위한 커널 메모리가 할당된 임계치를 초과함(추정)",
+          "action_ko": "/proc/sys/net/ipv4/tcp_mem 값을 확인하고, 트래픽 급증이 지속될 경우 커널 네트워크 파라미터 튜닝 필요",
+          "latency_ms": 5285,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "network",
+          "summary_ko": "TCP 메모리 부족으로 인한 네트워크 통신 장애 위험",
+          "root_cause_ko": "시스템의 TCP 스택을 위한 커널 메모리가 할당된 임계치를 초과함(추정)",
+          "action_ko": "sysctl -a | grep tcp_mem로 현재 설정 확인, 트래픽 급증 여부 점검 및 필요 시 /etc/sysctl.conf에서 tcp_mem 값 조정",
+          "latency_ms": 5359,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "service-failed",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "실장애"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 웹 서버 서비스 비정상 종료",
+          "root_cause_ko": "nginx 프로세스가 에러(status 1)를 발생시키며 종료됨. 설정 오류 또는 포트 충돌 가능성 있음.",
+          "action_ko": "sudo systemctl status nginx로 상세 에러 확인, /var/log/nginx/error.log 점검 후 재시작 시도",
+          "latency_ms": 5360,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 웹 서버 서비스 비정상 종료",
+          "root_cause_ko": "nginx 프로세스가 에러(status 1)를 발생시키며 종료됨. 설정 오류 또는 포트 충돌 가능성 있음.",
+          "action_ko": "systemctl status nginx로 상세 에러 확인, nginx -t로 설정 파일 문법 검사 수행",
+          "latency_ms": 4704,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "Nginx 웹 서버 서비스 비정상 종료",
+          "root_cause_ko": "nginx 프로세스가 에러(status 1)를 발생시키며 종료됨. 설정 오류 또는 포트 충돌 가능성 있음.",
+          "action_ko": "systemctl status nginx로 상세 에러 확인, nginx -t로 설정 파일 문법 검사 수행",
+          "latency_ms": 4704,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "auth-fail-once",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "보안",
+        "일시적"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 로그인 실패(단발)",
+          "root_cause_ko": "존재하지 않는 계정(test)에 대한 잘못된 비밀번호 입력 (인터넷 스캔/무작위 대입 시도 추정)",
+          "action_ko": "현재 1회 발생으로 무해함. 반복될 경우 fail2ban 설치 및 SSH 포트 변경 권장",
+          "latency_ms": 5371,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 로그인 시도 실패(단발)",
+          "root_cause_ko": "존재하지 않는 계정(invalid user)에 대한 잘못된 비밀번호 입력 (인터넷 스캔/무작위 대입 공격 추정)",
+          "action_ko": "단발성 로그이므로 조치 불필요. 지속 발생 시 fail2ban 설치 및 SSH 포트 변경 권장",
+          "latency_ms": 5174,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "security",
+          "summary_ko": "외부 IP의 SSH 로그인 시도 실패(단발)",
+          "root_cause_ko": "존재하지 않는 계정(test)에 대한 잘못된 비밀번호 입력 (인터넷 스캔/무작위 대입 공격 가능성)",
+          "action_ko": "단발적인 로그이므로 조치 불필요. 지속적으로 발생할 경우 fail2ban 설치 및 SSH 포트 변경 권장",
+          "latency_ms": 5220,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "readonly-fs",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "실장애"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "파일시스템 오류로 인해 디스크가 읽기 전용(Read-Only) 모드로 전환됨",
+          "root_cause_ko": "sda1 장치의 EXT4 저널링 오류 발생. 하드웨어 결함 또는 파일시스템 손상으로 인해 커널이 데이터 보호를 위해 쓰기를 차단함",
+          "action_ko": "즉시 서비스 중단 후 fsck 명령어로 파일시스템 복구 시도(예: umount -l /dev/sda1 \u0026\u0026 fsck -y /dev/sda1). 하드웨어 결함 의심 시 디스크 교체 필요",
+          "latency_ms": 7100,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "파일시스템 오류로 인해 디스크가 읽기 전용(Read-Only) 모드로 전환됨",
+          "root_cause_ko": "sda1 장치의 EXT4 저널링 오류 발생. 하드웨어 결함 또는 파일시스템 손상으로 인해 커널이 데이터 보호를 위해 쓰기를 차단함",
+          "action_ko": "즉시 서비스 중단 후 fsck 명령어로 파일시스템 복구 시도(예: umount -l /dev/sda1 \u0026\u0026 fsck -y /dev/sda1). 하드웨어 결함 의심 시 디스크 교체 필요",
+          "latency_ms": 6771,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "파일시스템 오류로 인해 디스크가 읽기 전용(Read-Only) 모드로 전환됨",
+          "root_cause_ko": "sda1 장치의 EXT4 저널링 오류 발생. 하드웨어 결함 또는 파일시스템 손상으로 인해 데이터 보호를 위해 커널이 쓰기를 차단함",
+          "action_ko": "즉시 서비스 중단 후 fsck 명령어로 파일시스템 복구 시도(예: umount -l /dev/sda1 \u0026\u0026 fsck -y /dev/sda1). 하드웨어 결함 의심 시 디스크 교체 필요",
+          "latency_ms": 6775,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "normal-backup",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료"
+      ],
+      "split": "dev",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 백업 작업 정상 완료",
+          "root_cause_ko": "배치 서비스(backup-daily)가 설정된 작업을 마치고 성공적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4021,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 백업 작업 정상 완료",
+          "root_cause_ko": "배치 서비스(backup-daily)가 설정된 작업을 마치고 성공적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3844,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 백업 작업 정상 완료",
+          "root_cause_ko": "배치 서비스(backup-daily)가 계획된 작업을 마치고 성공적으로 종료됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3812,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    },
+    {
+      "id": "normal-info-start",
+      "file": "eval-set.jsonl",
+      "tags": [
+        "정상종료"
+      ],
+      "split": "holdout",
+      "label": "확정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 패키지 업데이트 작업 시작 (정상)",
+          "root_cause_ko": "시스템의 정기적인 apt 다운로드 배치 서비스가 정상적으로 실행됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4086,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 패키지 업데이트 작업 시작 (정상)",
+          "root_cause_ko": "시스템의 정기적인 apt 다운로드 배치 서비스가 정상적으로 실행됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 3879,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정기 패키지 업데이트 작업 시작 (정상)",
+          "root_cause_ko": "시스템의 정기적인 apt 패키지 목록 업데이트 및 다운로드 스케줄러가 실행됨",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 4077,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": false
+    }
+  ]
+}
