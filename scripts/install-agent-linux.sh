@@ -55,7 +55,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if [[ -z "$AGENT_KEY" ]]; then
-    echo "[경고] --agent-key 가 비어있습니다. 로그 수집이 401로 거부될 수 있습니다."
+    echo "[경고] --agent-key 가 비어있습니다. 메트릭과 로그 전송이 거부됩니다."
 fi
 
 echo "=== OWLmon 에이전트 설치 ==="
@@ -135,6 +135,7 @@ if [[ "$ENABLE_JOURNALD" == "true" ]] && getent group systemd-journal >/dev/null
 fi
 
 chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR" "$WAL_DIR"
+chmod 600 "$INSTALL_DIR/config.yaml"
 
 # ─── 4. systemd unit ────────────────────────────────────
 echo "[4/6] systemd 서비스 등록 중..."

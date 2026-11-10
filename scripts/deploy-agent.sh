@@ -86,7 +86,7 @@ for HOST in $HOSTS; do
         '"$SUDO"' cp /tmp/owlmon-agent-new /opt/owlmon/owlmon-agent
         '"$SUDO"' chmod +x /opt/owlmon/owlmon-agent
         '"$SUDO"' chown owlmon-agent:owlmon-agent /opt/owlmon/owlmon-agent
-        if ! grep -q "^self_update:" /opt/owlmon/config.yaml 2>/dev/null; then
+        if ! '"$SUDO"' grep -q "^self_update:" /opt/owlmon/config.yaml 2>/dev/null; then
             '"$SUDO"' bash -c "cat >> /opt/owlmon/config.yaml <<YAML
 
 # 자가 업데이트 (망분리 환경 자동 배포) — 6h마다 OWLmon 서버 체크 + sha256 검증 후 교체
@@ -99,11 +99,16 @@ YAML"
             echo \"  ☑ self_update 이미 활성\"
         fi
         # 의미 없는 기본 체크 정리 — "OWLmon Server Reachable"은 tautological
-        if grep -q "OWLmon Server Reachable" /opt/owlmon/config.yaml 2>/dev/null; then
+        if '"$SUDO"' grep -q "OWLmon Server Reachable" /opt/owlmon/config.yaml 2>/dev/null; then
             '"$SUDO"' sed -i "/  - name: \"OWLmon Server Reachable\"/,/    interval: [0-9]*s/d" /opt/owlmon/config.yaml
             # 이제 빈 checks: 헤더가 남으면 제거
             '"$SUDO"' sed -i "/^checks:\$/{N;/^checks:\n\$/d;}" /opt/owlmon/config.yaml
             echo \"  ☑ OWLmon Server Reachable 체크 제거됨\"
+        fi
+        '"$SUDO"' chown owlmon-agent:owlmon-agent /opt/owlmon/config.yaml
+        '"$SUDO"' chmod 600 /opt/owlmon/config.yaml
+        if ! '"$SUDO"' grep -Eq "^[[:space:]]*agent_key:[[:space:]]*\"?[^\"[:space:]]" /opt/owlmon/config.yaml; then
+            echo \"  ⚠️  agent_key 비어 있음 — Collector 인증 적용 후 메트릭이 거부됩니다\"
         fi
         '"$SUDO"' systemctl start owlmon-agent
         sleep 1

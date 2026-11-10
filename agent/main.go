@@ -53,6 +53,14 @@ func startAgent() func() {
 		endpoint = "localhost:4317"
 	}
 
+	agentKey := cfg.Logs.AgentKey
+	if agentKey == "" {
+		agentKey = getEnv("OWLMON_AGENT_KEY", "")
+	}
+	if agentKey == "" {
+		log.Println("agent_key 미설정 — 서버가 메트릭과 로그를 거부합니다")
+	}
+
 	// 수집 주기 (환경변수 OWLMON_COLLECT_INTERVAL 우선, 기본 15초 — Prometheus/Datadog 표준선)
 	// 형식: "15s", "1m" 같은 Go duration 문자열
 	collectInterval := 15 * time.Second
@@ -66,7 +74,7 @@ func startAgent() func() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	otlpExp, err := exporter.NewOTLPExporter(ctx, endpoint)
+	otlpExp, err := exporter.NewOTLPExporter(ctx, endpoint, agentKey)
 	if err != nil {
 		log.Fatalf("exporter 초기화 실패: %v", err)
 	}
@@ -110,10 +118,6 @@ func startAgent() func() {
 		serverURL := cfg.Logs.ServerURL
 		if serverURL == "" {
 			serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
-		}
-		agentKey := cfg.Logs.AgentKey
-		if agentKey == "" {
-			agentKey = getEnv("OWLMON_AGENT_KEY", "")
 		}
 
 		tailer := logtail.NewTailer(cfg.Logs.Tails, hostname, serverURL, agentKey)
@@ -169,7 +173,7 @@ func startAgent() func() {
 			ServerURL:     serverURL,
 			CheckInterval: cfg.SelfUpdate.CheckInterval,
 			BinaryPath:    cfg.SelfUpdate.BinaryPath,
-			AgentKey:      cfg.Logs.AgentKey,
+			AgentKey:      agentKey,
 		})
 	}
 
@@ -178,7 +182,7 @@ func startAgent() func() {
 		collectInterval, len(cfg.Checks), len(cfg.SNMP.Devices), cfg.SelfUpdate.Enabled)
 
 	// 스펙 1회 수집/전송 (백그라운드 — 실패해도 메트릭 송신엔 영향 없음)
-	go sendSpecsOnce(ctx, cfg)
+	go sendSpecsOnce(ctx, cfg, agentKey)
 
 	return func() {
 		cancel()
@@ -197,7 +201,7 @@ func getEnv(key, fallback string) string {
 
 // sendSpecsOnce는 호스트 스펙을 1회 수집해서 OWLmon 서버로 전송한다.
 // 실패해도 에이전트의 메트릭 송신엔 영향 없도록 별도 goroutine에서 호출한다.
-func sendSpecsOnce(ctx context.Context, cfg *config.Config) {
+func sendSpecsOnce(ctx context.Context, cfg *config.Config, agentKey string) {
 	s, err := specs.Collect()
 	if err != nil {
 		log.Printf("스펙 수집 실패: %v", err)
@@ -207,10 +211,6 @@ func sendSpecsOnce(ctx context.Context, cfg *config.Config) {
 	serverURL := cfg.Logs.ServerURL
 	if serverURL == "" {
 		serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
-	}
-	agentKey := cfg.Logs.AgentKey
-	if agentKey == "" {
-		agentKey = getEnv("OWLMON_AGENT_KEY", "")
 	}
 
 	// 송신 타임아웃 분리

@@ -1,11 +1,12 @@
 # OWLmon 에이전트 Windows 서비스 설치 스크립트
 # 관리자 권한으로 실행 필요
-# 사용법: .\install-agent-windows.ps1 -Endpoint "192.168.1.10:4317"
+# 사용법: .\install-agent-windows.ps1 -Endpoint "192.168.1.10:4317" -AgentKey "운영 서버 .env의 OWLMON_AGENT_KEY"
 
 param(
     [string]$Endpoint = "localhost:4317",
     [string]$InstallDir = "C:\owlmon",
-    [string]$ConfigPath = ""
+    [string]$ConfigPath = "",
+    [string]$AgentKey = ""
 )
 
 # 관리자 권한 확인
@@ -69,6 +70,11 @@ $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
 $envVars = "OWLMON_OTLP_ENDPOINT=$Endpoint"
 if ($ConfigPath -ne "") {
     $envVars += "`0OWLMON_CONFIG=$InstallDir\config.yaml"
+}
+if ($AgentKey -ne "") {
+    $envVars += "`0OWLMON_AGENT_KEY=$AgentKey"
+} else {
+    Write-Warning "-AgentKey가 비어 있습니다. 설정 파일에 agent_key가 없으면 메트릭과 로그 전송이 거부됩니다."
 }
 Set-ItemProperty -Path $regPath -Name "Environment" -Value $envVars.Split("`0") -Type MultiString
 

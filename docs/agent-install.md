@@ -12,7 +12,7 @@
 |-----|------|
 | 운영 OWLmon 서버 URL | 예: `http://192.168.0.30:8080` |
 | OTLP 엔드포인트 | 예: `192.168.0.30:4317` |
-| Agent Key | 운영 서버의 `.env`의 `OWLMON_AGENT_KEY` 값 (모든 에이전트 공통) |
+| Agent Key | 운영 서버의 `.env`의 `OWLMON_AGENT_KEY` 값 (모든 에이전트 공통, 메트릭·로그 전송에 함께 사용) |
 | SSH 접근 | 대상 서버에 root 또는 sudo 가능 |
 | 네트워크 | 대상 서버 → OWLmon 서버 8080/4317 도달 가능 |
 
@@ -83,7 +83,7 @@ sudo bash scripts/install-agent-linux.sh \
 |-----|------|------|
 | `--server` | `http://localhost:8080` | OWLmon 서버 HTTP URL (로그 전송) |
 | `--otlp` | `localhost:4317` | OTLP gRPC 엔드포인트 (메트릭 전송) |
-| `--agent-key` | (빈 값, 401 됨) | 로그 인증 키. 운영 서버 `.env` 와 일치 |
+| `--agent-key` | (빈 값, 전송 거부됨) | 메트릭·로그 공통 인증 키. 운영 서버 `.env` 와 일치 |
 | `--collect-interval` | `15s` | 메트릭 수집 주기 (5s ~ 1m) |
 | `--journald` | (꺼짐) | systemd journal 로그 수집 (Debian 12 / RHEL 7+ 권장) |
 | `--binary <path>` | (빌드 모드) | 사전 빌드 바이너리 경로 |
@@ -131,7 +131,8 @@ docker exec owlmon-postgres psql -U owlmon -d owlmon -c \
 - glibc 버전 낮음. 사전 빌드 바이너리(`--binary`) 사용 시 `CGO_ENABLED=0`으로 빌드된 정적 바이너리 권장 (위 방법 A 그대로).
 
 ### macOS / Windows
-- 이 스크립트는 Linux 전용. macOS는 `make dev`로 개발 환경, Windows는 `scripts/install-agent-windows.ps1` 사용.
+- 이 스크립트는 Linux 전용. macOS는 `make dev`로 개발 환경, Windows는 `scripts/install-agent-windows.ps1 -Endpoint <서버IP>:4317 -AgentKey <YOUR_AGENT_KEY>` 사용.
+- Windows에서 `-ConfigPath` 설정 파일에 `agent_key`가 있으면 그 값이 `-AgentKey`보다 우선한다.
 
 ---
 
@@ -144,6 +145,22 @@ docker exec owlmon-postgres psql -U owlmon -d owlmon -c \
 ```
 → `--agent-key` 값이 운영 서버 `.env`의 `OWLMON_AGENT_KEY` 와 다름.
    `/opt/owlmon/config.yaml`의 `agent_key:` 줄 수정 후 `systemctl restart owlmon-agent`.
+
+### authentication didn't succeed
+
+```
+export 실패, 버퍼 저장 (현재 N개): ... authentication didn't succeed
+```
+→ 메트릭에 키가 실리지 않음. `/opt/owlmon/config.yaml`의 `agent_key:`가 비어 있거나, 키를 보내지 않는 구버전 에이전트.
+   값을 채우고 `systemctl restart owlmon-agent`, 구버전이면 에이전트를 먼저 업데이트.
+
+### scheme or token does not match
+
+```
+export 실패, 버퍼 저장 (현재 N개): ... scheme or token does not match: Bearer <보낸 키>
+```
+→ `agent_key:` 값이 운영 서버 `.env`의 `OWLMON_AGENT_KEY`와 다름.
+   수집 포트(4317)는 전역 키만 받으므로, 서버에서 개별 발급한 키는 로그는 통과해도 메트릭은 거부된다.
 
 ### connection refused
 
