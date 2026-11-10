@@ -105,6 +105,12 @@ YAML"
             '"$SUDO"' sed -i "/^checks:\$/{N;/^checks:\n\$/d;}" /opt/owlmon/config.yaml
             echo \"  ☑ OWLmon Server Reachable 체크 제거됨\"
         fi
+        # 기존 유닛은 설치 경로가 읽기 전용이라 self-update가 바이너리를 교체하지 못한다
+        if '"$SUDO"' grep -q "^ReadWritePaths=/var/lib/owlmon\$" /etc/systemd/system/owlmon-agent.service 2>/dev/null; then
+            '"$SUDO"' sed -i "s#^ReadWritePaths=/var/lib/owlmon\$#ReadWritePaths=/var/lib/owlmon /opt/owlmon#" /etc/systemd/system/owlmon-agent.service
+            '"$SUDO"' systemctl daemon-reload
+            echo \"  ☑ self-update 쓰기 경로 추가됨\"
+        fi
         '"$SUDO"' chown owlmon-agent:owlmon-agent /opt/owlmon/config.yaml
         '"$SUDO"' chmod 600 /opt/owlmon/config.yaml
         if ! '"$SUDO"' grep -Eq "^[[:space:]]*agent_key:[[:space:]]*\"?[^\"[:space:]]" /opt/owlmon/config.yaml; then

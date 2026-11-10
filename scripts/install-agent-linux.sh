@@ -162,7 +162,8 @@ Environment=OWLMON_COLLECT_INTERVAL=$COLLECT_INTERVAL
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=$WAL_DIR
+# self-update의 바이너리 교체와 메트릭 버퍼 저장에 설치 경로 쓰기가 필요하다
+ReadWritePaths=$WAL_DIR $INSTALL_DIR
 
 StandardOutput=journal
 StandardError=journal
