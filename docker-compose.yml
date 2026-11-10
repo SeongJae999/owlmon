@@ -3,7 +3,7 @@
 #
 # 외부 노출 포트 — 이것만 연다:
 #   443    웹 UI (HTTPS) — 80은 443으로 이동
-#   4317   에이전트 메트릭 (OTLP gRPC)
+#   4317   에이전트 메트릭 (OTLP gRPC, Agent Key 필요)
 #   8080   에이전트 로그 수집·자동 업데이트 (API는 전부 인증 필요)
 # DB(5433)·Prometheus(9090)는 이 서버 안(127.0.0.1)에서만 접근 — 사내망에 열면 인증 없이 조회됨
 
@@ -28,7 +28,9 @@ services:
     image: otel/opentelemetry-collector-contrib:0.96.0
     container_name: owlmon-otel-collector
     ports:
-      - "4317:4317"   # OTLP gRPC (에이전트). 인증 없는 HTTP(4318)·내부 메트릭(8888)은 열지 않음
+      - "4317:4317"   # OTLP gRPC (에이전트, Agent Key 필요). 내부 메트릭(8888)은 열지 않음
+    environment:
+      - OWLMON_AGENT_KEY=${OWLMON_AGENT_KEY:-}
     volumes:
       - ./infra/otel/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     restart: unless-stopped
@@ -69,7 +71,7 @@ services:
       - OWLMON_LISTEN=:8080
       - POSTGRES_DSN=postgres://owlmon:${POSTGRES_PASSWORD}@postgres:5432/owlmon?sslmode=disable
       - OWLMON_JWT_SECRET=${OWLMON_JWT_SECRET:-}
-      # 에이전트 로그 수집 인증 키 (모든 에이전트 config.yaml의 agent_key와 일치해야 함)
+      # 에이전트 메트릭·로그 수집 공통 인증 키 (모든 에이전트 config.yaml의 agent_key와 일치해야 함)
       - OWLMON_AGENT_KEY=${OWLMON_AGENT_KEY:-}
       # 이 컨테이너에서 온 요청의 X-Real-IP만 신뢰 (8080 직접 접속으로 접속 기록 IP를 위조하지 못하게)
       - OWLMON_TRUSTED_PROXY=owlmon-web

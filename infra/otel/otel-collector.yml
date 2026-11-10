@@ -1,13 +1,17 @@
 # OpenTelemetry Collector 설정
 # 에이전트 → Collector → Prometheus 파이프라인
 
+extensions:
+  bearertokenauth:
+    token: "${env:OWLMON_AGENT_KEY}"
+
 receivers:
   otlp:
     protocols:
       grpc:
         endpoint: "0.0.0.0:4317"
-      http:
-        endpoint: "0.0.0.0:4318"
+        auth:
+          authenticator: bearertokenauth
 
 processors:
   batch:
@@ -26,6 +30,7 @@ exporters:
     verbosity: basic
 
 service:
+  extensions: [bearertokenauth]
   pipelines:
     metrics:
       receivers: [otlp]

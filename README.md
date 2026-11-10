@@ -101,7 +101,7 @@ owlmon/
 | `OWLMON_PASSWORD_HASH` | 로그인 비밀번호 해시 | (필수) |
 | `POSTGRES_DSN` | PostgreSQL 연결 문자열 | (파일 폴백) |
 | `SMTP_HOST` | 이메일 알림 SMTP 서버 | (비활성화) |
-| `OWLMON_AGENT_KEY` | 로그 수집 에이전트 인증 키 | (비활성화) |
+| `OWLMON_AGENT_KEY` | 에이전트 메트릭·로그 수집 공통 인증 키 (숫자만으로 된 값 금지) | (필수) |
 
 ## 에이전트 설정 (config.yaml)
 

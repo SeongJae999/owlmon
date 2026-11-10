@@ -11,6 +11,13 @@ VERSION="$(cat "$BUNDLE/VERSION")"
 command -v docker >/dev/null || { echo "Docker가 필요합니다"; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo "Docker Compose v2가 필요합니다"; exit 1; }
 
+# 설정을 복사한 뒤에 막으면 재부팅 때 새 설정과 빈 키로 Collector가 재시작을 반복한다
+if [ -f "$TARGET/.env" ] && ! grep -Eq '^OWLMON_AGENT_KEY=.*[A-Za-z]' "$TARGET/.env"; then
+  echo "⚠️ $TARGET/.env의 OWLMON_AGENT_KEY가 비어 있거나 숫자로만 되어 있습니다"
+  echo "   openssl rand -hex 16 으로 만든 값을 넣고 다시 실행하세요 (에이전트의 agent_key도 같은 값으로)"
+  exit 1
+fi
+
 echo "[1/4] 이미지 불러오기 (v$VERSION)"
 docker load -i "$BUNDLE/images.tar.gz" | grep -v '^$' || true
 
@@ -55,4 +62,4 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}"
 echo
 echo "설치 완료 (v$VERSION) — 웹: https://<이 서버 IP>/"
 echo "인증서: 자체 서명 인증서가 자동 생성됨 (브라우저 경고). 기관 인증서는 $TARGET/data/certs/에 cert.pem·key.pem으로 넣고 docker restart owlmon-web"
-echo "에이전트 키: $TARGET/.env 의 OWLMON_AGENT_KEY (에이전트 설치 시 필요)"
+echo "에이전트 키: $TARGET/.env 의 OWLMON_AGENT_KEY (에이전트 설치 시 필요, 키를 보내지 않는 구버전 에이전트는 메트릭이 거부됨)"
