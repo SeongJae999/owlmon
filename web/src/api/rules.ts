@@ -61,7 +61,7 @@ export async function deleteRule(id: number): Promise<void> {
 
 export function severityLabel(s: string): string {
   switch (s) {
-    case 'critical': return '심각'
+    case 'critical': return '위험'
     case 'warning':  return '주의'
     case 'info':     return '정보'
     default:         return s
