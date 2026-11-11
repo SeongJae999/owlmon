@@ -26,6 +26,8 @@ import {
   Sparkles,
   Sun,
   Moon,
+  MonitorPlay,
+  Workflow,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import EmailStatusBanner from '../components/EmailStatusBanner'
@@ -36,6 +38,7 @@ import PasswordModal from '../components/PasswordModal'
 const NAV_SECTIONS: { title?: string; collapsible?: boolean; adminOnly?: boolean; items: { id: string; path: string; icon: any; label: string; match?: string[] }[] }[] = [
   { items: [
     { id: 'overview', path: '/', icon: LayoutGrid, label: '지금 상태', match: ['/detail'] },
+    { id: 'wall', path: '/wall', icon: MonitorPlay, label: '상황판' },
   ] },
   { title: '문제·알림', items: [
     { id: 'alert-history', path: '/history', icon: History, label: '지난 알림' },
@@ -55,6 +58,7 @@ const NAV_SECTIONS: { title?: string; collapsible?: boolean; adminOnly?: boolean
     { id: 'alert-settings', path: '/settings', icon: Settings, label: '알림 받는 사람·기준' },
     { id: 'rules', path: '/rules', icon: ListChecks, label: '로그 감지 규칙', match: ['/rules/stats'] },
     { id: 'assets', path: '/assets', icon: Server, label: '장비 목록' },
+    { id: 'topology', path: '/topology', icon: Workflow, label: '구성도' },
     { id: 'users', path: '/users', icon: Users, label: '사용자 관리' },
     { id: 'audit', path: '/audit', icon: ShieldCheck, label: '사용 기록' },
   ] },

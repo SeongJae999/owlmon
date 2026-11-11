@@ -98,6 +98,9 @@ export interface ActiveAlert {
   value: number
   message: string
   acked: boolean
+  acked_by?: string
+  acked_at?: string
+  since?: string
   in_maintenance: boolean
 }
 

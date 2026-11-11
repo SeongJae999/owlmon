@@ -1,4 +1,4 @@
-import { lazy } from 'react'
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { isLoggedIn } from './api/auth'
 import LoginPage from './components/LoginPage'
@@ -22,6 +22,8 @@ const TrendsPage = lazy(() => import('./pages/TrendsPage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
+const TopologyPage = lazy(() => import('./pages/TopologyPage'))
+const WallPage = lazy(() => import('./pages/WallPage'))
 
 export default function App() {
   const authenticated = isLoggedIn()
@@ -55,7 +57,9 @@ export default function App() {
         <Route path="/support" element={<SupportPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/topology" element={<TopologyPage />} />
       </Route>
+      <Route path="/wall" element={<Suspense fallback={null}><WallPage /></Suspense>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
