@@ -52,6 +52,7 @@ type DeviceStatus struct {
 	Interfaces  []InterfaceStats
 	CollectedAt time.Time
 	LastError   string `json:",omitempty"` // 폴링 실패 시 사람이 읽을 수 있는 메시지
+	DownSince   *time.Time `json:",omitempty"` // 응답이 끊기기 시작한 시각 (상황판 "N분째" 표시)
 	ResponseMs  int64                       // 폴링 소요 시간 (ms)
 }
 
@@ -89,6 +90,13 @@ func (p *Poller) Poll(dev Device) {
 
 	status := p.poll(dev)
 	p.mu.Lock()
+	if !status.Up {
+		since := status.CollectedAt
+		if prev := p.statuses[dev.ID]; prev != nil && !prev.Up && prev.DownSince != nil {
+			since = *prev.DownSince
+		}
+		status.DownSince = &since
+	}
 	p.statuses[dev.ID] = status
 	delete(p.inflight, dev.ID)
 	p.mu.Unlock()

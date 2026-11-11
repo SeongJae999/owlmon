@@ -93,7 +93,7 @@ func (h *AlertHandler) AckAlert(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 요청 형식", http.StatusBadRequest)
 		return
 	}
-	h.checker.Ack(req.Host, req.Category, req.Severity)
+	h.checker.Ack(req.Host, req.Category, req.Severity, auth.UsernameFromContext(r.Context()))
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -20,13 +20,16 @@ import (
 
 // ActiveAlert는 현재 임계값을 초과 중인 알림 항목입니다.
 type ActiveAlert struct {
-	Host          string  `json:"host"`
-	Category      string  `json:"category"` // cpu, memory, disk, down
-	Severity      string  `json:"severity"` // warning, critical
-	Value         float64 `json:"value"`
-	Message       string  `json:"message"`
-	Acked         bool    `json:"acked"`          // 확인됨 여부
-	InMaintenance bool    `json:"in_maintenance"` // 유지보수 모드 여부
+	Host          string     `json:"host"`
+	Category      string     `json:"category"` // cpu, memory, disk, down
+	Severity      string     `json:"severity"` // warning, critical
+	Value         float64    `json:"value"`
+	Message       string     `json:"message"`
+	Acked         bool       `json:"acked"` // 확인됨 여부
+	AckedBy       string     `json:"acked_by,omitempty"`
+	AckedAt       *time.Time `json:"acked_at,omitempty"`
+	Since         *time.Time `json:"since,omitempty"` // 이 문제가 처음 보인 시각
+	InMaintenance bool       `json:"in_maintenance"` // 유지보수 모드 여부
 }
 
 type StatusHandler struct {
@@ -34,6 +37,9 @@ type StatusHandler struct {
 	configStore   alert.ConfigStorer
 	checker       *alert.Checker
 	dbPool        *pgxpool.Pool // 자가 진단용
+
+	sinceMu sync.Mutex
+	since   map[string]time.Time // 임계치 초과가 처음 보인 시각. 서버를 다시 켜면 그때부터 다시 잰다
 }
 
 func NewStatusHandler(prometheusURL string, configStore alert.ConfigStorer, checker *alert.Checker, dbPool *pgxpool.Pool) *StatusHandler {
@@ -42,6 +48,7 @@ func NewStatusHandler(prometheusURL string, configStore alert.ConfigStorer, chec
 		configStore:   configStore,
 		checker:       checker,
 		dbPool:        dbPool,
+		since:         map[string]time.Time{},
 	}
 }
 
@@ -240,15 +247,50 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 		}
 	}
 
+	h.stampSince(snap, now)
+
 	if h.checker != nil {
 		snap.Maint = h.checker.MaintenanceHosts()
 		for i := range snap.Alerts {
 			a := &snap.Alerts[i]
-			a.Acked = h.checker.IsAcked(a.Host, a.Category, a.Severity)
+			if info, ok := h.checker.AckInfo(a.Host, a.Category, a.Severity); ok {
+				a.Acked, a.AckedBy, a.AckedAt = true, info.By, &info.At
+			}
 			a.InMaintenance = h.checker.IsInMaintenance(a.Host)
 		}
 	}
 	return snap
+}
+
+func (h *StatusHandler) stampSince(snap fleetSnapshot, now time.Time) {
+	h.sinceMu.Lock()
+	defer h.sinceMu.Unlock()
+	seen := map[string]bool{}
+	for i := range snap.Alerts {
+		a := &snap.Alerts[i]
+		// 연결 끊김은 마지막으로 데이터가 들어온 시각이 곧 시작 시각
+		if t, ok := snap.Seen[a.Host]; a.Category == "down" && ok {
+			a.Since = &t
+			continue
+		}
+		key := ackKey(a.Host, a.Category, a.Severity)
+		seen[key] = true
+		t, ok := h.since[key]
+		if !ok {
+			t = now
+			h.since[key] = t
+		}
+		a.Since = &t
+	}
+	for key := range h.since {
+		if !seen[key] {
+			delete(h.since, key)
+		}
+	}
+}
+
+func ackKey(host, category, severity string) string {
+	return host + "/" + category + "/" + severity
 }
 
 // GetStatus는 현재 임계값 초과 중인 항목 목록을 반환합니다.

@@ -418,8 +418,12 @@ func (c *Checker) SendAlert(host, category, severity, subject, body string) {
 }
 
 // Ack는 알림을 확인 처리합니다.
-func (c *Checker) Ack(host, category, severity string) {
-	c.state.Ack(host, category, severity)
+func (c *Checker) Ack(host, category, severity, by string) {
+	c.state.Ack(host, category, severity, by)
+}
+
+func (c *Checker) AckInfo(host, category, severity string) (AckInfo, bool) {
+	return c.state.AckInfo(host, category, severity)
 }
 
 // IsAcked는 알림이 확인됐는지 반환합니다.

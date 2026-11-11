@@ -95,9 +95,12 @@ func TestAck(t *testing.T) {
 	if s.IsAcked("h1", "cpu", "critical") {
 		t.Fatal("ack 전엔 false여야 함")
 	}
-	s.Ack("h1", "cpu", "critical")
+	s.Ack("h1", "cpu", "critical", "admin")
 	if !s.IsAcked("h1", "cpu", "critical") {
 		t.Fatal("ack 후엔 true여야 함")
+	}
+	if info, _ := s.AckInfo("h1", "cpu", "critical"); info.By != "admin" || info.At.IsZero() {
+		t.Fatalf("확인한 사람과 시각이 남아야 함: %+v", info)
 	}
 	// 다른 severity는 별개 키
 	if s.IsAcked("h1", "cpu", "warning") {
@@ -144,7 +147,7 @@ func TestServerDownRecoveryClearsAckWithoutFiring(t *testing.T) {
 	defer srv.Close()
 
 	c := NewChecker(srv.URL, nil, nil, nil)
-	c.state.Ack("web-01", "down", "critical")
+	c.state.Ack("web-01", "down", "critical", "admin")
 	c.checkServerDown()
 	if c.IsAcked("web-01", "down", "critical") {
 		t.Fatal("서버가 복귀했는데 확인 상태가 남아 다음 장애 메일이 억제된다")

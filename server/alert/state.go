@@ -13,7 +13,7 @@ type State struct {
 	lastAlertAt map[string]time.Time // key: 알림 식별자
 	firing      map[string]bool      // key: 현재 알림 발화 중인 항목
 	failCounts  map[string]int       // key: 서비스 체크 연속 실패 카운트
-	acked       map[string]bool      // key: "{host}/{category}/{severity}" 확인된 알림
+	acked       map[string]AckInfo   // key: "{host}/{category}/{severity}" 확인된 알림
 	maintenance map[string]bool      // key: host — 유지보수 모드 호스트
 }
 
@@ -22,7 +22,7 @@ func NewState() *State {
 		lastAlertAt: make(map[string]time.Time),
 		firing:      make(map[string]bool),
 		failCounts:  make(map[string]int),
-		acked:       make(map[string]bool),
+		acked:       make(map[string]AckInfo),
 		maintenance: make(map[string]bool),
 	}
 }
@@ -76,18 +76,31 @@ func ackKey(host, category, severity string) string {
 	return host + "/" + category + "/" + severity
 }
 
+type AckInfo struct {
+	By string
+	At time.Time
+}
+
 // Ack는 알림을 확인 처리합니다. 이메일 재발송이 억제됩니다.
-func (s *State) Ack(host, category, severity string) {
+func (s *State) Ack(host, category, severity, by string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.acked[ackKey(host, category, severity)] = true
+	s.acked[ackKey(host, category, severity)] = AckInfo{By: by, At: time.Now()}
+}
+
+func (s *State) AckInfo(host, category, severity string) (AckInfo, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	info, ok := s.acked[ackKey(host, category, severity)]
+	return info, ok
 }
 
 // IsAcked는 해당 알림이 확인됐는지 반환합니다.
 func (s *State) IsAcked(host, category, severity string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.acked[ackKey(host, category, severity)]
+	_, ok := s.acked[ackKey(host, category, severity)]
+	return ok
 }
 
 // ClearAck는 회복 시 ack를 해제합니다.
