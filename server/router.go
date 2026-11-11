@@ -133,6 +133,18 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			r.Delete("/api/assets/{id}", assetHandler.Delete)
 		}
 
+		// 상황판 구성도 (구역 순서 + 장비 연결)
+		if appCtx.DBPool != nil {
+			topologyStore := db.NewTopologyStore(appCtx.DBPool)
+			if err := topologyStore.EnsureTable(context.Background()); err != nil {
+				log.Printf("⚠️ topology_layout 테이블 준비 실패: %v", err)
+			} else {
+				topologyHandler := handler.NewTopologyHandler(topologyStore)
+				r.Get("/api/topology", topologyHandler.Get)
+				r.With(auth.RequireAdmin).Put("/api/topology", topologyHandler.Save)
+			}
+		}
+
 		// SNMP — appCtx.SNMPPoller는 init.go의 백그라운드 폴러와 같은 인스턴스
 		if appCtx.SNMPDeviceStore != nil {
 			if appCtx.SNMPPoller == nil {
