@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useHostsStatus } from '../hooks/useMonitoring'
 import { Server, Network, Globe, Database } from 'lucide-react'
 import type { ActiveAlert } from '../api/alert'
 import { getSNMPStatus } from '../api/snmp'
@@ -20,11 +21,13 @@ interface Props {
 export default function HomeSummary({ hosts, hostStatuses, activeAlerts, maintenanceHosts }: Props) {
   const opts = { refetchInterval: 60_000 }
   // 각 페이지와 같은 queryKey — 페이지 이동 시 캐시 재사용
-  const { data: snmp } = useQuery({ queryKey: ['snmpStatus'], queryFn: getSNMPStatus, ...opts })
-  const { data: synth } = useQuery({ queryKey: ['syntheticStatus'], queryFn: getSyntheticStatus, ...opts })
-  const { data: ssl } = useQuery({ queryKey: ['sslStatus'], queryFn: getSSLStatus, ...opts })
-  const { data: dpm } = useQuery({ queryKey: ['dpmStatus'], queryFn: getDPMStatus, ...opts })
+  const { data: snmp, isError: snmpErr } = useQuery({ queryKey: ['snmpStatus'], queryFn: getSNMPStatus, ...opts })
+  const { data: synth, isError: synthErr } = useQuery({ queryKey: ['syntheticStatus'], queryFn: getSyntheticStatus, ...opts })
+  const { data: ssl, isError: sslErr } = useQuery({ queryKey: ['sslStatus'], queryFn: getSSLStatus, ...opts })
+  const { data: dpm, isError: dpmErr } = useQuery({ queryKey: ['dpmStatus'], queryFn: getDPMStatus, ...opts })
 
+  // 서버 목록은 부모가 조회함 — 상태만 구독
+  const { isError: hostsErr } = useHostsStatus()
   const maint = new Set(maintenanceHosts)
   const serverDown = hosts.filter(h => !maint.has(h) && (
     hostStatuses[h] === 'offline' ||
@@ -36,18 +39,19 @@ export default function HomeSummary({ hosts, hostStatuses, activeAlerts, mainten
     (ssl ?? []).filter(c => c.status === 'expired').length
 
   const tiles = [
-    { to: '/', icon: Server, label: '서버', total: hosts.length, bad: serverDown },
-    { to: '/snmp', icon: Network, label: '네트워크 장비', total: snmp?.length, bad: snmp?.filter(d => !d.Up).length ?? 0 },
-    { to: '/website', icon: Globe, label: '웹사이트', total: synthItems.length + (ssl?.length ?? 0), bad: webDown },
-    { to: '/dpm', icon: Database, label: '데이터베이스', total: dpm?.length, bad: dpm?.filter(d => d.metrics?.error).length ?? 0 },
+    { to: '/', icon: Server, label: '서버', total: hosts.length, bad: serverDown, failed: hostsErr },
+    { to: '/snmp', icon: Network, label: '네트워크 장비', total: snmp?.length, bad: snmp?.filter(d => !d.Up).length ?? 0, failed: snmpErr },
+    { to: '/website', icon: Globe, label: '웹사이트', total: synthItems.length + (ssl?.length ?? 0), bad: webDown, failed: synthErr || sslErr },
+    { to: '/dpm', icon: Database, label: '데이터베이스', total: dpm?.length, bad: dpm?.filter(d => d.metrics?.error).length ?? 0, failed: dpmErr },
   ]
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {tiles.map(t => {
-        const loading = t.total === undefined
+        // 조회 실패를 "…"(로딩)이나 "모두 정상"으로 두면 장애를 놓침
+        const loading = t.total === undefined && !t.failed
         const empty = t.total === 0
-        const tone = TONES[loading || empty ? 'slate' : t.bad > 0 ? 'rose' : 'emerald']
+        const tone = TONES[t.failed ? 'amber' : loading || empty ? 'slate' : t.bad > 0 ? 'rose' : 'emerald']
         return (
           <Link
             key={t.label}
@@ -58,7 +62,7 @@ export default function HomeSummary({ hosts, hostStatuses, activeAlerts, mainten
             <div className="min-w-0">
               <div className="text-xs font-semibold text-base-400">{t.label}</div>
               <div className={cn('text-sm font-bold', tone.text)}>
-                {loading ? '…' : empty ? '등록 없음' : t.bad > 0 ? `문제 ${t.bad} / ${t.total}` : `모두 정상 (${t.total})`}
+                {t.failed ? '조회 실패' : loading ? '…' : empty ? '등록 없음' : t.bad > 0 ? `문제 ${t.bad} / ${t.total}` : `모두 정상 (${t.total})`}
               </div>
             </div>
           </Link>

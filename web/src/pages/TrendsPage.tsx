@@ -33,7 +33,7 @@ export default function TrendsPage() {
   const [selectedHosts, setSelectedHosts] = useState<Set<string> | null>(null) // null = 초기화 전
 
   const { data: hosts = [] } = useQuery({
-    queryKey: ['hosts'],
+    queryKey: ['promHosts'], // useHosts(['hosts'])와 조회 함수가 달라 같은 키를 쓰면 캐시가 서로 덮어씀
     queryFn: fetchHosts,
     refetchInterval: 60_000,
   })

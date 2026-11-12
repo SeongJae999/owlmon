@@ -111,6 +111,11 @@ export default function DashboardLayout() {
   const { data: activeAlerts = [] } = useAlertStatus()
 
   const unackedAlertCount = activeAlerts.filter(a => !a.acked && !a.in_maintenance).length
+  // 다른 탭·창을 보고 있어도 새 문제를 알아채도록 탭 제목에 미확인 건수 표시
+  useEffect(() => {
+    document.title = unackedAlertCount > 0 ? `(${unackedAlertCount}) OWLmon` : 'OWLmon'
+    return () => { document.title = 'OWLmon' } // 상황판 등 레이아웃 밖으로 나가면 건수 제거
+  }, [unackedAlertCount])
 
   const onLogout = () => {
     logout()

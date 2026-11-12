@@ -25,8 +25,8 @@ export default function HostDetailPage() {
   const [searchParams] = useSearchParams()
   const hostName = searchParams.get('host') || ''
 
-  const { data: hosts = [] } = useHosts()
-  const { data: hostStatuses = {} } = useAllHostStatuses(hosts)
+  const { data: hosts = [], isError: hostsError, isSuccess: hostsReady } = useHosts()
+  const { data: hostStatuses = {}, isError: statusError, dataUpdatedAt: statusAt } = useAllHostStatuses(hosts)
   const { data: metrics } = useHostMetrics(hostName)
   const { data: serviceChecks = [] } = useServiceChecks(hostName)
   const { data: anomalyData } = useAnomalyData()
@@ -91,6 +91,13 @@ export default function HostDetailPage() {
   }
 
   const isOffline = hostStatuses[hostName] === 'offline'
+  // 상태를 모르면(조회 실패·아직 응답 전) 초록 "정상"으로 보이면 안 됨 — 관제에서 가장 위험한 오표시
+  // 이전 결과가 남아 있어도 최근 조회가 실패했으면 "정상"보다 실패를 먼저 보여 줌
+  const status = isOffline ? { dot: 'bg-rose-500', label: '연결 끊김' }
+    : statusError || hostsError ? { dot: 'bg-amber-400', label: '상태 조회 실패' }
+    : hostStatuses[hostName] === 'online' ? { dot: 'bg-emerald-400', label: '정상 동작' }
+    : hostsReady && !hosts.includes(hostName) ? { dot: 'bg-base-500', label: '수집 이력 없음' }
+    : { dot: 'bg-base-500', label: '확인 중' }
   const hostAnomalies = anomalyData?.anomalies.filter(a => a.host === hostName) || []
 
   return (
@@ -104,11 +111,8 @@ export default function HostDetailPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl font-bold text-base-100 truncate" title={hostName}>{hostName}</h1>
-              <span className={cn(
-                "w-2.5 h-2.5 rounded-full shrink-0",
-                isOffline ? "bg-rose-500" : "bg-emerald-400"
-              )} />
-              <span className="text-xs font-medium text-base-400 shrink-0">{isOffline ? '연결 끊김' : '정상 동작'}</span>
+              <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", status.dot)} />
+              <span className="text-xs font-medium text-base-400 shrink-0">{status.label}</span>
             </div>
             {/* 호스트 스펙 인라인 (CPU/RAM 한 줄) — 별도 카드 대신 헤더에 압축 */}
             {hostSpec ? (
@@ -133,8 +137,10 @@ export default function HostDetailPage() {
           </div>
           <div className="w-px h-6 bg-base-800" />
           <div className="flex flex-col items-end">
-            <span className="text-xs font-medium text-base-500">갱신 주기</span>
-            <span className="text-base font-bold text-emerald-400 tabular-nums">30초</span>
+            <span className="text-xs font-medium text-base-500">상태 갱신</span>
+            <span className="text-base font-bold text-base-300 tabular-nums">
+              {statusAt ? new Date(statusAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+            </span>
           </div>
         </div>
       </div>
@@ -145,7 +151,7 @@ export default function HostDetailPage() {
           <ShieldAlert className="text-rose-400 shrink-0" size={20} />
           <div>
             <p className="font-semibold text-sm">에이전트 연결 끊김</p>
-            <p className="text-xs font-medium opacity-80 mt-0.5">에이전트로부터 응답이 없습니다. 마지막으로 수집된 캐시 데이터를 표시합니다.</p>
+            <p className="text-xs font-medium opacity-80 mt-0.5">에이전트로부터 2분 넘게 데이터가 오지 않습니다. 아래 차트는 끊기기 전까지의 기록입니다.</p>
           </div>
         </div>
       )}

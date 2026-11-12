@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useHostsStatus, useHostStatusesStatus } from '../hooks/useMonitoring'
 import type { ActiveAlert } from '../api/alert'
 import { CheckCircle2, AlertCircle, AlertTriangle, Wrench, Monitor, ArrowRight, Zap, Cpu } from 'lucide-react'
 import { cn } from '../utils/cn'
@@ -84,6 +85,9 @@ function SummaryCard({ label, count, color, icon: Icon }: { label: string; count
 
 export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeAlerts, uptimes, maintenanceHosts, onSelect, onToggleMaintenance }: Props) {
   const maintenanceSet = new Set(maintenanceHosts)
+  // 조회 실패를 "호스트 없음"으로, 멈춘 화면을 "자동 갱신 중"으로 보이지 않게 — 부모가 거는 조회의 상태만 구독
+  const { isError: hostsError } = useHostsStatus()
+  const { isError: statusError, dataUpdatedAt: statusAt } = useHostStatusesStatus(hosts)
 
   // 모든 호스트 스펙 1회 fetch (5분 캐시 — 자주 안 변함)
   const { data: specs = [] } = useQuery({
@@ -138,13 +142,24 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
             <h2 className="text-base font-bold text-base-100">호스트 목록</h2>
             <span className="text-xs font-medium text-base-500 tabular-nums">{hosts.length}개</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-base-500">
-            <Zap size={12} className="text-amber-400" /> 자동 갱신
+          <div className="flex items-center gap-1.5 text-xs font-medium text-base-500 tabular-nums">
+            {hostsError || statusError ? (
+              <><AlertTriangle size={12} className="text-amber-400" /> 상태 갱신 실패</>
+            ) : statusAt ? (
+              <><Zap size={12} className="text-base-500" /> {new Date(statusAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} 갱신</>
+            ) : null}
           </div>
         </div>
 
         {/* 호스트 0개 — 빈 그리드 대신 설치 안내 (데모 첫 화면이 "고장난 화면"으로 보이는 것 방지) */}
-        {hosts.length === 0 && (
+        {hosts.length === 0 && hostsError && (
+          <div role="alert" className="rounded-xl border border-amber-500/30 bg-base-900/50 p-10 flex flex-col items-center text-center gap-2">
+            <AlertTriangle size={40} className="text-amber-400" />
+            <p className="text-sm font-semibold text-base-300">호스트 목록을 불러오지 못했습니다</p>
+            <p className="text-xs text-base-500">서버 또는 수집기(Prometheus) 연결을 확인하세요. 1분마다 다시 시도합니다</p>
+          </div>
+        )}
+        {hosts.length === 0 && !hostsError && (
           <div className="rounded-xl border border-base-800 bg-base-900/50 p-10 flex flex-col items-center text-center gap-2">
             <Monitor size={40} className="text-base-700" />
             <p className="text-sm font-semibold text-base-300">연결된 호스트가 없습니다</p>
@@ -172,8 +187,11 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
             const dsk = metrics?.disk ?? 0
             const metricCritical = cpu >= th.cpuCrit || mem >= th.memCrit || dsk >= th.diskCrit
             const metricWarning  = !metricCritical && (cpu >= th.cpuWarn || mem >= th.memWarn || dsk >= th.diskWarn)
-            const hasCritical = criticalAlertCount > 0 || metricCritical
+            // 연결 끊김이 가장 심각한 상태 — 주의 카드보다 덜 띄면 안 됨
+            const hasCritical = isOffline || criticalAlertCount > 0 || metricCritical
             const hasWarning  = !hasCritical && (warningAlertCount > 0 || metricWarning)
+            // 최근 조회가 실패하면 마지막 값의 "정상"을 그대로 믿지 않게 (위험·주의는 마지막 값이라도 계속 보여 줌)
+            const stale = hostsError || statusError
 
             return (
               <div
@@ -184,12 +202,10 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                   inMaintenance
                     ? "border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60"
                     : hasCritical
-                      ? "border-rose-500/50 hover:border-rose-500/80 hover:bg-rose-500/[0.05] animate-alert-pulse ring-1 ring-rose-500/25 ring-1 ring-rose-500/20"
+                      ? "border-rose-500/50 hover:border-rose-500/80 hover:bg-rose-500/[0.05] ring-1 ring-rose-500/25"
                       : hasWarning
                         ? "border-amber-500/40 hover:border-amber-500/70 hover:bg-amber-500/[0.03]"
-                        : isOffline
-                          ? "border-base-800 bg-base-900/60 hover:border-base-700"
-                          : "border-base-800 hover:border-brand-500/60 hover:bg-base-900/80"
+                        : "border-base-800 hover:border-brand-500/60 hover:bg-base-900/80"
                 )}
               >
                 {/* Card Header */}
@@ -204,6 +220,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                         : isOffline ? "bg-rose-500"
                         : hasCritical ? "bg-rose-400"
                         : hasWarning ? "bg-amber-400"
+                        : stale ? "bg-base-500"
                         : "bg-emerald-400"
                     )} />
                     <div className="min-w-0 flex-1">
@@ -218,6 +235,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                           : inMaintenance ? '점검 중'
                           : hasCritical ? '경고 (위험)'
                           : hasWarning ? '주의'
+                          : stale ? '확인 불가'
                           : '정상 동작'}
                       </span>
                     </div>
