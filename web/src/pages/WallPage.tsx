@@ -313,7 +313,7 @@ export default function WallPage() {
           <section className={cn(PANEL, 'min-h-0 max-h-[65%] shrink-0 flex flex-col overflow-hidden')}>
             <h2 className="px-4 py-3 border-b border-base-800 text-sm font-semibold text-base-200 flex items-center gap-2">
               처리할 문제
-              <span className={badge(fresh.length ? 'rose' : 'slate')}>{fresh.length}건</span>
+              <span className={badge(crit ? 'rose' : warn ? 'amber' : 'slate')}>{fresh.length}건</span>
               {handling > 0 && <span className="ml-auto font-normal text-xs text-base-500">처리 중 {handling}건</span>}
             </h2>
             {open.length === 0 ? (

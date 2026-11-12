@@ -172,7 +172,7 @@ export default function AlertHistory() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <SummaryCard icon={History}        label="총 알림"    value={summary.total}    color="indigo" />
-        <SummaryCard icon={AlertCircle}    label="심각"      value={summary.critical} color="rose" />
+        <SummaryCard icon={AlertCircle}    label="위험"      value={summary.critical} color="rose" />
         <SummaryCard icon={AlertTriangle}  label="주의"      value={summary.warning}  color="amber" />
         <SummaryCard icon={Info}           label="정보"      value={summary.info}     color="blue" />
       </div>
@@ -206,7 +206,7 @@ export default function AlertHistory() {
             className="bg-base-800 border border-base-700 rounded-lg px-3 py-1.5 text-sm text-base-200 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           >
             <option value="">전체 심각도</option>
-            <option value="critical">심각</option>
+            <option value="critical">위험</option>
             <option value="warning">주의</option>
             <option value="info">정보</option>
           </select>

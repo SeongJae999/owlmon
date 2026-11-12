@@ -110,7 +110,7 @@ export default function RulesPage() {
         <FilterSelect label="심각도" value={filterSev} onChange={setFilterSev}
           options={[
             { v: 'all', l: '전체' },
-            { v: 'critical', l: '심각' },
+            { v: 'critical', l: '위험' },
             { v: 'warning', l: '주의' },
             { v: 'info', l: '정보' },
           ]} />
@@ -436,7 +436,7 @@ function RuleEditor({ initial, onClose, onSaved }: {
                 className="w-full px-3 py-2 rounded-lg bg-base-800 border border-base-700 text-sm text-base-200">
                 <option value="info">정보</option>
                 <option value="warning">주의</option>
-                <option value="critical">심각</option>
+                <option value="critical">위험</option>
               </select>
             </Field>
             <Field label="카테고리">

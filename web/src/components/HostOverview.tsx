@@ -131,8 +131,8 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <SummaryCard label="전체 호스트" count={hosts.length} color="blue" icon={Monitor} />
         <SummaryCard label="정상" count={counts.ok} color="green" icon={CheckCircle2} />
-        <SummaryCard label="경고" count={counts.warning} color="amber" icon={AlertTriangle} />
-        <SummaryCard label="장애" count={counts.fault} color="rose" icon={AlertCircle} />
+        <SummaryCard label="주의" count={counts.warning} color="amber" icon={AlertTriangle} />
+        <SummaryCard label="위험" count={counts.fault} color="rose" icon={AlertCircle} />
         <SummaryCard label="점검 중" count={counts.maintenance} color="purple" icon={Wrench} />
       </div>
 
@@ -233,7 +233,7 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                       <span className="text-xs font-medium text-base-500 mt-0.5 block">
                         {isOffline ? '연결 끊김'
                           : inMaintenance ? '점검 중'
-                          : hasCritical ? '경고 (위험)'
+                          : hasCritical ? '위험'
                           : hasWarning ? '주의'
                           : stale ? '확인 불가'
                           : '정상 동작'}
@@ -242,7 +242,8 @@ export default function HostOverview({ hosts, hostStatuses, hostMetrics, activeA
                   </div>
 
                   {!inMaintenance && alertCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 shrink-0">
+                    <span className={cn("px-1.5 py-0.5 rounded-md border text-xs font-bold flex items-center gap-1 shrink-0 tabular-nums",
+                      criticalAlertCount > 0 ? "bg-rose-500/15 text-rose-400 border-rose-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30")}>
                       <AlertCircle size={11} /> {alertCount}
                     </span>
                   )}

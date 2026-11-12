@@ -165,7 +165,7 @@ export default function AlertSettings({ onSave }: Props) {
                 onChange={v => setLocalCfg({ ...localCfg, cpu_threshold: v })} />
               <ThresholdField label="메모리 위험" value={localCfg.mem_threshold}
                 onChange={v => setLocalCfg({ ...localCfg, mem_threshold: v })} />
-              <ThresholdField label="디스크 경고" value={localCfg.disk_warn}
+              <ThresholdField label="디스크 주의" value={localCfg.disk_warn}
                 onChange={v => setLocalCfg({ ...localCfg, disk_warn: v })} />
               <ThresholdField label="디스크 위험" value={localCfg.disk_crit}
                 onChange={v => setLocalCfg({ ...localCfg, disk_crit: v })} />

@@ -45,7 +45,7 @@ function getStatus(value: number | null, warning = 70, critical = 90) {
 // 색은 공용 토큰(TONES)에서 — 페이지 간 severity 톤 일치 (hex는 recharts용)
 const statusConfig = {
   normal:   { color: TONES.emerald.color, label: '정상',        bg: TONES.emerald.bg, text: TONES.emerald.text, border: TONES.emerald.border },
-  warning:  { color: TONES.amber.color,   label: '경고',        bg: TONES.amber.bg,   text: TONES.amber.text,   border: TONES.amber.border },
+  warning:  { color: TONES.amber.color,   label: '주의',        bg: TONES.amber.bg,   text: TONES.amber.text,   border: TONES.amber.border },
   critical: { color: TONES.rose.color,    label: '위험',        bg: TONES.rose.bg,    text: TONES.rose.text,    border: TONES.rose.border },
   unknown:  { color: TONES.slate.color,   label: '데이터 없음', bg: TONES.slate.bg,   text: TONES.slate.text,   border: TONES.slate.border },
 }

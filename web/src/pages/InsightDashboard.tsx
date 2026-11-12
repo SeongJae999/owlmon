@@ -15,10 +15,11 @@ import { TONES } from '../utils/severity'
 // 앱 공통 3톤(rose/amber/slate)에 맞춤 — high는 별도 색 대신 rose + 라벨로 구분
 const tone = (t: keyof typeof TONES, label: string) => ({ bg: `${TONES[t].bg} ${TONES[t].border}`, text: TONES[t].text, label })
 const SEVERITY_STYLE: Record<Severity, { bg: string; text: string; label: string }> = {
-  critical: tone('rose', '심각'),
-  high:     tone('rose', '높음'),
-  medium:   tone('amber', '중간'),
-  low:      tone('slate', '낮음'),
+  // 챗봇(chat_facts.go chatSeverityLabel)과 같은 표기 — AI 분석은 4단계라 알림(위험/주의)보다 한 단계 많음
+  critical: tone('rose', '긴급'),
+  high:     tone('rose', '위험'),
+  medium:   tone('amber', '주의'),
+  low:      tone('slate', '정보'),
 }
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -149,10 +150,10 @@ export default function InsightDashboard() {
           className="px-3 py-2 rounded-lg bg-base-800 border border-base-700 text-base-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="">전체 심각도</option>
-          <option value="critical">심각</option>
-          <option value="high">높음</option>
-          <option value="medium">중간</option>
-          <option value="low">낮음</option>
+          <option value="critical">긴급</option>
+          <option value="high">위험</option>
+          <option value="medium">주의</option>
+          <option value="low">정보</option>
         </select>
         <input
           type="text"
