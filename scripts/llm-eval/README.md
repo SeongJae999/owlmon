@@ -24,6 +24,8 @@ go run ./cmd/llmeval -compare ../scripts/llm-eval/results/baseline-gemma4-12b.js
 | `eval-set-multiline.jsonl` | 원인 묶기로 여러 종류 줄이 한 그룹 |
 | `eval-set-hostctx.jsonl` | 호스트 상태(CPU·메모리·디스크·이상탐지)와 연결 |
 
+반복 횟수는 `count`에만 적는다. 로그 본문에 `(38회 반복)`처럼 쓰면 운영 입력과 달라지고, `count`가 없으면 "1 times"와 충돌한다.
+
 ## 케이스 형식
 
 | 필드 | 뜻 |
