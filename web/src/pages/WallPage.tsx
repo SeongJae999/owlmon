@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Database, Globe, Maximize, Minimize, Network, Pause, Repeat, Server, X } from 'lucide-react'
 import { getAlertHistory } from '../api/alert'
+import { heartbeat } from '../api/auth'
 import { severityLabel } from '../api/rules'
 import { cn } from '../utils/cn'
 import { useFleet, GROUPS, LABEL, type State } from '../hooks/useFleet'
@@ -12,6 +13,8 @@ import { lasting } from '../utils/time'
 import { TONES, type Tone } from '../utils/severity'
 
 const ROTATE_MS = 30_000
+// 가장 느린 조회 주기(1분)의 두 배 — 이보다 오래 갱신이 없으면 멈춘 화면으로 봄
+const STALE_MS = 2 * 60_000
 const AUTO_KEY = 'owlmon_wall_auto'
 
 const TONE: Record<State, Tone> = { crit: 'rose', warn: 'amber', maint: 'slate', ok: 'emerald', wait: 'slate' }
@@ -67,7 +70,17 @@ export default function WallPage() {
   const { data: history = [] } = useQuery({
     queryKey: ['wallHistory'], queryFn: () => getAlertHistory({ limit: 12 }), refetchInterval: 30_000,
   })
-  const { tiles, open, fresh, handling, crit, warn, impactOf, topology, layout, synth, dataUpdatedAt } = useFleet()
+  const { tiles, open, fresh, handling, crit, warn, impactOf, topology, layout, synth, failed, groupFailed, oldestUpdate } = useFleet()
+  // 멈춘 화면을 실시간 상태로 믿지 않게: 조회 실패나 오래된 데이터는 머리글에 크게 표시
+  const stale = failed.length > 0 || (oldestUpdate > 0 && now.getTime() - oldestUpdate > STALE_MS)
+
+  // 상황판은 레이아웃 밖이라 세션 유지 신호를 따로 보냄 — 조회 전용 계정은 이걸로 토큰이 연장돼 벽 모니터가 로그아웃되지 않음
+  useEffect(() => {
+    const beat = () => heartbeat(false).catch(() => {}) // 일시 오류로 화면을 끊지 않음 (만료되면 401 처리)
+    beat()
+    const id = setInterval(beat, 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   // AI 문장 대신 정해진 틀로 만든 한 줄 요약: 숫자와 상태가 화면 다른 곳과 어긋나지 않게
   const zoneOf = new Map((layout?.devices ?? []).map(d => [d.name, d.zone]))
@@ -107,14 +120,22 @@ export default function WallPage() {
           <span className="text-lg font-bold text-brand-300">OWLmon</span>
           <span className="text-sm text-base-500">상황판</span>
         </div>
-        <StatusCounts crit={crit} warn={warn} handling={handling} loading={tiles.length === 0} className="shrink-0 text-lg" />
-        <p className="min-w-0 flex-1 truncate text-base text-base-300" title={summary}>{summary}</p>
+        <StatusCounts crit={crit} warn={warn} handling={handling} loading={tiles.length === 0} unknown={stale} className="shrink-0 text-lg" />
+        {stale ? (
+          <p role="alert" className="min-w-0 flex-1 truncate text-base font-semibold text-base-100" title={failed.join(', ')}>
+            <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse align-middle" />
+            {failed.length > 0 ? `데이터 갱신 중단 — ${failed.join('·')} 조회 실패` : '데이터 갱신 지연'}
+            {oldestUpdate > 0 && ` (마지막 갱신 ${ago(new Date(oldestUpdate).toISOString(), now)})`}
+          </p>
+        ) : (
+          <p className="min-w-0 flex-1 truncate text-base text-base-300" title={summary}>{summary}</p>
+        )}
         <div className="ml-auto flex shrink-0 items-center gap-3">
           <div className="text-right tabular-nums mr-2">
             <div className="text-2xl font-bold leading-none">{now.toTimeString().slice(0, 8)}</div>
             <div className="mt-1 text-xs text-base-500">
               {now.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-              {dataUpdatedAt > 0 && `, ${ago(new Date(dataUpdatedAt).toISOString(), now)} 갱신`}
+              {oldestUpdate > 0 && `, ${ago(new Date(oldestUpdate).toISOString(), now)} 갱신`}
             </div>
           </div>
           <button
@@ -143,7 +164,9 @@ export default function WallPage() {
           const bad = list.filter(x => x.state === 'crit').length
           const w = list.filter(x => x.state === 'warn').length
           const ok = list.filter(x => x.state === 'ok').length
-          const tone = TONES[list.length === 0 ? 'slate' : bad ? 'rose' : w ? 'amber' : 'emerald']
+          // 조회 실패를 "등록 없음"·"모두 정상"으로 두면 장애를 놓침 — 이전 값이 남아 있어도 실패를 우선 표시
+          const fail = groupFailed(g.name)
+          const tone = TONES[fail ? 'amber' : list.length === 0 ? 'slate' : bad ? 'rose' : w ? 'amber' : 'emerald']
           const Icon = ICON[g.name as keyof typeof ICON] ?? Server
           return (
             <div key={g.name} className={cn('rounded-xl border px-5 py-4 flex items-center gap-4', tone.bg, tone.border)}>
@@ -151,7 +174,8 @@ export default function WallPage() {
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-base-400">{g.name}</div>
                 <div className={cn('text-xl font-bold tabular-nums', tone.text)}>
-                  {list.length === 0 ? '등록 없음'
+                  {fail ? '조회 실패'
+                    : list.length === 0 ? '등록 없음'
                     : bad ? `문제 ${bad} / ${list.length}${g.unit}`
                     : w ? `주의 ${w} / ${list.length}${g.unit}`
                     : `모두 정상 (${ok}${g.unit})`}
@@ -188,7 +212,12 @@ export default function WallPage() {
           ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
             {/* 문제 장비만 크게, 정상 장비는 이름만 접어서 훑는 양을 줄인다 */}
-            {problems.length === 0 ? (
+            {problems.length === 0 && stale ? (
+              // 조회 실패·갱신 중단인데 초록 "문제 없음"을 띄우면 장애를 정상으로 오인함 (머리글이 이미 알리므로 role=alert는 두지 않음)
+              <p className="rounded-xl border border-amber-500/40 px-4 py-6 text-lg font-semibold text-base-200">
+                상태 확인 불가 — {failed.length > 0 ? `${failed.join('·')} 조회 실패` : '데이터 갱신 지연'}
+              </p>
+            ) : problems.length === 0 ? (
               <p className={cn('rounded-xl border px-4 py-6 text-lg font-semibold', TONES.emerald.bg, TONES.emerald.border, TONES.emerald.text)}>문제 장비 없음</p>
             ) : (
               <ul className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">

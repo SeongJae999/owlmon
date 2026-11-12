@@ -40,17 +40,38 @@ export const GROUPS: { name: Group; unit: string }[] = [
 ]
 
 export function useFleet() {
-  const opts = { refetchInterval: 30_000 }
-  const { data: hosts = [] } = useHosts()
-  const { data: hostStatuses = {} } = useAllHostStatuses(hosts)
-  const { data: hostMetrics = {} } = useAllHostMetrics()
-  const { data: alerts = [], dataUpdatedAt } = useAlertStatus()
+  const opts = { refetchInterval: 30_000, refetchIntervalInBackground: true }
+  const qHosts = useHosts()
+  const hosts = qHosts.data ?? []
+  const qStatus = useAllHostStatuses(hosts)
+  const hostStatuses = qStatus.data ?? {}
+  const qMetrics = useAllHostMetrics()
+  const hostMetrics = qMetrics.data ?? {}
+  const qAlerts = useAlertStatus()
+  const alerts = qAlerts.data ?? []
+  const dataUpdatedAt = qAlerts.dataUpdatedAt
   const { data: maintenance = [] } = useMaintenanceHosts()
   const { data: cfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
-  const { data: snmp } = useQuery({ queryKey: ['snmpStatus'], queryFn: getSNMPStatus, ...opts })
-  const { data: synth } = useQuery({ queryKey: ['syntheticStatus'], queryFn: getSyntheticStatus, ...opts })
-  const { data: ssl } = useQuery({ queryKey: ['sslStatus'], queryFn: getSSLStatus, ...opts })
-  const { data: dpm } = useQuery({ queryKey: ['dpmStatus'], queryFn: getDPMStatus, ...opts })
+  const qSnmp = useQuery({ queryKey: ['snmpStatus'], queryFn: getSNMPStatus, ...opts })
+  const snmp = qSnmp.data
+  const qSynth = useQuery({ queryKey: ['syntheticStatus'], queryFn: getSyntheticStatus, ...opts })
+  const synth = qSynth.data
+  const qSsl = useQuery({ queryKey: ['sslStatus'], queryFn: getSSLStatus, ...opts })
+  const ssl = qSsl.data
+  const qDpm = useQuery({ queryKey: ['dpmStatus'], queryFn: getDPMStatus, ...opts })
+  const dpm = qDpm.data
+
+  // 조회가 실패해도 이전 값·빈 목록으로 그리면 "문제 없음"처럼 보인다 — 실패한 출처와 가장 오래된 갱신 시각을 함께 넘김
+  const sources: { name: string; group?: Group; q: { isError: boolean; dataUpdatedAt: number } }[] = [
+    { name: '서버 목록', group: '서버', q: qHosts }, { name: '서버 상태', group: '서버', q: qStatus },
+    { name: '서버 지표', group: '서버', q: qMetrics }, { name: '알림', group: '서버', q: qAlerts },
+    { name: '네트워크 장비', group: '네트워크 장비', q: qSnmp }, { name: '웹사이트', group: '웹사이트', q: qSynth },
+    { name: '보안 인증서', group: '웹사이트', q: qSsl }, { name: '데이터베이스', group: '데이터베이스', q: qDpm },
+  ]
+  const failed = sources.filter(x => x.q.isError).map(x => x.name)
+  const groupFailed = (g: Group) => sources.some(x => x.group === g && x.q.isError)
+  const times = sources.map(x => x.q.dataUpdatedAt).filter(t => t > 0)
+  const oldestUpdate = times.length ? Math.min(...times) : 0
   const { data: layout } = useQuery({ queryKey: ['topologyLayout'], queryFn: getTopologyLayout, staleTime: 5 * 60_000 })
   const { data: anomaly } = useQuery({ queryKey: ['anomaly'], queryFn: getAnomalyData, refetchInterval: 60_000 })
   const { data: assets = [] } = useQuery({ queryKey: ['assets'], queryFn: fetchAssets, staleTime: 5 * 60_000 })
@@ -155,5 +176,5 @@ export function useFleet() {
   const warn = fresh.filter(x => x.state === 'warn').length
 
 
-  return { tiles, open, fresh, handling, crit, warn, impactOf, topology, layout, synth, dataUpdatedAt }
+  return { tiles, open, fresh, handling, crit, warn, impactOf, topology, layout, synth, dataUpdatedAt, failed, groupFailed, oldestUpdate }
 }
