@@ -108,6 +108,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Post("/api/alert/config", alertHandler.SetConfig)
 		r.Get("/api/alert/email-status", alertHandler.GetEmailStatus)
 		r.Post("/api/alert/ack", alertHandler.AckAlert)
+		r.Get("/api/alert/acks", alertHandler.ListAcks)
 		r.Get("/api/alert/status", statusHandler.GetStatus)
 		r.Get("/api/uptime", statusHandler.GetUptime)
 

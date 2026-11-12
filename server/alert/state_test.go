@@ -153,3 +153,75 @@ func TestServerDownRecoveryClearsAckWithoutFiring(t *testing.T) {
 		t.Fatal("서버가 복귀했는데 확인 상태가 남아 다음 장애 메일이 억제된다")
 	}
 }
+
+// 확인 목록은 화면이 비서버 장비 상태를 그리는 근거 — 키 구성 요소와 확인자가 그대로 나와야 하고, 해제하면 빠져야 함
+func TestAcks_ListAndClear(t *testing.T) {
+	s := NewState()
+	s.Ack("web-site", "synthetic", "critical", "kim")
+	s.Ack("db-01", "dpm", "critical", "lee")
+	got := map[string]AckInfo{}
+	for _, a := range s.Acks() {
+		got[a.Host] = a
+	}
+	if a := got["web-site"]; a.Category != "synthetic" || a.Severity != "critical" || a.By != "kim" || a.At.IsZero() {
+		t.Fatalf("확인 정보 누락: %+v", a)
+	}
+	s.ClearAck("web-site", "synthetic", "critical")
+	if len(s.Acks()) != 1 || s.IsAcked("web-site", "synthetic", "critical") {
+		t.Fatal("해제한 확인이 남아 있음")
+	}
+}
+
+func TestSSLAckResets(t *testing.T) {
+	a := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+	b := a.AddDate(0, 0, 45)
+	now := a.AddDate(0, 0, -5)
+	at := func(status string, n ...time.Time) sslSeen {
+		p := sslSeen{}
+		for _, x := range n {
+			p = p.next(status, x, now)
+		}
+		return p
+	}
+	cases := []struct {
+		name       string
+		prev       sslSeen
+		seen       bool
+		status     string
+		notAfter   time.Time
+		crit, warn bool
+	}{
+		{"임박 유지", at("critical", a), true, "critical", a, false, false},
+		{"임박→만료", at("critical", a), true, "expired", a, true, false},
+		{"만료 유지", at("expired", a), true, "expired", a, false, false},
+		{"갱신 후 주의 구간", at("critical", a), true, "warning", b, true, true},
+		{"같은 인증서 주의→안내", at("warning", a), true, "notice", a, true, true},
+		{"같은 인증서 주의 유지", at("warning", a), true, "warning", a, true, false},
+		{"짧은 인증서 교체", at("critical", a), true, "critical", a.AddDate(0, 0, 3), true, true},
+		{"추적 전 만료", sslSeen{}, false, "expired", a, true, false},
+		{"추적 전 임박", sslSeen{}, false, "critical", a, false, false},
+		{"분산 구성: 이미 본 다른 인증서 응답", at("critical", b, a), true, "critical", b, false, false},
+		{"장기 인증서 뒤 단기 교체", at("critical", b.AddDate(1, 0, 0), a), true, "critical", a.AddDate(0, 0, 3), true, true},
+	}
+	for _, c := range cases {
+		crit, warn := sslAckResets(c.prev, c.seen, c.status, c.notAfter)
+		if crit != c.crit || warn != c.warn {
+			t.Errorf("%s: got crit=%v warn=%v, want %v %v", c.name, crit, warn, c.crit, c.warn)
+		}
+	}
+}
+
+func TestSSLSeenNext(t *testing.T) {
+	a := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
+	b := a.AddDate(0, 0, 1)
+	now := a.AddDate(0, 0, -5)
+	p := sslSeen{}.next("critical", b, now)
+	p = p.next("critical", a, now.Add(6*time.Hour))
+	if len(p.certs) != 2 {
+		t.Fatalf("번갈아 응답하는 인증서 둘 다 기억 기대, got %v", p.certs)
+	}
+	p = p.next("critical", a, now.Add(8*24*time.Hour)) // 일주일 넘게 안 보인 인증서는 잊음
+	if _, ok := p.certs[b.Unix()]; ok || len(p.certs) != 1 {
+		t.Fatalf("오래 안 보인 인증서 폐기 기대, got %v", p.certs)
+	}
+}

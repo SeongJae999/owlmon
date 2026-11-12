@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/seongJae/owlmon/server/anomaly"
@@ -36,6 +37,8 @@ type Checker struct {
 	Predictor       *anomaly.Predictor
 	sslDomainLister SSLDomainLister // nil이면 SSL 체크 비활성
 	SSLChecker      *ssl.CertChecker
+	sslMu           sync.Mutex
+	sslPrev         map[string]sslSeen // 도메인별 직전 인증서 상태 (만료 전환·교체 감지)
 }
 
 func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStorer, history HistorySaver) *Checker {
@@ -48,6 +51,7 @@ func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStor
 		Detector:      anomaly.NewDetector(),
 		Predictor:     anomaly.NewPredictor(),
 		SSLChecker:    ssl.NewCertChecker(),
+		sslPrev:       make(map[string]sslSeen),
 	}
 }
 
@@ -100,6 +104,25 @@ func (c *Checker) checkSSLCerts() {
 
 	results := c.SSLChecker.CheckAll(entries)
 
+	// 확인 해제는 알림이 꺼져 있어도 추적한다 — 꺼진 동안 눌린 확인이 켠 뒤의 만료 메일을 막지 않게
+	for _, info := range results {
+		// 접속 실패(error)는 인증서 상태를 모르는 것 — 직전 상태로 남기면 만료→오류→만료를 새 만료로 오인함
+		if info.Status == "error" {
+			continue
+		}
+		c.sslMu.Lock()
+		prev, seen := c.sslPrev[info.Domain]
+		c.sslPrev[info.Domain] = prev.next(info.Status, info.NotAfter, time.Now())
+		c.sslMu.Unlock()
+		clearCrit, clearWarn := sslAckResets(prev, seen, info.Status, info.NotAfter)
+		if clearCrit {
+			c.state.ClearAck(info.Domain, "ssl", "critical")
+		}
+		if clearWarn {
+			c.state.ClearAck(info.Domain, "ssl", "warning")
+		}
+	}
+
 	if !c.configStore.Get().Enabled {
 		return
 	}
@@ -139,6 +162,35 @@ func (c *Checker) checkSSLCerts() {
 			c.state.ClearIfFiring(key)
 		}
 	}
+}
+
+// 확인을 풀어야 하는 순간: 인증서 교체(짧은 기간 인증서는 늘 임박이라 상태 전환만으론 안 풀림),
+// 만료로 넘어감(임박 때 확인한 것이 만료 메일까지 막지 않게 — 처음 보는 만료도 추적 전 확인일 수 있어 해제), 해당 등급을 벗어남
+func sslAckResets(prev sslSeen, seen bool, status string, notAfter time.Time) (crit, warn bool) {
+	_, known := prev.certs[notAfter.Unix()]
+	replaced := seen && !known
+	crit = replaced || (status == "expired" && (!seen || prev.status != "expired")) || (status != "expired" && status != "critical")
+	warn = replaced || status == "ok" || status == "notice"
+	return
+}
+
+// 교체 = 최근에 본 적 없는 만료일이 나타남. 분산 구성에서 인증서 여럿이 번갈아 응답해도 이미 본 것이라 교체로 보지 않는다.
+// 한동안 안 보인 인증서는 잊어서, 같은 만료일이 아주 나중에 다시 보이는 드문 경우에만 해제가 한 번 더 일어남
+const sslForget = 7 * 24 * time.Hour
+
+type sslSeen struct {
+	status string
+	certs  map[int64]time.Time // 만료일(Unix) → 마지막으로 본 시각
+}
+
+func (p sslSeen) next(status string, notAfter, now time.Time) sslSeen {
+	n := sslSeen{status: status, certs: map[int64]time.Time{notAfter.Unix(): now}}
+	for k, at := range p.certs {
+		if _, cur := n.certs[k]; !cur && now.Sub(at) < sslForget {
+			n.certs[k] = at
+		}
+	}
+	return n
 }
 
 // Start는 백그라운드에서 주기적으로 알림 조건을 체크합니다.
@@ -424,6 +476,13 @@ func (c *Checker) Ack(host, category, severity, by string) {
 
 func (c *Checker) AckInfo(host, category, severity string) (AckInfo, bool) {
 	return c.state.AckInfo(host, category, severity)
+}
+
+func (c *Checker) Acks() []AckInfo { return c.state.Acks() }
+
+// 장애가 끝나거나 새로 시작될 때 풀어야 함 — 남아 있으면 다음 장애 메일이 억제됨
+func (c *Checker) ClearAck(host, category, severity string) {
+	c.state.ClearAck(host, category, severity)
 }
 
 // IsAcked는 알림이 확인됐는지 반환합니다.

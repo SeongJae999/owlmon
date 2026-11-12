@@ -77,15 +77,28 @@ func ackKey(host, category, severity string) string {
 }
 
 type AckInfo struct {
-	By string
-	At time.Time
+	Host     string
+	Category string
+	Severity string
+	By       string
+	At       time.Time
 }
 
 // Ack는 알림을 확인 처리합니다. 이메일 재발송이 억제됩니다.
 func (s *State) Ack(host, category, severity, by string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.acked[ackKey(host, category, severity)] = AckInfo{By: by, At: time.Now()}
+	s.acked[ackKey(host, category, severity)] = AckInfo{Host: host, Category: category, Severity: severity, By: by, At: time.Now()}
+}
+
+func (s *State) Acks() []AckInfo {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]AckInfo, 0, len(s.acked))
+	for _, a := range s.acked {
+		out = append(out, a)
+	}
+	return out
 }
 
 func (s *State) AckInfo(host, category, severity string) (AckInfo, bool) {

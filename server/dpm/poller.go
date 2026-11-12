@@ -29,7 +29,8 @@ type Poller struct {
 	stops  map[int64]chan struct{}
 
 	// 알림 콜백
-	onAlert func(inst Instance, severity, subject, body string)
+	onAlert   func(inst Instance, severity, subject, body string)
+	onRecover func(inst Instance)
 }
 
 func NewPoller(lister InstanceLister, saver ResultSaver, cipher *Cipher) *Poller {
@@ -40,6 +41,10 @@ func NewPoller(lister InstanceLister, saver ResultSaver, cipher *Cipher) *Poller
 		latest: make(map[int64]PollResult),
 		stops:  make(map[int64]chan struct{}),
 	}
+}
+
+func (p *Poller) SetRecoverCallback(fn func(inst Instance)) {
+	p.onRecover = fn
 }
 
 // SetAlertCallback은 알림 콜백을 설정합니다.
@@ -151,6 +156,9 @@ func (p *Poller) pollOnce(inst Instance) {
 
 // evaluateAlerts는 임계치 기반 알림을 발송합니다.
 func (p *Poller) evaluateAlerts(inst Instance, cur PollResult, prev PollResult, hadPrev bool) {
+	if cur.Metrics.Error == "" && hadPrev && prev.Metrics.Error != "" && p.onRecover != nil {
+		p.onRecover(inst)
+	}
 	if p.onAlert == nil {
 		return
 	}

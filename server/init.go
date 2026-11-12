@@ -130,13 +130,20 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 					m.Name, m.URL, r.Error, r.ResponseTimeMs, r.CheckedAt.Format(time.RFC3339))
 				checker.SendAlert(m.Name, "synthetic", "critical", subject, body)
 			},
-			func(m synthetic.Monitor, r synthetic.Result) {
+			func(m synthetic.Monitor, r synthetic.Result, wasDown bool) {
+				checker.ClearAck(m.Name, "synthetic", "critical")
+				if !wasDown {
+					return // 다운 메일을 보내지 않은 짧은 실패엔 복구 메일도 보내지 않음
+				}
 				subject := fmt.Sprintf("[복구] [Synthetic] %s 복구", m.Name)
 				body := fmt.Sprintf("모니터: %s\nURL: %s\n응답시간: %dms\n시각: %s",
 					m.Name, m.URL, r.ResponseTimeMs, r.CheckedAt.Format(time.RFC3339))
 				checker.SendAlert(m.Name, "synthetic", "info", subject, body)
 			},
 		)
+		syntheticChecker.SetFailStartCallback(func(m synthetic.Monitor) {
+			checker.ClearAck(m.Name, "synthetic", "critical")
+		})
 		syntheticChecker.Start(ctx)
 		appCtx.SyntheticChecker = syntheticChecker
 		log.Println("Synthetic 모니터링 시작")
@@ -173,7 +180,15 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 			if err == nil {
 				dpmPoller := dpm.NewPoller(appCtx.DPMStore, appCtx.DPMStore, dpmCipher)
 				dpmPoller.SetAlertCallback(func(inst dpm.Instance, severity, subject, body string) {
+					// 연결 실패 메일은 장애가 시작될 때 한 번만 나감 — 지난 장애 때 확인한 것이 이번 메일을 막지 않게 먼저 해제
+					if severity == "critical" {
+						checker.ClearAck(inst.Name, "dpm", "critical")
+					}
 					checker.SendAlert(inst.Name, "dpm", severity, subject, body)
+				})
+				// 복구 때도 풀어 둬야 다음 장애 직후 화면이 지난 확인을 "처리 중"으로 보이지 않음
+				dpmPoller.SetRecoverCallback(func(inst dpm.Instance) {
+					checker.ClearAck(inst.Name, "dpm", "critical")
 				})
 				dpmPoller.Start(ctx)
 				appCtx.DPMPoller = dpmPoller

@@ -58,8 +58,9 @@ type Checker struct {
 	running map[int64]Monitor // 루프가 사용 중인 설정 — 수정 감지용
 
 	// 알림 콜백 (3회 연속 실패/복구 시 호출)
-	onDown     func(m Monitor, r Result, consecutive int)
-	onRecovery func(m Monitor, r Result)
+	onDown      func(m Monitor, r Result, consecutive int)
+	onRecovery  func(m Monitor, r Result, wasDown bool)
+	onFailStart func(m Monitor)
 }
 
 // NewChecker는 Checker를 생성합니다.
@@ -74,8 +75,13 @@ func NewChecker(lister MonitorLister, saver ResultSaver) *Checker {
 	}
 }
 
+// 실패 시작 때 확인을 풀어야 복구 뒤에 눌린 확인이나 꺼 둔 동안 남은 확인이 다음 장애 메일을 막지 않음
+func (c *Checker) SetFailStartCallback(fn func(Monitor)) {
+	c.onFailStart = fn
+}
+
 // SetAlertCallbacks는 다운/복구 알림 콜백을 설정합니다.
-func (c *Checker) SetAlertCallbacks(onDown func(Monitor, Result, int), onRecovery func(Monitor, Result)) {
+func (c *Checker) SetAlertCallbacks(onDown func(Monitor, Result, int), onRecovery func(Monitor, Result, bool)) {
 	c.onDown = onDown
 	c.onRecovery = onRecovery
 }
@@ -178,12 +184,16 @@ func (c *Checker) executeOnce(m Monitor) {
 	currentFails := c.fails[m.ID]
 	c.mu.Unlock()
 
+	if !r.Success && prevFails == 0 && c.onFailStart != nil {
+		c.onFailStart(m)
+	}
 	// 알림: 3회 연속 실패 시 다운, 실패 후 첫 성공 시 복구
 	if !r.Success && currentFails == 3 && c.onDown != nil {
 		c.onDown(m, r, currentFails)
 	}
-	if r.Success && prevFails >= 3 && c.onRecovery != nil {
-		c.onRecovery(m, r)
+	// 1~2회 실패 중에 확인했다가 바로 복구된 경우도 확인을 풀어야 하므로 실패 뒤 첫 성공마다 부르고, 다운 메일을 보냈던 경우인지 함께 넘김
+	if r.Success && prevFails > 0 && c.onRecovery != nil {
+		c.onRecovery(m, r, prevFails >= 3)
 	}
 }
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/seongJae/owlmon/server/alert"
 	"github.com/seongJae/owlmon/server/auth"
@@ -127,4 +128,22 @@ func (h *AlertHandler) SetMaintenance(w http.ResponseWriter, r *http.Request) {
 	}
 	h.checker.SetMaintenance(req.Host, req.Enabled)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /api/alert/acks
+func (h *AlertHandler) ListAcks(w http.ResponseWriter, r *http.Request) {
+	type ack struct {
+		Host     string    `json:"host"`
+		Category string    `json:"category"`
+		Severity string    `json:"severity"`
+		AckedBy  string    `json:"acked_by"`
+		AckedAt  time.Time `json:"acked_at"`
+	}
+	out := []ack{}
+	if h.checker != nil {
+		for _, a := range h.checker.Acks() {
+			out = append(out, ack{a.Host, a.Category, a.Severity, a.By, a.At})
+		}
+	}
+	writeJSON(w, out)
 }
