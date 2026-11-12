@@ -5,8 +5,10 @@ import {
   useHostMetrics,
   useServiceChecks,
   useAnomalyData,
-  useAlertStatus
+  useAlertStatus,
+  useMaintenanceHosts
 } from '../hooks/useMonitoring'
+import { serverState, LABEL } from '../hooks/useFleet'
 import ActiveAlertsPanel from '../components/ActiveAlertsPanel'
 import axios from 'axios'
 import { getAlertConfig, thresholds } from '../api/alert'
@@ -32,7 +34,8 @@ export default function HostDetailPage() {
   const { data: anomalyData } = useAnomalyData()
   const { data: alertCfg } = useQuery({ queryKey: ['alertConfig'], queryFn: getAlertConfig })
   const th = thresholds(alertCfg)
-  const { data: activeAlerts = [], refetch: refetchAlerts, isError: alertsError } = useAlertStatus()
+  const { data: activeAlerts = [], refetch: refetchAlerts, isError: alertsError, isPending: alertsPending } = useAlertStatus()
+  const { data: maintenanceHosts = [] } = useMaintenanceHosts()
 
   // Chart Data Queries
   const { data: cpuChart = [] } = useQuery({
@@ -93,9 +96,13 @@ export default function HostDetailPage() {
   const isOffline = hostStatuses[hostName] === 'offline'
   // 상태를 모르면(조회 실패·아직 응답 전) 초록 "정상"으로 보이면 안 됨 — 관제에서 가장 위험한 오표시
   // 이전 결과가 남아 있어도 최근 조회가 실패했으면 "정상"보다 실패를 먼저 보여 줌
+  // 메인·상황판과 같은 판정(useFleet.serverState) — 알림이 있으면 "정상 동작"이 아니라 위험·주의
+  const state = serverState(hostStatuses[hostName], activeAlerts.filter(a => a.host === hostName && !a.in_maintenance), maintenanceHosts.includes(hostName))
+  const DOT = { crit: 'bg-rose-500', warn: 'bg-amber-400', maint: 'bg-purple-400', ok: 'bg-emerald-400', wait: 'bg-base-500' }
   const status = isOffline ? { dot: 'bg-rose-500', label: '연결 끊김' }
-    : statusError || hostsError ? { dot: 'bg-amber-400', label: '상태 조회 실패' }
-    : hostStatuses[hostName] === 'online' ? { dot: 'bg-emerald-400', label: '정상 동작' }
+    : statusError || hostsError || alertsError ? { dot: 'bg-amber-400', label: '상태 조회 실패' }
+    : alertsPending ? { dot: 'bg-base-500', label: '확인 중' }
+    : hostStatuses[hostName] === 'online' ? { dot: DOT[state], label: state === 'ok' ? '정상 동작' : LABEL[state] }
     : hostsReady && !hosts.includes(hostName) ? { dot: 'bg-base-500', label: '수집 이력 없음' }
     : { dot: 'bg-base-500', label: '확인 중' }
   const hostAnomalies = anomalyData?.anomalies.filter(a => a.host === hostName) || []
@@ -157,7 +164,7 @@ export default function HostDetailPage() {
       )}
 
       {hostName && (
-        <ActiveAlertsPanel alerts={activeAlerts} onChanged={refetchAlerts} host={hostName} error={alertsError} />
+        <ActiveAlertsPanel alerts={activeAlerts} onChanged={refetchAlerts} host={hostName} error={alertsError} loading={alertsPending} />
       )}
 
       {/* Metric Cards Grid */}

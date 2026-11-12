@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Database, Globe, Maximize, Minimize, Network, Pause, Repeat, Server, X } from 'lucide-react'
+import { Maximize, Minimize, Pause, Repeat, X } from 'lucide-react'
 import { getAlertHistory } from '../api/alert'
 import { heartbeat } from '../api/auth'
 import { severityLabel } from '../api/rules'
@@ -9,39 +9,23 @@ import { cn } from '../utils/cn'
 import { useFleet, GROUPS, LABEL, type State } from '../hooks/useFleet'
 import TopologyMap from '../components/TopologyMap'
 import StatusCounts from '../components/StatusCounts'
-import { lasting } from '../utils/time'
+import { ago, lasting } from '../utils/time'
+import { useClock } from '../hooks/useClock'
+import ProblemList from '../components/ProblemList'
+import GroupCards from '../components/GroupCards'
 import { TONES, type Tone } from '../utils/severity'
 
 const ROTATE_MS = 30_000
-// 가장 느린 조회 주기(1분)의 두 배 — 이보다 오래 갱신이 없으면 멈춘 화면으로 봄
-const STALE_MS = 2 * 60_000
 const AUTO_KEY = 'owlmon_wall_auto'
 
 const TONE: Record<State, Tone> = { crit: 'rose', warn: 'amber', maint: 'slate', ok: 'emerald', wait: 'slate' }
-const ICON = { 서버: Server, '네트워크 장비': Network, 웹사이트: Globe, 데이터베이스: Database } as const
 const badge = (tone: Tone) => cn('shrink-0 rounded-md border px-1.5 py-0.5 text-xs font-bold', TONES[tone].bg, TONES[tone].text, TONES[tone].border)
 const PANEL = 'rounded-xl border border-base-800 bg-base-900/50'
 const BTN = 'flex items-center gap-2 px-3 py-1.5 rounded-lg bg-base-800 hover:bg-base-700 text-base-200 text-sm font-semibold border border-base-700'
 
-function useClock() {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
-  return now
-}
-
-function ago(iso: string, now: Date) {
-  const m = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60000))
-  if (m < 1) return '방금'
-  if (m < 60) return `${m}분 전`
-  if (m < 1440) return `${Math.floor(m / 60)}시간 전`
-  return `${Math.floor(m / 1440)}일 전`
-}
 
 export default function WallPage() {
-  const now = useClock()
+  const now = useClock(1000)
   const [params, setParams] = useSearchParams()
   const view = params.get('view') === 'map' ? 'map' : 'tiles'
   const [full, setFull] = useState(false)
@@ -70,9 +54,9 @@ export default function WallPage() {
   const { data: history = [] } = useQuery({
     queryKey: ['wallHistory'], queryFn: () => getAlertHistory({ limit: 12 }), refetchInterval: 30_000,
   })
-  const { tiles, open, fresh, handling, crit, warn, impactOf, topology, layout, synth, failed, groupFailed, oldestUpdate } = useFleet()
+  const { tiles, open, fresh, handling, crit, warn, impactOf, rowAckKeys, topoLookup, topology, layout, synth, failed, groupFailed, oldestUpdate, stale: staleAt, pending, groupPending } = useFleet()
   // 멈춘 화면을 실시간 상태로 믿지 않게: 조회 실패나 오래된 데이터는 머리글에 크게 표시
-  const stale = failed.length > 0 || (oldestUpdate > 0 && now.getTime() - oldestUpdate > STALE_MS)
+  const stale = staleAt(now)
 
   // 상황판은 레이아웃 밖이라 세션 유지 신호를 따로 보냄 — 조회 전용 계정은 이걸로 토큰이 연장돼 벽 모니터가 로그아웃되지 않음
   useEffect(() => {
@@ -120,7 +104,7 @@ export default function WallPage() {
           <span className="text-lg font-bold text-brand-300">OWLmon</span>
           <span className="text-sm text-base-500">상황판</span>
         </div>
-        <StatusCounts crit={crit} warn={warn} handling={handling} loading={tiles.length === 0} unknown={stale} className="shrink-0 text-lg" />
+        <StatusCounts crit={crit} warn={warn} handling={handling} loading={pending} unknown={stale} className="shrink-0 text-lg" />
         {stale ? (
           <p role="alert" className="min-w-0 flex-1 truncate text-base font-semibold text-base-100" title={failed.join(', ')}>
             <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse align-middle" />
@@ -158,33 +142,7 @@ export default function WallPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-4 gap-3">
-        {GROUPS.map(g => {
-          const list = tiles.filter(x => x.group === g.name)
-          const bad = list.filter(x => x.state === 'crit').length
-          const w = list.filter(x => x.state === 'warn').length
-          const ok = list.filter(x => x.state === 'ok').length
-          // 조회 실패를 "등록 없음"·"모두 정상"으로 두면 장애를 놓침 — 이전 값이 남아 있어도 실패를 우선 표시
-          const fail = groupFailed(g.name)
-          const tone = TONES[fail ? 'amber' : list.length === 0 ? 'slate' : bad ? 'rose' : w ? 'amber' : 'emerald']
-          const Icon = ICON[g.name as keyof typeof ICON] ?? Server
-          return (
-            <div key={g.name} className={cn('rounded-xl border px-5 py-4 flex items-center gap-4', tone.bg, tone.border)}>
-              <Icon size={28} className={cn('shrink-0 opacity-80', tone.text)} />
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-base-400">{g.name}</div>
-                <div className={cn('text-xl font-bold tabular-nums', tone.text)}>
-                  {fail ? '조회 실패'
-                    : list.length === 0 ? '등록 없음'
-                    : bad ? `문제 ${bad} / ${list.length}${g.unit}`
-                    : w ? `주의 ${w} / ${list.length}${g.unit}`
-                    : `모두 정상 (${ok}${g.unit})`}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      <GroupCards tiles={tiles} groupFailed={groupFailed} groupPending={groupPending} large />
 
       <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_400px] gap-4">
         <main className={cn(PANEL, 'min-h-0 flex flex-col overflow-hidden')}>
@@ -206,7 +164,7 @@ export default function WallPage() {
             <div className="flex-1 min-h-0 p-4">
               <TopologyMap
                 layout={topology}
-                lookup={name => tiles.find(x => x.name === name)}
+                lookup={topoLookup}
               />
             </div>
           ) : (
@@ -217,6 +175,8 @@ export default function WallPage() {
               <p className="rounded-xl border border-amber-500/40 px-4 py-6 text-lg font-semibold text-base-200">
                 상태 확인 불가 — {failed.length > 0 ? `${failed.join('·')} 조회 실패` : '데이터 갱신 지연'}
               </p>
+            ) : problems.length === 0 && pending ? (
+              <p className="rounded-xl border border-base-800 px-4 py-6 text-lg font-semibold text-base-400">상태 확인 중…</p>
             ) : problems.length === 0 ? (
               <p className={cn('rounded-xl border px-4 py-6 text-lg font-semibold', TONES.emerald.bg, TONES.emerald.border, TONES.emerald.text)}>문제 장비 없음</p>
             ) : (
@@ -310,44 +270,11 @@ export default function WallPage() {
         </main>
 
         <aside className="min-h-0 flex flex-col gap-4">
-          <section className={cn(PANEL, 'min-h-0 max-h-[65%] shrink-0 flex flex-col overflow-hidden')}>
-            <h2 className="px-4 py-3 border-b border-base-800 text-sm font-semibold text-base-200 flex items-center gap-2">
-              처리할 문제
-              <span className={badge(crit ? 'rose' : warn ? 'amber' : 'slate')}>{fresh.length}건</span>
-              {handling > 0 && <span className="ml-auto font-normal text-xs text-base-500">처리 중 {handling}건</span>}
-            </h2>
-            {open.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-base-500">처리할 문제가 없습니다</p>
-            ) : (
-              <ul className="min-h-0 overflow-y-auto divide-y divide-base-800">
-                {open.map(x => (
-                  <li key={x.key}>
-                    <Link to={x.to} className={cn('block px-4 py-3 hover:bg-base-800/50', x.acked && 'opacity-60')}>
-                      <div className="flex items-center gap-2">
-                        <span className={badge(x.acked ? 'slate' : TONE[x.state])}>{LABEL[x.state]}</span>
-                        <span className="font-semibold truncate">{x.name}</span>
-                        <span className="ml-auto shrink-0 text-xs text-base-500">{x.group}</span>
-                      </div>
-                      {x.purpose && <p className="mt-1 text-sm text-base-400 truncate">{x.purpose}</p>}
-                      <p className="mt-0.5 text-sm text-base-200">
-                        {x.detail}{x.since && <span className="text-base-400"> · {lasting(x.since, now)}</span>}
-                      </p>
-                      {x.acked && (
-                        <p className="mt-1 text-sm text-base-400">
-                          확인함{x.acked.by && ` · ${x.acked.by}`}{x.acked.at && ` · ${ago(x.acked.at, now)}`}
-                        </p>
-                      )}
-                      {impactOf(x.name).length > 0 && (
-                        <p className="mt-1 text-sm text-base-400 truncate">
-                          하위 {impactOf(x.name).length}대 영향: {impactOf(x.name).join(', ')}
-                        </p>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <ProblemList
+            open={open} fresh={fresh} handling={handling} crit={crit} warn={warn}
+            impactOf={impactOf} rowAckKeys={rowAckKeys} failed={failed} stale={stale} pending={pending} now={now}
+            canAck={false} className="min-h-0 max-h-[65%] shrink-0"
+          />
 
           <section className={cn(PANEL, 'min-h-0 flex-1 flex flex-col overflow-hidden')}>
             <h2 className="px-4 py-3 border-b border-base-800 text-sm font-semibold text-base-200">최근 알림</h2>

@@ -121,3 +121,17 @@ export async function getMaintenanceHosts(): Promise<string[]> {
 export async function setMaintenance(host: string, enabled: boolean): Promise<void> {
   await axios.post('/api/maintenance', { host, enabled })
 }
+
+// 서버 알림 외 장비(웹·DB·인증서·네트워크)까지 확인 상태를 화면에 그리기 위한 전체 확인 목록
+export interface AckEntry {
+  host: string
+  category: string
+  severity: string
+  acked_by: string
+  acked_at: string
+}
+
+export async function getAlertAcks(): Promise<AckEntry[]> {
+  const res = await axios.get('/api/alert/acks')
+  return res.data
+}

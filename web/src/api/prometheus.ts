@@ -93,21 +93,12 @@ export async function fetchHosts(): Promise<string[]> {
     .filter((h: string | undefined): h is string => !!h)
 }
 
-// 호스트 다운 여부 확인 (최근 2분 내 데이터가 있으면 온라인)
-export async function fetchHostStatus(host: string): Promise<'online' | 'offline'> {
+// 최근 2분 안에 데이터를 보낸 호스트 목록 — 호스트마다 따로 묻지 않고 한 번에 (서버 수만큼 요청이 늘지 않게)
+export async function fetchOnlineHosts(): Promise<string[]> {
   const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
-    params: { query: `count_over_time(system_cpu_usage_percent{host_name="${host}"}[2m])` },
+    params: { query: 'count by (host_name) (count_over_time(system_cpu_usage_percent[2m]))' },
   })
-  const result = res.data?.data?.result
-  // 결과 있음 → 최근 2분 내 데이터 수신 → 온라인
-  // 결과 없음 → 데이터 없거나 만료 → 오프라인
-  return result && result.length > 0 ? 'online' : 'offline'
-}
-
-// 전체 호스트 상태 맵 조회
-export async function fetchAllHostStatuses(hosts: string[]): Promise<Record<string, 'online' | 'offline'>> {
-  const statuses = await Promise.all(hosts.map((h) => fetchHostStatus(h)))
-  return Object.fromEntries(hosts.map((h, i) => [h, statuses[i]]))
+  return (res.data?.data?.result ?? []).map((r: any) => r.metric?.host_name).filter(Boolean)
 }
 
 export interface ServiceCheck {

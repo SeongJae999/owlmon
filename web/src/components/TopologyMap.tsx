@@ -7,7 +7,7 @@ export type NodeState = 'crit' | 'warn' | 'maint' | 'ok' | 'wait'
 
 interface Props {
   layout: TopologyLayout
-  lookup: (name: string) => { state: NodeState; detail: string; to: string; down?: boolean } | undefined
+  lookup: (name: string) => { state: NodeState; detail: string; to: string; down?: boolean; acked?: unknown } | undefined
 }
 
 const PAD = 24
@@ -104,6 +104,8 @@ export default function TopologyMap({ layout, lookup }: Props) {
         const Icon = ICON[kind]
         // 정상은 상태 글자를 빼서 조용하게 두고, 문제 있는 장비만 눈에 띄게
         const quiet = kind === 'internet' || state === 'ok'
+        // 담당자가 확인한 문제는 계속 깜빡이며 시선을 끌지 않게 중립색으로
+        const handled = !!info?.acked && (state === 'crit' || state === 'warn')
         return (
           <g
             key={name}
@@ -118,9 +120,9 @@ export default function TopologyMap({ layout, lookup }: Props) {
             <rect
               width={NODE_W} height={NODE_H} rx={3}
               strokeDasharray={kind === 'internet' ? '5 4' : undefined}
-              className={kind === 'internet' ? 'fill-base-950 stroke-base-600' : BOX[state]}
+              className={kind === 'internet' ? 'fill-base-950 stroke-base-600' : handled ? 'fill-base-900 stroke-base-500 [stroke-width:2]' : BOX[state]}
             />
-            <Icon x={12} y={NODE_H / 2 - 12} width={24} height={24} className={ICON_COLOR[state]} />
+            <Icon x={12} y={NODE_H / 2 - 12} width={24} height={24} className={handled ? 'text-base-400' : ICON_COLOR[state]} />
             <text
               x={44} y={quiet ? NODE_H / 2 + 8 : 27} fontSize={NAME_SIZE} fontWeight={600}
               className={state === 'ok' || kind === 'internet' ? 'fill-base-200' : 'fill-base-50'}
@@ -130,9 +132,9 @@ export default function TopologyMap({ layout, lookup }: Props) {
             {!quiet && (
               <text
                 x={44} y={50} fontSize={15} fontWeight={700}
-                className={cn(LABEL_FILL[state], state === 'crit' && !caused && 'motion-safe:animate-pulse')}
+                className={cn(handled ? 'fill-base-300' : LABEL_FILL[state], state === 'crit' && !caused && !handled && 'motion-safe:animate-pulse')}
               >
-                {caused ? '상위 장비 영향' : LABEL[state]}
+                {caused ? '상위 장비 영향' : handled ? `${LABEL[state]} · 확인함` : LABEL[state]}
               </text>
             )}
           </g>

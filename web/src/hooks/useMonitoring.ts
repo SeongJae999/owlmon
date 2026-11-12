@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchHosts, fetchAllHostStatuses, fetchAllHostMetrics, fetchMetrics, fetchServiceChecks } from '../api/prometheus'
-import { getAlertStatus, getMaintenanceHosts } from '../api/alert'
+import { fetchHosts, fetchOnlineHosts, fetchAllHostMetrics, fetchMetrics, fetchServiceChecks } from '../api/prometheus'
+import { getAlertStatus, getMaintenanceHosts, getAlertAcks } from '../api/alert'
 import { fetchUptime } from '../api/asset'
 import { getAnomalyData } from '../api/anomaly'
 
@@ -16,18 +16,6 @@ async function fetchKnownHosts(): Promise<string[]> {
   return [...new Set([...live, ...alerts])].sort()
 }
 
-// 부모가 거는 조회의 상태(실패·갱신 시각)만 구독 — enabled:false라 마운트 때 조회를 새로 걸지 않는다.
-// 자식에서 useHosts()를 또 쓰면 실패 상태에서 재조회가 부모 로딩과 맞물려 무한 재마운트된다.
-// 조회 함수는 그대로 두어 다른 곳에서 캐시를 무효화해도 원래 함수로 다시 조회됨
-export const useHostsStatus = () => {
-  const { isError, dataUpdatedAt } = useQuery({ queryKey: ['hosts'], queryFn: fetchKnownHosts, enabled: false })
-  return { isError, dataUpdatedAt }
-}
-export const useHostStatusesStatus = (hosts: string[]) => {
-  const { isError, dataUpdatedAt } = useQuery({ queryKey: ['hostStatuses', hosts], queryFn: () => fetchAllHostStatuses(hosts), enabled: false })
-  return { isError, dataUpdatedAt }
-}
-
 export const useHosts = () => {
   return useQuery({
     queryKey: ['hosts'],
@@ -39,8 +27,10 @@ export const useHosts = () => {
 
 export const useAllHostStatuses = (hosts: string[]) => {
   return useQuery({
-    queryKey: ['hostStatuses', hosts],
-    queryFn: () => fetchAllHostStatuses(hosts),
+    queryKey: ['hostStatuses'],
+    queryFn: fetchOnlineHosts,
+    // 2분 안에 데이터를 보낸 호스트만 결과에 있음 — 없는 호스트는 끊김 (판정 기준은 예전 호스트별 조회와 같음)
+    select: (online: string[]) => Object.fromEntries(hosts.map(h => [h, online.includes(h) ? 'online' : 'offline'])) as Record<string, 'online' | 'offline'>,
     enabled: hosts.length > 0,
     refetchInterval: 30000,
     refetchIntervalInBackground: true,
@@ -96,6 +86,7 @@ export const useMaintenanceHosts = () => {
     queryKey: ['maintenanceHosts'],
     queryFn: getMaintenanceHosts,
     refetchInterval: 60000,
+    refetchIntervalInBackground: true, // 탭이 가려진 동안 이것만 멈추면 돌아왔을 때 "갱신 지연"으로 오판
   })
 }
 
@@ -104,5 +95,14 @@ export const useAnomalyData = () => {
     queryKey: ['anomalyData'],
     queryFn: getAnomalyData,
     refetchInterval: 30000,
+  })
+}
+
+export const useAlertAcks = () => {
+  return useQuery({
+    queryKey: ['alertAcks'],
+    queryFn: getAlertAcks,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
   })
 }
