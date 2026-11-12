@@ -125,7 +125,7 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 		syntheticChecker := synthetic.NewChecker(appCtx.SyntheticStore, appCtx.SyntheticStore)
 		syntheticChecker.SetAlertCallbacks(
 			func(m synthetic.Monitor, r synthetic.Result, n int) {
-				subject := fmt.Sprintf("[심각] [Synthetic] %s 다운 (%d회 연속 실패)", m.Name, n)
+				subject := fmt.Sprintf("[위험] [Synthetic] %s 다운 (%d회 연속 실패)", m.Name, n)
 				body := fmt.Sprintf("모니터: %s\nURL: %s\n오류: %s\n응답시간: %dms\n시각: %s",
 					m.Name, m.URL, r.Error, r.ResponseTimeMs, r.CheckedAt.Format(time.RFC3339))
 				checker.SendAlert(m.Name, "synthetic", "critical", subject, body)

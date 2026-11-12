@@ -239,7 +239,7 @@ func TestHistoryCountsAndLabels(t *testing.T) {
 		{Host: "db-01", Severity: "info", Subject: "[복구] db-01 디스크 정상 복구"},
 	}
 	got := renderChatHistory("H", records, chatPeriod{label: "어제"}, "", false)
-	for _, want := range []string{"알림 3건 (위험 1 · 주의 1 · 안내 1)", "복구 안내 1건 별도", "**대상별**", "www.example.ac.kr: 1건", "장애 횟수가 아니며"} {
+	for _, want := range []string{"알림 3건 (위험 1 · 주의 1 · 정보 1)", "복구 안내 1건 별도", "**대상별**", "www.example.ac.kr: 1건", "장애 횟수가 아니며"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("%q 없음:\n%s", want, got)
 		}

@@ -86,15 +86,29 @@ func (h *HistoryHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte{0xEF, 0xBB, 0xBF})
 	cw := csv.NewWriter(w)
 	defer cw.Flush()
-	cw.Write([]string{"sent_at", "host", "category", "severity", "subject", "body"})
+	// 감사 자료로 엑셀에서 바로 읽도록 헤더·등급을 한국어로 (JSON 내보내기는 원래 값 유지)
+	cw.Write([]string{"발송시각", "호스트", "분류", "등급", "제목", "내용"})
 	for _, rec := range records {
 		cw.Write([]string{
-			rec.SentAt.Format(time.RFC3339),
+			rec.SentAt.Local().Format("2006-01-02 15:04:05"),
 			rec.Host,
 			rec.Category,
-			rec.Severity,
+			severityKo(rec.Severity),
 			rec.Subject,
 			rec.Body,
 		})
 	}
+}
+
+// severityKo는 사용자에게 보이는 출력(메일·CSV·AI 입력)의 등급 표기 — 화면(web/src/api/rules.ts severityLabel)과 같은 기준
+func severityKo(s string) string {
+	switch s {
+	case "critical":
+		return "위험"
+	case "warning":
+		return "주의"
+	case "info":
+		return "정보"
+	}
+	return s
 }

@@ -192,7 +192,7 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 				Category: "cpu",
 				Severity: "critical",
 				Value:    r.value,
-				Message:  fmt.Sprintf("CPU %.1f%% (임계값 %.0f%%)", r.value, cfg.CPUThreshold),
+				Message:  fmt.Sprintf("CPU %.1f%% (기준 %.0f%%)", r.value, cfg.CPUThreshold),
 			})
 		}
 	}
@@ -205,7 +205,7 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 				Category: "memory",
 				Severity: "critical",
 				Value:    r.value,
-				Message:  fmt.Sprintf("메모리 %.1f%% (임계값 %.0f%%)", r.value, cfg.MemThreshold),
+				Message:  fmt.Sprintf("메모리 %.1f%% (기준 %.0f%%)", r.value, cfg.MemThreshold),
 			})
 		}
 	}
@@ -224,7 +224,7 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 				Category: "disk",
 				Severity: "critical",
 				Value:    r.value,
-				Message:  fmt.Sprintf("디스크 %s %.1f%% (임계값 %.0f%%)", mount, r.value, cfg.DiskCrit),
+				Message:  fmt.Sprintf("디스크 %s %.1f%% (기준 %.0f%%)", mount, r.value, cfg.DiskCrit),
 			})
 		} else if r.value >= cfg.DiskWarn {
 			snap.Alerts = append(snap.Alerts, ActiveAlert{
@@ -232,7 +232,7 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 				Category: "disk",
 				Severity: "warning",
 				Value:    r.value,
-				Message:  fmt.Sprintf("디스크 %s %.1f%% (경고 %.0f%%)", mount, r.value, cfg.DiskWarn),
+				Message:  fmt.Sprintf("디스크 %s %.1f%% (기준 %.0f%%)", mount, r.value, cfg.DiskWarn),
 			})
 		}
 	}

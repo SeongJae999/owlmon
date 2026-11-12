@@ -162,14 +162,14 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 		if !h.rules.TryAlert(key.RuleID, key.Host, m.CooldownSeconds) {
 			continue
 		}
-		subject := fmt.Sprintf("[OWLmon] %s — %s", key.Host, m.Name)
+		subject := fmt.Sprintf("[%s] %s — %s", severityKo(m.Severity), key.Host, m.Name)
 		var detail string
 		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
 			detail = fmt.Sprintf(" (%d초 이내 %d회 이상 매칭)", m.ThresholdWindow, m.ThresholdCount)
 		}
 		body := fmt.Sprintf(
-			"호스트: %s\n룰: %s%s\n심각도: %s\n자세히: 웹 대시보드 → 로그 룰 / 로그 뷰어에서 확인.",
-			key.Host, m.Name, detail, m.Severity)
+			"호스트: %s\n규칙: %s%s\n등급: %s\n자세히: 웹 대시보드 → 로그 감지 규칙 / 로그 검색에서 확인.",
+			key.Host, m.Name, detail, severityKo(m.Severity))
 		h.sendAlert(key.Host, "log_rule", m.Severity, subject, body)
 	}
 }

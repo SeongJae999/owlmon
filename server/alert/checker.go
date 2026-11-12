@@ -187,7 +187,7 @@ func (c *Checker) promHealthy() bool {
 			log.Printf("Prometheus 조회 실패 — 알림 감시 일시 중단: %v", err)
 		}
 		if n == consecutiveFailThreshold && c.state.ShouldAlert(key) {
-			subject := "🔴 Prometheus 응답 없음 — 알림 감시 중단"
+			subject := "[위험] Prometheus 응답 없음 — 알림 감시 중단"
 			body := fmt.Sprintf("Prometheus 조회가 %d회 연속 실패했습니다.\n복구될 때까지 CPU·메모리·디스크·서버 다운 알림이 동작하지 않습니다.\n\n오류: %v", n, err)
 			c.sendAlert("owlmon", "monitoring", "critical", subject, body)
 		}
@@ -213,7 +213,7 @@ func (c *Checker) checkMetric(name, category, promql string, critical, warning f
 		key := fmt.Sprintf("%s:%s:critical", name, host)
 		if val >= critical {
 			if c.state.ShouldAlert(key) {
-				subject := fmt.Sprintf("[심각] %s %s 위험 (%.1f%%)", host, name, val)
+				subject := fmt.Sprintf("[위험] %s %s %.1f%%", host, name, val)
 				body := fmt.Sprintf("호스트: %s\n항목: %s 사용률\n현재 값: %.1f%%\n임계값: %.0f%%\n\n즉시 확인이 필요합니다.", host, name, val, critical)
 				c.sendAlert(host, category, "critical", subject, body)
 			}
@@ -243,14 +243,14 @@ func (c *Checker) checkDisk(warn, crit float64) {
 
 		if val >= crit {
 			if c.state.ShouldAlert(critKey) {
-				subject := fmt.Sprintf("[심각] %s 디스크 위험 (%s %.1f%%)", host, mount, val)
+				subject := fmt.Sprintf("[위험] %s 디스크 %s %.1f%%", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크가 거의 꽉 찼습니다. 즉시 용량을 확보하세요.", host, mount, val)
 				c.sendAlert(host, "disk", "critical", subject, body)
 			}
 		} else if val >= warn {
 			c.state.ClearIfFiring(critKey)
 			if c.state.ShouldAlert(warnKey) {
-				subject := fmt.Sprintf("[주의] %s 디스크 경고 (%s %.1f%%)", host, mount, val)
+				subject := fmt.Sprintf("[주의] %s 디스크 %s %.1f%%", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크 용량이 부족해지고 있습니다. 확인해 주세요.", host, mount, val)
 				c.sendAlert(host, "disk", "warning", subject, body)
 			}
@@ -281,7 +281,7 @@ func (c *Checker) checkServerDown() {
 		key := fmt.Sprintf("down:%s", host)
 		if len(results) == 0 {
 			if c.state.ShouldAlert(key) {
-				subject := fmt.Sprintf("🔴 %s 서버 연결 끊김", host)
+				subject := fmt.Sprintf("[위험] %s 서버 연결 끊김", host)
 				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 끊겼습니다. 서버 상태를 확인하세요.", host)
 				c.sendAlert(host, "down", "critical", subject, body)
 			}
@@ -361,7 +361,7 @@ func (c *Checker) checkServiceFailures() {
 		if r.value == 0 {
 			count := c.state.RecordFailure(key)
 			if count == consecutiveFailThreshold {
-				subject := fmt.Sprintf("[심각] %s 서비스 장애 (%s)", host, name)
+				subject := fmt.Sprintf("[위험] %s 서비스 장애 (%s)", host, name)
 				body := fmt.Sprintf("호스트: %s\n서비스: %s\n대상: %s\n\n%d회 연속 응답 실패. 서비스 상태를 확인하세요.", host, name, target, count)
 				c.sendAlert(host, "service", "critical", subject, body)
 				c.state.ShouldAlert(key) // firing 상태 표시

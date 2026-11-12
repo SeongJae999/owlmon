@@ -926,7 +926,7 @@ func renderChatHistory(head string, records []db.AlertRecord, p chatPeriod, host
 	for _, t := range targets {
 		lines = append(lines, fmt.Sprintf("- %s: %d건", t, byTarget[t]))
 	}
-	first := fmt.Sprintf("%s · %s: 알림 %s (위험 %d · 주의 %d · 안내 %d)", head, scope, count, crit, warn, info)
+	first := fmt.Sprintf("%s · %s: 알림 %s (위험 %d · 주의 %d · 정보 %d)", head, scope, count, crit, warn, info)
 	if recovered > 0 {
 		first += fmt.Sprintf(" · 복구 안내 %d건 별도", recovered)
 	}

@@ -168,9 +168,10 @@ func (h *LLMHandler) SummarizeAlerts(w http.ResponseWriter, r *http.Request) {
 		byHost[rec.Host]++
 		byCategory[rec.Category]++
 	}
-	sb.WriteString("심각도별: ")
+	// AI가 요약문에 등급을 영문 그대로 옮기지 않도록 입력부터 화면과 같은 표기로
+	sb.WriteString("등급별: ")
 	for k, v := range bySeverity {
-		sb.WriteString(fmt.Sprintf("%s=%d ", k, v))
+		sb.WriteString(fmt.Sprintf("%s=%d ", severityKo(k), v))
 	}
 	sb.WriteString("\n호스트별: ")
 	for k, v := range byHost {
@@ -180,7 +181,7 @@ func (h *LLMHandler) SummarizeAlerts(w http.ResponseWriter, r *http.Request) {
 	for k, v := range byCategory {
 		sb.WriteString(fmt.Sprintf("%s=%d ", k, v))
 	}
-	sb.WriteString("\n\n---최근 알림 50개 (시간/심각도/호스트/제목)---\n")
+	sb.WriteString("\n\n---최근 알림 50개 (시간/등급/호스트/제목)---\n")
 	limit := len(records)
 	if limit > 50 {
 		limit = 50
@@ -188,7 +189,7 @@ func (h *LLMHandler) SummarizeAlerts(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < limit; i++ {
 		rec := records[i]
 		sb.WriteString(fmt.Sprintf("%s | %s | %s | %s\n",
-			rec.SentAt.Format("15:04"), rec.Severity, rec.Host, rec.Subject))
+			rec.SentAt.Format("15:04"), severityKo(rec.Severity), rec.Host, rec.Subject))
 	}
 
 	userPrompt := sb.String()

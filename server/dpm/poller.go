@@ -158,7 +158,7 @@ func (p *Poller) evaluateAlerts(inst Instance, cur PollResult, prev PollResult, 
 	// 1) 연결 실패
 	if cur.Metrics.Error != "" && (!hadPrev || prev.Metrics.Error == "") {
 		p.onAlert(inst, "critical",
-			"[심각] [DPM] "+inst.Name+" DB 연결 실패",
+			"[위험] [DPM] "+inst.Name+" DB 연결 실패",
 			"인스턴스: "+inst.Name+"\n호스트: "+inst.Host+"\n오류: "+cur.Metrics.Error,
 		)
 		return
