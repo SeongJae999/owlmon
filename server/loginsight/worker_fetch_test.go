@@ -65,3 +65,34 @@ func TestFetchRecentLogs_LateArrivalNotSkipped(t *testing.T) {
 		t.Fatalf("3차 tick: %q", got)
 	}
 }
+
+// 한 tick에 한도(5000줄)를 넘게 쌓여도 남은 줄은 다음 tick에 이어 읽어야 함 (WAL 재전송이 몰릴 때).
+func TestFetchRecentLogs_OverLimitContinuesNextTick(t *testing.T) {
+	dsn := os.Getenv("OWLMON_TEST_PG_DSN")
+	if dsn == "" {
+		t.Skip("OWLMON_TEST_PG_DSN 미설정")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	if _, err := pool.Exec(ctx, `TRUNCATE logs CASCADE`); err != nil {
+		t.Fatal(err)
+	}
+	worker := New(Config{Window: time.Minute, SeverityFilter: []string{"error"}}, pool, nil, nil)
+	if _, err := pool.Exec(ctx, `INSERT INTO logs (timestamp, host, source, line, level, created_at)
+		SELECT NOW(), 'h', 's', 'line-' || g, 'ERROR', NOW() - interval '40 seconds'
+		FROM generate_series(1, $1) g`, fetchLimit+1); err != nil {
+		t.Fatal(err)
+	}
+	first, err := worker.fetchRecentLogs(ctx)
+	if err != nil || len(first) != fetchLimit {
+		t.Fatalf("1차 tick: %d건 %v", len(first), err)
+	}
+	rest, err := worker.fetchRecentLogs(ctx)
+	if err != nil || len(rest) != 1 || rest[0].Message != "line-5001" {
+		t.Fatalf("2차 tick에 남은 1건 기대: %+v %v", rest, err)
+	}
+}

@@ -202,6 +202,8 @@ func (w *Worker) processGroups(ctx context.Context, groups []LogGroup) (int, err
 	return analyzed, nil
 }
 
+const fetchLimit = 5000
+
 // fetchRecentLogs — 지난 tick 이후 들어온 ERROR/WARN 등 로그 조회.
 // timestamp(에이전트가 읽은 시각) 창으로 자르면 늦게 도착한 줄(WAL 재전송·flush 지연)과
 // tick이 Interval보다 오래 걸린 구간이 빠져서 id 커서로 이어 읽는다.
@@ -230,8 +232,8 @@ func (w *Worker) fetchRecentLogs(ctx context.Context) ([]LogLine, error) {
 		WHERE id > $1 AND id <= $2
 		  AND LOWER(level) = ANY($3)
 		ORDER BY id
-		LIMIT 5000`,
-		w.lastID, hi, levels)
+		LIMIT $4`,
+		w.lastID, hi, levels, fetchLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +250,11 @@ func (w *Worker) fetchRecentLogs(ctx context.Context) ([]LogLine, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	w.lastID = max(w.lastID, hi)
+	if len(out) == fetchLimit {
+		w.lastID = out[len(out)-1].ID // 한도에 걸리면 남은 줄은 다음 tick에 이어 읽음
+	} else {
+		w.lastID = max(w.lastID, hi)
+	}
 	return out, nil
 }
 
