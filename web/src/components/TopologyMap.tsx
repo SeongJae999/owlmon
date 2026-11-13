@@ -7,7 +7,11 @@ export type NodeState = 'crit' | 'warn' | 'maint' | 'ok' | 'wait'
 
 interface Props {
   layout: TopologyLayout
-  lookup: (name: string) => { state: NodeState; detail: string; to: string; down?: boolean; acked?: unknown } | undefined
+  lookup: (name: string) => { state: NodeState; detail: string; to: string; down?: boolean; acked?: unknown; causedBy?: string } | undefined
+  // 편집 화면: 누르면 이동하지 않고 장비를 고름
+  onPick?: (name: string) => void
+  picked?: string | null
+  blocked?: (name: string) => boolean
 }
 
 const PAD = 24
@@ -38,24 +42,24 @@ const ICON_COLOR: Record<NodeState, string> = {
   crit: 'text-rose-300', warn: 'text-amber-300', maint: 'text-base-500', ok: 'text-emerald-300', wait: 'text-base-600',
 }
 
-export default function TopologyMap({ layout, lookup }: Props) {
+export default function TopologyMap({ layout, lookup, onPick, picked, blocked }: Props) {
   const navigate = useNavigate()
   const scene = layoutTopology(layout)
   const at = new Map(scene.nodes.map(n => [n.device.name, n]))
   const isDown = (name: string) => !!lookup(name)?.down
+  // 선이 흐르는 건 아직 아무도 확인하지 않은 실제 장애뿐 — 확인했거나 점검 중이면 멈춤
+  const live = (name: string) => isDown(name) && lookup(name)?.state !== 'maint' && !lookup(name)?.acked
   const stateOf = (kind: DeviceKind, name: string): NodeState => kind === 'internet' ? 'ok' : lookup(name)?.state ?? 'wait'
-  // 위쪽 장비가 끊겨 함께 끊긴 경우: 원인은 위에 있다고 알려 줌
-  const causedAbove = (name: string) => {
-    for (let p = at.get(name)?.device.parent, hops = 0; p && hops < 50; p = at.get(p)?.device.parent, hops++) {
-      if (isDown(p)) return true
-    }
-    return false
-  }
 
   return (
     <svg
       viewBox={`${-PAD} ${-PAD} ${scene.width + PAD * 2} ${scene.height + PAD * 2}`}
-      preserveAspectRatio="xMidYMin meet" className="w-full h-full" role="img" aria-label="네트워크 구성도"
+      // 실제 크기보다 키우지 않음(확대되면 상자·글씨가 뭉툭해짐), 0.6배보다 줄이지 않음(글씨가 안 읽힘) — 넘치면 바깥이 스크롤
+      style={{
+        maxWidth: scene.width + PAD * 2, maxHeight: scene.height + PAD * 2,
+        minWidth: (scene.width + PAD * 2) * 0.6, minHeight: (scene.height + PAD * 2) * 0.6,
+      }}
+      preserveAspectRatio="xMidYMin meet" className="block mx-auto w-full h-full" role="group" aria-label="네트워크 구성도"
     >
       {scene.zones.map(z => (
         <g key={z.name}>
@@ -78,7 +82,10 @@ export default function TopologyMap({ layout, lookup }: Props) {
         return (
           <g key={`l-${n.device.name}`}>
             <path d={d} fill="none" strokeWidth={1.5} className="stroke-base-700" />
-            {down && <path d={drop} fill="none" strokeWidth={3} strokeDasharray="7 5" className="stroke-rose-500" />}
+            {down && (
+              <path d={drop} fill="none" strokeWidth={3} strokeDasharray="7 5"
+                className={cn('stroke-rose-500', live(isDown(p.device.name) && lookup(p.device.name)?.state !== 'maint' ? p.device.name : n.device.name) && 'motion-safe:animate-flow')} />
+            )}
           </g>
         )
       })}
@@ -99,8 +106,10 @@ export default function TopologyMap({ layout, lookup }: Props) {
         const { name, kind } = n.device
         const info = kind === 'internet' ? undefined : lookup(name)
         const state = stateOf(kind, name)
-        const caused = isDown(name) && causedAbove(name)
-        const go = info?.to ? () => navigate(info.to) : undefined
+        // 원인 판정은 useFleet 한 곳에서만 — 여기서 따로 따지면 목록과 구성도가 서로 다르게 보임 (점검 중 장비 등)
+        const caused = !!info?.causedBy
+        const off = !!onPick && !!blocked?.(name)
+        const go = onPick ? (off ? undefined : () => onPick(name)) : info?.to ? () => navigate(info.to) : undefined
         const Icon = ICON[kind]
         // 정상은 상태 글자를 빼서 조용하게 두고, 문제 있는 장비만 눈에 띄게
         const quiet = kind === 'internet' || state === 'ok'
@@ -111,16 +120,21 @@ export default function TopologyMap({ layout, lookup }: Props) {
             key={name}
             transform={`translate(${n.x - NODE_W / 2},${n.y - NODE_H / 2})`}
             onClick={go}
-            onKeyDown={go ? e => { if (e.key === 'Enter') go() } : undefined}
-            role={go ? 'link' : undefined}
+            onKeyDown={go ? e => { if (e.key === 'Enter' || (onPick && e.key === ' ')) { e.preventDefault(); go() } } : undefined}
+            role={go ? (onPick ? 'button' : 'link') : undefined}
             tabIndex={go ? 0 : undefined}
-            className={go ? 'cursor-pointer outline-none [&:focus-visible>rect]:stroke-brand-300 [&:hover>rect]:stroke-base-500' : undefined}
+            aria-label={onPick ? (picked === name ? `${name} 선택 취소` : picked ? `${picked}을(를) ${name} 아래로 연결` : `${name} 선택`) : undefined}
+            aria-pressed={onPick ? picked === name : undefined}
+            className={cn(go && 'cursor-pointer outline-none [&:focus-visible>rect]:stroke-brand-300 [&:hover>rect]:stroke-base-500', off && 'opacity-30')}
           >
             <title>{info?.detail ? `${name}: ${info.detail}` : name}</title>
             <rect
               width={NODE_W} height={NODE_H} rx={3}
+              // 아직 아무도 확인하지 않은 원인 장비만 깜빡임 — 함께 끊긴 하위 장비까지 깜빡이면 원인을 못 찾음
               strokeDasharray={kind === 'internet' ? '5 4' : undefined}
-              className={kind === 'internet' ? 'fill-base-950 stroke-base-600' : handled ? 'fill-base-900 stroke-base-500 [stroke-width:2]' : BOX[state]}
+              className={cn(kind === 'internet' ? 'fill-base-950 stroke-base-600' : handled ? 'fill-base-900 stroke-base-500 [stroke-width:2]' : BOX[state],
+                state === 'crit' && !caused && !handled && 'motion-safe:animate-blink',
+                picked === name && '!stroke-brand-500 !fill-brand-500/15 [stroke-width:3]')}
             />
             <Icon x={12} y={NODE_H / 2 - 12} width={24} height={24} className={handled ? 'text-base-400' : ICON_COLOR[state]} />
             <text
@@ -132,7 +146,7 @@ export default function TopologyMap({ layout, lookup }: Props) {
             {!quiet && (
               <text
                 x={44} y={50} fontSize={15} fontWeight={700}
-                className={cn(handled ? 'fill-base-300' : LABEL_FILL[state], state === 'crit' && !caused && !handled && 'motion-safe:animate-pulse')}
+                className={handled ? 'fill-base-300' : LABEL_FILL[state]}
               >
                 {caused ? '상위 장비 영향' : handled ? `${LABEL[state]} · 확인함` : LABEL[state]}
               </text>

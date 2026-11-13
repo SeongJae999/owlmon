@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, Plus, RotateCcw, Save, Trash2, Workflow, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CornerLeftUp, Plus, RotateCcw, Save, Trash2, Workflow, X } from 'lucide-react'
 import PageToolbar from '../components/PageToolbar'
 import TopologyMap from '../components/TopologyMap'
 import { useHosts } from '../hooks/useMonitoring'
@@ -70,6 +70,14 @@ function Editor({ saved, servers, networks, notice, setNotice }: {
   const [newNode, setNewNode] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  // 구성도에서 고른 장비 — 다음에 누르는 장비 아래로 연결된다
+  const [picked, setPicked] = useState<string | null>(null)
+  useEffect(() => {
+    if (!picked) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPicked(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [picked])
 
   const draft = toLayout(zones, rows)
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved.devices.length ? saved : null)
@@ -134,10 +142,26 @@ function Editor({ saved, servers, networks, notice, setNotice }: {
   }
 
   const placed = rows.filter(r => r.zone)
+  const pickedRow = rows.find(r => r.name === picked)
+  const pickedBlocked = picked ? descendants(picked) : new Set<string>()
+
+  const pick = (name: string) => {
+    if (!picked || !pickedRow) return setPicked(name)
+    if (name === picked) return setPicked(null)
+    if (pickedBlocked.has(name)) return
+    const target = rows.find(r => r.name === name)!
+    // 구성도에 없던 장비는 연결하면서 넣는다 — 같은 종류 장비가 있는 구역, 없으면 서버는 맨 아래 구역, 나머지는 위 장비와 같은 구역
+    // 위 장비보다 위쪽 구역은 쓰지 않음 — 자식이 부모보다 위에 그려지면 선이 거꾸로 올라감
+    const sameKind = rows.find(r => r.zone && r.kind === pickedRow.kind && r.name !== picked && zones.indexOf(r.zone) >= zones.indexOf(target.zone))
+    const zone = pickedRow.zone || sameKind?.zone || (pickedRow.kind === 'server' ? zones[zones.length - 1] ?? target.zone : target.zone)
+    update(picked, { parent: name, zone })
+    setNotice('')
+    setPicked(null)
+  }
 
   return (
     <div className="space-y-5">
-      <PageToolbar icon={Workflow} title="구성도" description="장비마다 구역과 위에 연결된 장비만 정하면 상황판 구성도가 자동으로 그려집니다">
+      <PageToolbar icon={Workflow} title="구성도" description="장비를 누른 뒤 그 장비가 연결된 위쪽 장비를 누르면 선이 이어집니다. 배치는 자동으로 정렬됩니다">
         {saved.devices.length > 0 && (
           <button
             type="button" disabled={saving}
@@ -158,6 +182,51 @@ function Editor({ saved, servers, networks, notice, setNotice }: {
 
       {notice && <div role="status" className="border-y border-base-800 px-4 py-2.5 text-sm text-emerald-300">{notice}</div>}
       {error && <div role="alert" className="border-y border-base-800 px-4 py-2.5 text-sm text-rose-300 shadow-[inset_4px_0_0_var(--color-rose-500)]">{error}</div>}
+
+      <section className="border-y border-base-800 p-4 space-y-3" aria-label="구성도 편집">
+        <div className="flex flex-wrap items-center gap-3 min-h-9">
+          <h2 className="text-sm font-semibold text-base-200">구성도</h2>
+          {picked ? (
+            <>
+              <p role="status" className="text-sm text-base-200">
+                <span className="font-semibold text-brand-300">{picked}</span> 선택 — 위에 연결된 장비를 누르세요
+                <span className="text-base-500"> (흐린 장비는 아래쪽이라 고를 수 없음, Esc로 취소)</span>
+              </p>
+              {pickedRow?.parent && (
+                <button type="button" onClick={() => { update(picked, { parent: undefined }); setPicked(null) }}
+                  className="flex items-center gap-1 h-8 px-3 rounded-lg border border-base-700 text-sm text-base-200 hover:bg-base-800">
+                  <CornerLeftUp size={14} /> 연결 끊고 맨 위로
+                </button>
+              )}
+              <button type="button" onClick={() => setPicked(null)} className="h-8 px-3 rounded-lg border border-base-700 text-sm text-base-300 hover:bg-base-800">취소</button>
+            </>
+          ) : (
+            <p className="text-sm text-base-500">장비를 누른 뒤, 그 장비가 연결된 위쪽 장비를 누르세요</p>
+          )}
+          {dirty && <span className="ml-auto text-sm text-amber-300">저장하지 않은 변경이 있습니다</span>}
+        </div>
+        {rows.length > placed.length && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-base-500">구성도에 없는 장비</span>
+            {rows.filter(r => !r.zone).map(r => (
+              <button key={r.name} type="button" aria-pressed={picked === r.name} onClick={() => setPicked(picked === r.name ? null : r.name)}
+                className={cn('h-8 px-3 rounded-lg border text-base-200 hover:bg-base-800', picked === r.name ? 'border-brand-400 ring-1 ring-brand-400' : 'border-base-700 border-dashed')}>
+                {r.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {draft.devices.length === 0 ? (
+          <p className="py-8 text-center text-sm text-base-500">구역을 정한 장비가 없습니다. 아래 구역을 만들고 장비의 구역을 정하세요</p>
+        ) : (
+          <div className="h-[560px] overflow-auto rounded-lg bg-base-950/40">
+            <TopologyMap
+              layout={draft} lookup={() => ({ state: 'ok', detail: '', to: '' })}
+              onPick={pick} picked={picked} blocked={name => !!picked && name !== picked && pickedBlocked.has(name)}
+            />
+          </div>
+        )}
+      </section>
 
       <section className="border-y border-base-800 p-4 space-y-3">
         <h2 className="text-sm font-semibold text-base-200">구역 <span className="font-normal text-base-500">위에서 아래 순서로 그려집니다</span></h2>
@@ -250,16 +319,6 @@ function Editor({ saved, servers, networks, notice, setNotice }: {
         </div>
       </section>
 
-      <section className="border-y border-base-800 p-4 space-y-2">
-        <h2 className="text-sm font-semibold text-base-200">미리보기 {dirty && <span className="font-normal text-amber-300">저장하지 않은 변경이 있습니다</span>}</h2>
-        {draft.devices.length === 0 ? (
-          <p className="py-8 text-center text-sm text-base-500">구역을 정한 장비가 없습니다</p>
-        ) : (
-          <div className="h-[560px]">
-            <TopologyMap layout={draft} lookup={() => ({ state: 'ok', detail: '', to: '' })} />
-          </div>
-        )}
-      </section>
     </div>
   )
 }

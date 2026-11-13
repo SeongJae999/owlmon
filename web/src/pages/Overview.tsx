@@ -1,13 +1,13 @@
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Monitor } from 'lucide-react'
 import Loading from '../components/Loading'
-import HostOverview from '../components/HostOverview'
+import DeviceTable from '../components/DeviceTable'
 import ProblemList from '../components/ProblemList'
 import GroupCards from '../components/GroupCards'
 import StatusCounts from '../components/StatusCounts'
 import PageToolbar from '../components/PageToolbar'
-import { useFleet } from '../hooks/useFleet'
+import { useFleet, type Group } from '../hooks/useFleet'
 import { useUptimes } from '../hooks/useMonitoring'
 import { useClock } from '../hooks/useClock'
 import { setMaintenance } from '../api/alert'
@@ -16,7 +16,7 @@ import { ago } from '../utils/time'
 
 // 상황판과 같은 판정(useFleet)만 쓴다 — 화면마다 따로 세면 같은 장애가 다르게 보임
 export default function OverviewPage() {
-  const navigate = useNavigate()
+  const [filter, setFilter] = useState<Group | null>(null)
   const qc = useQueryClient()
   const now = useClock(60_000)
   const fleet = useFleet()
@@ -34,7 +34,7 @@ export default function OverviewPage() {
   }
 
   if (fleet.loading) {
-    return <Loading label="호스트 정보를 불러오는 중…" rows={6} />
+    return <Loading label="장비 정보를 불러오는 중…" rows={6} />
   }
 
   return (
@@ -51,21 +51,19 @@ export default function OverviewPage() {
         </p>
       )}
 
-      <GroupCards tiles={fleet.tiles} groupFailed={fleet.groupFailed} groupPending={fleet.groupPending} />
-
       <ProblemList
         open={fleet.open} fresh={fleet.fresh} handling={fleet.handling} crit={fleet.crit} warn={fleet.warn}
         impactOf={fleet.impactOf} rowAckKeys={fleet.rowAckKeys} failed={fleet.failed} stale={stale} pending={fleet.pending} now={now}
         canAck={!!me && me.role !== 'viewer'}
       />
 
-      <HostOverview
-        tiles={fleet.tiles.filter(x => x.group === '서버')}
-        failed={fleet.groupFailed('서버')}
-        uptimes={uptimes}
-        onSelect={(host) => navigate(`/detail?host=${encodeURIComponent(host)}`)}
-        onToggleMaintenance={onToggleMaintenance}
-      />
+      <section className="space-y-3" aria-label="전체 장비">
+        <GroupCards tiles={fleet.tiles} groupFailed={fleet.groupFailed} groupPending={fleet.groupPending} selected={filter} onSelect={setFilter} />
+        <DeviceTable
+          tiles={fleet.tiles} filter={filter} groupFailed={fleet.groupFailed} groupPending={fleet.groupPending} uptimes={uptimes} now={now}
+          canMaint={me?.role === 'admin'} onToggleMaintenance={onToggleMaintenance}
+        />
+      </section>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { cn } from '../utils/cn'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
 import Loading from './Loading'
+import { useFocus } from '../hooks/useFocus'
 
 function formatBps(bps: number): string {
   if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
@@ -216,6 +217,7 @@ export default function SNMPDashboard() {
     queryKey: ['snmpDevices'],
     queryFn: getSNMPDevices,
   })
+  const focusProps = useFocus(devices.length > 0)
 
   const { data: statuses = [] } = useQuery({
     queryKey: ['snmpStatus'],
@@ -364,7 +366,8 @@ export default function SNMPDashboard() {
           {devices.map(dev => {
             const status = statusMap.get(dev.ID)
             if (!status) return (
-              <div key={dev.ID} className="bg-base-900 rounded-xl border border-base-800 p-5 shadow-sm">
+              <div key={dev.ID} {...focusProps(dev.ID)}>
+              <div className="bg-base-900 rounded-xl border border-base-800 p-5 shadow-sm">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <RefreshCcw size={14} className="text-brand-400 animate-spin shrink-0" />
@@ -381,14 +384,16 @@ export default function SNMPDashboard() {
                   </div>
                 </div>
               </div>
+              </div>
             )
             return (
-              <DeviceCard
-                key={dev.ID}
-                status={status}
-                onDelete={() => handleDelete(dev.ID, dev.Name)}
-                onEdit={() => setEditing(dev)}
-              />
+              <div key={dev.ID} {...focusProps(dev.ID)}>
+                <DeviceCard
+                  status={status}
+                  onDelete={() => handleDelete(dev.ID, dev.Name)}
+                  onEdit={() => setEditing(dev)}
+                />
+              </div>
             )
           })}
         </div>

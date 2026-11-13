@@ -119,7 +119,11 @@ export function layoutTopology(layout: TopologyLayout): Scene {
     placed.set(d.name, { device: d, slot: start + width(d.name) / 2, row, gridRow: 0 })
     const list = children.get(d.name) ?? []
     if (isGrid(d.name)) {
-      list.forEach((c, i) => {
+      // 칸 번호는 구역별로 따로 센다 — 스위치와 서버를 한 격자에 섞어 세면 서버 구역 첫 줄이 비고 상자 하나만 떠 있게 됨
+      const nth = new Map<string, number>()
+      list.forEach(c => {
+        const i = nth.get(c.zone) ?? 0
+        nth.set(c.zone, i + 1)
         const gridRow = Math.floor(i / GRID_COLS)
         const base = d.zone === c.zone ? row + 1 : 0
         placed.set(c.name, { device: c, slot: start + (i % GRID_COLS) + 0.5, row: base + gridRow, gridRow, trunkSlot: start })

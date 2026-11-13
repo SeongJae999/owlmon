@@ -17,6 +17,7 @@ import { TONES } from '../utils/severity'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
 import Loading from './Loading'
+import { useFocus } from '../hooks/useFocus'
 
 /**
  * 웹사이트 모니터링 — SSL 인증서 + 사이트 가용성 통합 페이지
@@ -68,6 +69,7 @@ export default function WebsiteMonitoring() {
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   })
+  const focusProps = useFocus(sslDomains.length > 0)
   const { data: sslStatuses = [] } = useQuery({
     queryKey: ['sslStatus'],
     queryFn: getSSLStatus,
@@ -314,10 +316,11 @@ export default function WebsiteMonitoring() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {sslDomains.map(dom => {
             const ssl = sslStatusMap.get(dom.domain)
-            const syn = synByDomain.get(dom.domain)
+            const key = urlToDomain(`https://${dom.domain}/`)
+            const syn = synByDomain.get(key)
             return (
+              <div key={dom.id} {...focusProps(key)}>
               <WebsiteCard
-                key={dom.id}
                 domain={dom.domain}
                 port={dom.port}
                 memo={dom.memo}
@@ -329,6 +332,7 @@ export default function WebsiteMonitoring() {
                 onAddSyn={() => addSynMutation.mutate({ domain: dom.domain, port: dom.port, memo: dom.memo })}
                 onCheckSyn={syn ? () => triggerSyntheticCheck(syn.monitor.id).then(() => queryClient.refetchQueries({ queryKey: ['syntheticStatus'] })) : undefined}
               />
+              </div>
             )
           })}
         </div>

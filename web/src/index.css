@@ -183,3 +183,15 @@ html, body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 구성도 장애 표시 — 움직임은 장애에만 (정상은 조용하게) */
+@theme {
+  --animate-blink: owl-blink 1.4s ease-in-out infinite;
+  --animate-flow: owl-flow 0.9s linear infinite;
+  @keyframes owl-blink {
+    50% { opacity: 0.35; }
+  }
+  @keyframes owl-flow {
+    to { stroke-dashoffset: -24; }
+  }
+}

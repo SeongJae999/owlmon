@@ -29,6 +29,7 @@ export interface Tile {
   ackKeys?: AckKey[] // 확인 버튼이 서버에 보낼 키 — 서버가 메일 억제에 쓰는 키와 같아야 함
   alertCount?: number // 서버: 미확인 알림 수
   purpose?: string
+  location?: string // 자산 관리의 위치 — 장애 장비를 찾아가거나 업체에 알려 줄 때
   since?: string
 }
 
@@ -43,9 +44,13 @@ export const GROUPS: { name: Group; unit: string; to: string }[] = [
 // 가장 느린 조회 주기(1분)의 두 배 — 이보다 오래 갱신이 없으면 멈춘 화면으로 봄
 export const STALE_MS = 2 * 60_000
 
+// 웹사이트 화면은 도메인 단위 카드 — 등록 도메인(대소문자·한글 그대로)과 감시 URL을 같은 호스트 표기로 맞춰 찾음
+const hostOf = (url: string) => { try { return new URL(url).hostname } catch { return url } }
+
 // 서버 한 대의 상태 — 메인·상황판·상세가 같은 기준을 쓰도록 순수 함수로 둔다.
 // 확인한 알림만 남았으면 그 알림들로, 새 알림이 있으면 미확인 알림만으로 등급을 정한다
 // (위험을 확인한 뒤 주의가 새로 오면 "주의·미확인"이어야 함 — 확인한 위험으로 다시 "위험·미확인"이 되면 구성도 고정이 잘못 켜짐)
+
 export function serverState(status: 'online' | 'offline' | undefined, mine: ActiveAlert[], inMaint: boolean): State {
   if (inMaint) return 'maint'
   if (status === 'offline') return 'crit'
@@ -83,6 +88,9 @@ export function useFleet() {
   const qDpm = useQuery({ queryKey: ['dpmStatus'], queryFn: getDPMStatus, ...opts })
   const dpm = qDpm.data
 
+  // 배치는 장비 상태가 아니라 설정이라 전체 "갱신 중단"에 넣지 않고, 실패하면 구성도 쪽에만 자동 배치임을 알림
+  const qLayout = useQuery({ queryKey: ['topologyLayout'], queryFn: getTopologyLayout, ...opts })
+  const layout = qLayout.data
   // 조회가 실패해도 이전 값·빈 목록으로 그리면 "문제 없음"처럼 보인다 — 실패한 출처와 가장 오래된 갱신 시각을 함께 넘김
   const sources: { name: string; group?: Group; q: { isError: boolean; isPending: boolean; fetchStatus: string; dataUpdatedAt: number } }[] = [
     { name: '서버 목록', group: '서버', q: qHosts }, { name: '서버 상태', group: '서버', q: qStatus },
@@ -93,6 +101,8 @@ export function useFleet() {
   ]
   const failed = sources.filter(x => x.q.isError).map(x => x.name)
   const groupFailed = (g: Group) => sources.some(x => x.group === g && x.q.isError)
+  // 그 종류 출처만 보고 지연 판정 — 다른 종류(DB 등) 조회가 멈춘 걸로 서버·네트워크까지 회색으로 만들지 않게
+  const groupStale = (g: Group, now: Date) => sources.some(x => x.group === g && x.q.dataUpdatedAt > 0 && now.getTime() - x.q.dataUpdatedAt > STALE_MS)
   const times = sources.map(x => x.q.dataUpdatedAt).filter(t => t > 0)
   const oldestUpdate = times.length ? Math.min(...times) : 0
   const stale = (now: Date) => failed.length > 0 || (oldestUpdate > 0 && now.getTime() - oldestUpdate > STALE_MS)
@@ -106,7 +116,6 @@ export function useFleet() {
   const unknown = (q: { isPending: boolean; fetchStatus: string; isError: boolean; data?: unknown }) => waiting(q) || (q.isError && q.data === undefined)
   const alertsUnknown = unknown(qAlerts) || unknown(qMaint)
 
-  const { data: layout } = useQuery({ queryKey: ['topologyLayout'], queryFn: getTopologyLayout, staleTime: 5 * 60_000 })
   const { data: anomaly } = useAnomalyData()
   const { data: assets = [] } = useQuery({ queryKey: ['assets'], queryFn: fetchAssets, staleTime: 5 * 60_000 })
   // 장비 이름만으로는 무슨 장비인지 모르니 장비 대장의 설명을 용도로 붙인다
@@ -162,7 +171,7 @@ export function useFleet() {
       detail: !d.CollectedAt ? '첫 응답 대기' : d.Up ? `응답 ${d.ResponseMs ?? 0}ms` : '응답 없음',
       acked: ackValid ? { by: a.acked_by, at: a.acked_at } : undefined,
       ackKeys: down && !ackValid ? [key] : undefined,
-      to: '/snmp',
+      to: `/snmp?focus=${d.Device.ID}`,
     })
   }
   for (const s of (synth ?? []).filter(s => s.monitor.enabled)) {
@@ -179,7 +188,7 @@ export function useFleet() {
       // 느림(주의)은 메일도 해제 경로도 없어 확인 대상이 아님 — 실패일 때만
       acked: a ? { by: a.acked_by, at: a.acked_at } : undefined,
       ackKeys: failing && !a ? [key] : undefined,
-      to: '/website',
+      to: `/website?focus=${encodeURIComponent(hostOf(s.monitor.url))}`,
     })
   }
   for (const c of ssl ?? []) {
@@ -198,7 +207,7 @@ export function useFleet() {
       detail: c.status === 'error' ? '인증서 확인 실패' : c.days_left < 0 ? '인증서 만료' : `인증서 ${c.days_left}일 남음`,
       acked: a ? { by: a.acked_by, at: a.acked_at } : undefined,
       ackKeys: ackable && !a ? [key] : undefined,
-      to: '/website',
+      to: `/website?focus=${encodeURIComponent(hostOf(`https://${c.domain}/`))}`,
     })
   }
   for (const d of dpm ?? []) {
@@ -211,9 +220,10 @@ export function useFleet() {
       detail: !m ? '첫 응답 대기' : m.error ? '연결 실패' : `연결 ${m.connections_active}/${m.connections_max}`,
       acked: a ? { by: a.acked_by, at: a.acked_at } : undefined,
       ackKeys: m?.error && !a ? [key] : undefined,
-      to: '/dpm',
+      to: `/dpm?focus=${d.instance.id}`,
     })
   }
+  for (const x of tiles) x.location = assets.find(a => a.host_name === x.name)?.location.trim() || undefined
   const GORDER = GROUPS.map(g => g.name)
   // 문제 있는 타일을 맨 앞에, 나머지는 종류별로 묶어서
   tiles.sort((a, b) => Math.min(RANK[a.state], 2) - Math.min(RANK[b.state], 2) || GORDER.indexOf(a.group) - GORDER.indexOf(b.group) || a.name.localeCompare(b.name))
@@ -225,7 +235,8 @@ export function useFleet() {
   const topoTiles = tiles.filter(x => x.group === '서버' || x.group === '네트워크 장비')
   // 점검 중인 장비는 목록에 안 나오므로 원인으로 묶으면 하위 장비 장애가 아무 데도 안 보임
   const downNames = new Set(topoTiles.filter(x => x.down && x.state !== 'maint').map(x => x.name))
-  for (const x of topoTiles.filter(t => t.down)) {
+  // 점검 중 장비는 점검으로만 보여야 함 — 상위 영향으로 묶으면 점검과 영향에 두 번 세어짐
+  for (const x of topoTiles.filter(t => t.down && t.state !== 'maint')) {
     for (let p = parentOf.get(x.name), hops = 0; p && hops < 50; p = parentOf.get(p), hops++) {
       if (downNames.has(p)) x.causedBy = p
     }
@@ -254,6 +265,6 @@ export function useFleet() {
 
   return {
     tiles, open, fresh, handling, crit, warn, impactOf, rowAckKeys, topoLookup, topology, layout, synth,
-    dataUpdatedAt, failed, groupFailed, oldestUpdate, stale, loading, pending, groupPending,
+    dataUpdatedAt, failed, groupFailed, oldestUpdate, stale, loading, pending, groupPending, layoutFailed: qLayout.isError && !qLayout.data?.devices.length, groupStale,
   }
 }

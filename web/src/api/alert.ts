@@ -122,7 +122,6 @@ export async function setMaintenance(host: string, enabled: boolean): Promise<vo
   await axios.post('/api/maintenance', { host, enabled })
 }
 
-// 서버 알림 외 장비(웹·DB·인증서·네트워크)까지 확인 상태를 화면에 그리기 위한 전체 확인 목록
 export interface AckEntry {
   host: string
   category: string

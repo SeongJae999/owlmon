@@ -11,6 +11,7 @@ import { formatBytes } from '../api/specs'
 import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
 import Loading from './Loading'
+import { useFocus } from '../hooks/useFocus'
 
 function formatMs(ms: number): string {
   if (ms < 1) return `${ms.toFixed(2)}ms`
@@ -365,6 +366,7 @@ export default function DPMDashboard() {
     queryFn: getDPMStatus,
     refetchInterval: 30000,
   })
+  const focusProps = useFocus(items.length > 0)
 
   const checkMutation = useMutation({
     mutationFn: triggerDPMCheck,
@@ -422,13 +424,14 @@ export default function DPMDashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {items.map(item => (
-            <InstanceCard
-              key={item.instance.id}
-              item={item}
-              onDelete={() => handleDelete(item.instance.id, item.instance.name)}
-              onCheck={() => checkMutation.mutate(item.instance.id)}
-              onShowQueries={() => setQueriesTarget({ id: item.instance.id, name: item.instance.name })}
-            />
+            <div key={item.instance.id} {...focusProps(item.instance.id)}>
+              <InstanceCard
+                item={item}
+                onDelete={() => handleDelete(item.instance.id, item.instance.name)}
+                onCheck={() => checkMutation.mutate(item.instance.id)}
+                onShowQueries={() => setQueriesTarget({ id: item.instance.id, name: item.instance.name })}
+              />
+            </div>
           ))}
         </div>
       )}
