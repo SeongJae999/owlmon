@@ -23,8 +23,8 @@ go run ./cmd/llmeval -compare ../scripts/llm-eval/results/baseline-gemma4-12b.js
 | `eval-set-history.jsonl` | `[패턴 이력]` 주입 (장기 지속) |
 | `eval-set-multiline.jsonl` | 원인 묶기로 여러 종류 줄이 한 그룹 |
 | `eval-set-hostctx.jsonl` | 호스트 상태(CPU·메모리·디스크·이상탐지)와 연결 |
-| `eval-set-customer.jsonl` | 고객 환경 공개 로그 (JEUS·WebtoB·Tibero·Windows Apache) — 에이전트 레벨 판정을 통과하는 줄만 |
-| `pending-customer.jsonl` | 지금 수집 단계에서 걸러지는 고객 환경 로그 (MSSQL UTF-16, 한국어 로케일 등) — 기본 실행에서 빠짐, 수집이 고쳐지면 옮긴다 |
+| `eval-set-customer.jsonl` | 고객 환경 공개 로그 (JEUS·WebtoB·Tibero·Windows Apache·MSSQL·Tomcat·robocopy) — 에이전트 레벨 판정을 통과하는 줄만 |
+| `pending-customer.jsonl` | 지금 수집 단계에서 걸러지는 고객 환경 로그 — 기본 실행에서 빠짐, 수집이 고쳐지면 옮긴다 |
 
 반복 횟수는 `count`에만 적는다. 로그 본문에 `(38회 반복)`처럼 쓰면 운영 입력과 달라지고, `count`가 없으면 "1 times"와 충돌한다.
 
