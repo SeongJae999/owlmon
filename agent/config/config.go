@@ -56,14 +56,14 @@ type LogConfig struct {
 type JournaldConfig struct {
 	Enabled         bool     `yaml:"enabled"`          // 기본 false (opt-in)
 	Source          string   `yaml:"source"`           // 라벨 (기본 "journald")
-	IncludePatterns []string `yaml:"include_patterns"` // 빈 배열이면 main.go의 안전 기본값 사용
+	IncludePatterns []string `yaml:"include_patterns"` // 빈 배열이면 main.go의 안전 기본값 사용. WARN 이상 레벨은 매칭 안 돼도 수집
 }
 
 // TailConfig는 개별 로그 파일 수집 설정입니다.
 type TailConfig struct {
 	Name            string   `yaml:"name"`             // 로그 식별 이름
 	Path            string   `yaml:"path"`             // 로그 파일 경로
-	IncludePatterns []string `yaml:"include_patterns"` // 빈 배열이면 전부 수집
+	IncludePatterns []string `yaml:"include_patterns"` // 빈 배열이면 전부 수집. WARN 이상 레벨은 매칭 안 돼도 수집
 }
 
 // CheckConfig는 개별 서비스 체크 설정입니다.

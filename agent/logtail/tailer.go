@@ -126,7 +126,7 @@ func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig, fromStart
 	}
 	defer f.Close()
 
-	reader := bufio.NewReader(f)
+	reader := newLineReader(f)
 	var pending string // 개행 전까지 쓰인 미완성 라인 (다음 Write 때 이어붙임)
 	if fromStart {
 		pending = t.drainNewLines(reader, cfg, "")
@@ -152,7 +152,7 @@ func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig, fromStart
 					if _, err := f.Seek(0, io.SeekStart); err != nil {
 						return false, err
 					}
-					reader.Reset(f)
+					reader = newLineReader(f)
 					pending = ""
 				}
 				pending = t.drainNewLines(reader, cfg, pending)
@@ -196,7 +196,10 @@ func (t *Tailer) drainNewLines(reader *bufio.Reader, cfg config.TailConfig, pend
 		if line == "" {
 			continue
 		}
-		if len(cfg.IncludePatterns) > 0 && !matchesAny(line, cfg.IncludePatterns) {
+		line = decodeLine(line)
+		level := detectLevel(line)
+		// 패턴 목록에 없는 표기(SEVERE·심각·JEUS 숫자 레벨 등)라도 WARN 이상은 분석 대상이라 통과
+		if len(cfg.IncludePatterns) > 0 && !matchesAny(line, cfg.IncludePatterns) && !reportable(level) {
 			continue
 		}
 
@@ -206,7 +209,7 @@ func (t *Tailer) drainNewLines(reader *bufio.Reader, cfg config.TailConfig, pend
 			Source:    cfg.Name,
 			FilePath:  cfg.Path,
 			Line:      line,
-			Level:     detectLevel(line),
+			Level:     level,
 		}
 
 		t.mu.Lock()
@@ -285,23 +288,4 @@ func matchesAny(line string, patterns []string) bool {
 		}
 	}
 	return false
-}
-
-// detectLevel은 로그 라인에서 레벨을 자동 감지합니다.
-func detectLevel(line string) string {
-	upper := strings.ToUpper(line)
-	switch {
-	case strings.Contains(upper, "FATAL"):
-		return "FATAL"
-	case strings.Contains(upper, "ERROR"):
-		return "ERROR"
-	case strings.Contains(upper, "WARN"):
-		return "WARN"
-	case strings.Contains(upper, "INFO"):
-		return "INFO"
-	case strings.Contains(upper, "DEBUG"):
-		return "DEBUG"
-	default:
-		return ""
-	}
 }

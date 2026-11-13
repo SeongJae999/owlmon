@@ -92,7 +92,7 @@ func (c *JournaldCollector) run(ctx context.Context) error {
 			continue
 		}
 		// include_patterns 필터 — 매칭 안 되면 송신 X (DB 폭증 방지)
-		if len(c.includePatterns) > 0 && !matchesAny(entry.Line, c.includePatterns) {
+		if len(c.includePatterns) > 0 && !matchesAny(entry.Line, c.includePatterns) && !reportable(entry.Level) {
 			continue
 		}
 		c.pushFunc(entry)
@@ -154,13 +154,21 @@ func parseJournaldLine(raw []byte, hostname, source string) (LogEntry, bool) {
 		filePath = rec.Unit
 	}
 
+	level := priorityToLevel(rec.Priority)
+	// systemd 서비스 stdout은 기본 PRIORITY=6이라 Java 등이 본문에 찍은 ERROR·SEVERE를 따름
+	if level == "INFO" || level == "" {
+		if d := detectLevel(rec.Message); d != "" {
+			level = d
+		}
+	}
+
 	return LogEntry{
 		Timestamp: ts,
 		Host:      host,
 		Source:    source,
 		FilePath:  filePath,
 		Line:      rec.Message,
-		Level:     priorityToLevel(rec.Priority),
+		Level:     level,
 	}, true
 }
 

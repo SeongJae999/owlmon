@@ -34,4 +34,5 @@ logs:
   tails:
     - name: system
       path: /var/log/system.log
+      # 패턴이 없어도 WARN 이상(SEVERE·심각·[crit]·JEUS [0] 등)으로 판정된 줄은 수집
       include_patterns: ["error", "fatal", "panic", "warning"]
