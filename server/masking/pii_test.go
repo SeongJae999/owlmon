@@ -102,3 +102,23 @@ func TestIsPrivate(t *testing.T) {
 		}
 	}
 }
+
+// 로그 날짜(MSSQL·logback·log4j 기본 형식)와 유선전화가 계좌로 오탐되면 안 됨.
+func TestMaskAccount_NoFalsePositive(t *testing.T) {
+	opts := DefaultOptions()
+	cases := []struct{ in, want string }{
+		{"2026-11-12 10:15:22.45 Server started", "2026-11-12 10:15:22.45 Server started"},
+		{"2026-11-12 10:15:22,123 ERROR x", "2026-11-12 10:15:22,123 ERROR x"},
+		{"대표 031-123-4567", "대표 031-****-****"},
+		{"민원 02-1234-5678", "민원 02-****-****"},
+		// 실제 계좌 형식은 계속 마스킹
+		{"입금 110-123-456789", "입금 [ACCOUNT-MASKED]"},
+		{"입금 123456-12-123456", "입금 [ACCOUNT-MASKED]"},
+		{"입금 3333-01-1234567", "입금 [ACCOUNT-MASKED]"},
+	}
+	for _, c := range cases {
+		if got := Mask(c.in, opts); got != c.want {
+			t.Errorf("Mask(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

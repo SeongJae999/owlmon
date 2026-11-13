@@ -52,6 +52,7 @@ var (
 	reAccount   = regexp.MustCompile(`\b\d{3,6}-\d{2,6}-\d{2,7}\b`)
 	reEmail     = regexp.MustCompile(`\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b`)
 	rePhone     = regexp.MustCompile(`\b01[016789]-?\d{3,4}-?\d{4}\b`)
+	reTel       = regexp.MustCompile(`\b(0(?:2|[3-6][1-5]|70))-\d{3,4}-\d{4}\b`) // 유선(지역번호)·070, 하이픈 필수 — 숫자열 오탐 방지
 	reIPv4      = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
 )
 
@@ -73,9 +74,10 @@ func Mask(line string, opts MaskOptions) string {
 	// 전화번호를 계좌번호보다 먼저 — 전화번호 형식이 계좌 정규식에 false positive로 잡히는 것 방지
 	if opts.MaskPhone {
 		line = rePhone.ReplaceAllString(line, "010-****-****")
+		line = reTel.ReplaceAllString(line, "${1}-****-****")
 	}
 	if opts.MaskAccount {
-		line = reAccount.ReplaceAllString(line, "[ACCOUNT-MASKED]")
+		line = reAccount.ReplaceAllStringFunc(line, maskAccount)
 	}
 	if opts.MaskEmail {
 		line = reEmail.ReplaceAllStringFunc(line, maskEmail)
@@ -84,6 +86,14 @@ func Mask(line string, opts MaskOptions) string {
 		line = reIPv4.ReplaceAllStringFunc(line, maskIPIfExternal)
 	}
 	return line
+}
+
+// 국내 계좌번호는 10~14자리 — 8자리 날짜(2026-11-12)를 계좌로 가리면 로그 시각이 사라짐
+func maskAccount(s string) string {
+	if len(s)-strings.Count(s, "-") < 10 {
+		return s
+	}
+	return "[ACCOUNT-MASKED]"
 }
 
 // maskEmail은 user@domain.com → u***@domain.com 형태로 부분 마스킹.
