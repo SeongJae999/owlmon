@@ -23,16 +23,19 @@ func NewSender(serverURL, agentKey string) *Sender {
 	}
 }
 
-// Send는 로그 엔트리 배치를 서버로 전송합니다.
-func (s *Sender) Send(entries []LogEntry) error {
-	if len(entries) == 0 {
-		return nil
-	}
-	// 배치당 최대 1000건
-	if len(entries) > 1000 {
-		entries = entries[:1000]
-	}
+const maxBatch = 1000
 
+// Send는 maxBatch건씩 나눠 전송하고, 실패하면 그 전까지 보낸 건수를 돌려줍니다.
+func (s *Sender) Send(entries []LogEntry) (int, error) {
+	for sent := 0; sent < len(entries); sent += maxBatch {
+		if err := s.post(entries[sent:min(sent+maxBatch, len(entries))]); err != nil {
+			return sent, err
+		}
+	}
+	return len(entries), nil
+}
+
+func (s *Sender) post(entries []LogEntry) error {
 	type wireEntry struct {
 		Timestamp string `json:"timestamp"`
 		Host      string `json:"host"`

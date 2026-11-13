@@ -242,8 +242,9 @@ func (t *Tailer) flush() {
 		log.Printf("⚠️ 로그 버퍼 가득 참 — %d건 유실 (서버 전송 지연 또는 로그 폭주)", dropped)
 	}
 
-	if err := t.sender.Send(entries); err != nil {
-		log.Printf("로그 전송 실패 (%d건): %v", len(entries), err)
+	if sent, err := t.sender.Send(entries); err != nil {
+		entries = entries[sent:]
+		log.Printf("로그 전송 실패 (%d건 미전송): %v", len(entries), err)
 
 		// 메모리에 다시 추가 + 디스크 WAL에도 저장
 		t.mu.Lock()

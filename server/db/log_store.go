@@ -70,11 +70,6 @@ func (s *LogStore) Ingest(ctx context.Context, records []LogRecord) ([]int64, er
 	if len(records) == 0 {
 		return nil, nil
 	}
-	// 배치당 최대 1000건 제한 (INSERT 파라미터 6000개 이내)
-	if len(records) > 1000 {
-		records = records[:1000]
-	}
-
 	// INSERT ... VALUES ($1,$2,...) RETURNING id
 	// (CopyFrom은 RETURNING 지원 안 함 — 룰 매칭 위해 id 필요)
 	var sb strings.Builder
