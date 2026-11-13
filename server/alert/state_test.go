@@ -225,3 +225,16 @@ func TestSSLSeenNext(t *testing.T) {
 		t.Fatalf("오래 안 보인 인증서 폐기 기대, got %v", p.certs)
 	}
 }
+
+func TestWithLocation(t *testing.T) {
+	cases := []struct{ body, loc, want string }{
+		{"호스트: web1\n현재 값: 96%", "2층 서버실 A랙 14U", "호스트: web1\n위치: 2층 서버실 A랙 14U\n현재 값: 96%"},
+		{"이상 감지", "본관 1층", "이상 감지\n위치: 본관 1층\n"},
+		{"호스트: web1\n본문", "", "호스트: web1\n본문"},
+	}
+	for _, c := range cases {
+		if got := withLocation(c.body, c.loc); got != c.want {
+			t.Errorf("withLocation(%q, %q) = %q, want %q", c.body, c.loc, got, c.want)
+		}
+	}
+}

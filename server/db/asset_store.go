@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -76,6 +79,16 @@ func (s *AssetStore) Upsert(ctx context.Context, a Asset) (Asset, error) {
 	).Scan(&a.ID, &a.HostName, &a.IP, &a.Location, &a.Description,
 		&a.PurchaseDate, &a.WarrantyExpires, &a.Notes, &a.UpdatedAt)
 	return a, err
+}
+
+// 없는 장비는 빈 문자열 — 알림 메일에 위치 줄을 붙일지 판단용
+func (s *AssetStore) LocationOf(ctx context.Context, host string) (string, error) {
+	var loc string
+	err := s.pool.QueryRow(ctx, `SELECT location FROM assets WHERE host_name=$1`, host).Scan(&loc)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return strings.TrimSpace(loc), err
 }
 
 // Delete는 자산을 삭제합니다.

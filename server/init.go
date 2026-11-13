@@ -113,6 +113,19 @@ func InitDB() *AppContext {
 // ctx는 앱 수명 컨텍스트 — 서버 종료 시 cancel되어 모든 워커가 함께 멈춘다
 // (종전: 워커들이 ctx 없이 돌아 HTTP만 닫히고 체커/폴러는 종료 중에도 계속 동작).
 func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker, emailCfg *alert.EmailConfig, prometheusURL string) {
+	// 체커 고루틴이 locate를 읽기 전에 설정 (잠금 없는 필드)
+	if appCtx.AssetStore != nil {
+		checker.SetLocator(func(host string) string {
+			c, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			loc, err := appCtx.AssetStore.LocationOf(c, host)
+			if err != nil {
+				log.Printf("자산 위치 조회 실패 (%s): %v", host, err) // 위치 없이 메일은 그대로 보냄
+			}
+			return loc
+		})
+	}
+
 	// 1. 이상탐지 및 알림 체커 시작
 	checker.Start(ctx, 30*time.Second)
 

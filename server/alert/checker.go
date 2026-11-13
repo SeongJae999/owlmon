@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,7 +39,8 @@ type Checker struct {
 	sslDomainLister SSLDomainLister // nil이면 SSL 체크 비활성
 	SSLChecker      *ssl.CertChecker
 	sslMu           sync.Mutex
-	sslPrev         map[string]sslSeen // 도메인별 직전 인증서 상태 (만료 전환·교체 감지)
+	sslPrev         map[string]sslSeen       // 도메인별 직전 인증서 상태 (만료 전환·교체 감지)
+	locate          func(host string) string // nil이면 위치 줄 생략
 }
 
 func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStorer, history HistorySaver) *Checker {
@@ -53,6 +55,21 @@ func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStor
 		SSLChecker:    ssl.NewCertChecker(),
 		sslPrev:       make(map[string]sslSeen),
 	}
+}
+
+// IT 전담이 없는 기관은 메일 받은 사람이 장비 위치를 모름 — 자산 관리에 적은 위치를 본문에 붙인다
+func (c *Checker) SetLocator(f func(host string) string) { c.locate = f }
+
+// 본문 첫 줄(호스트·도메인·모니터 등 대상)을 바로 뒤에 위치를 끼움
+func withLocation(body, loc string) string {
+	if loc == "" {
+		return body
+	}
+	line := "위치: " + loc + "\n"
+	if i := strings.IndexByte(body, '\n'); i >= 0 {
+		return body[:i+1] + line + body[i+1:]
+	}
+	return body + "\n" + line
 }
 
 // SetSSLDomainLister는 SSL 도메인 목록 조회기를 설정합니다.
@@ -435,6 +452,9 @@ func (c *Checker) sendAlert(host, category, severity, subject, body string) {
 	if c.state.IsInMaintenance(host) {
 		log.Printf("유지보수 모드 — 알림 억제: %s", subject)
 		return
+	}
+	if c.locate != nil {
+		body = withLocation(body, c.locate(host))
 	}
 	// 확인된 알림: 이메일만 억제, 히스토리는 저장
 	if severity != "info" && c.state.IsAcked(host, category, severity) {
