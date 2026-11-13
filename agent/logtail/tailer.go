@@ -19,6 +19,8 @@ const (
 	flushInterval = 10 * time.Second
 )
 
+var retryDelay = 5 * time.Second
+
 // LogEntry는 수집된 로그 한 줄입니다.
 type LogEntry struct {
 	Timestamp time.Time `json:"timestamp"`
@@ -90,61 +92,65 @@ func (t *Tailer) Start(ctx context.Context) {
 // tailFile은 단일 파일을 fsnotify로 감시합니다.
 // 파일 회전(rename/remove) 발생 시 watcher를 재설정합니다.
 func (t *Tailer) tailFile(ctx context.Context, cfg config.TailConfig) {
+	fromStart := false // 에이전트 시작 시엔 기존 내용 스킵, 회전 후 새 파일은 재오픈 대기 중 쓰인 줄까지 처음부터
 	for {
-		if err := t.watchFile(ctx, cfg); err != nil {
+		var err error
+		if fromStart, err = t.watchFile(ctx, cfg, fromStart); err != nil {
 			log.Printf("로그 파일 감시 오류 (%s): %v", cfg.Path, err)
 		}
 		// 회전/삭제/오류 감지 시 5초 후 재시도
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(5 * time.Second):
+		case <-time.After(retryDelay):
 		}
 	}
 }
 
-// watchFile은 fsnotify로 파일 변경을 즉시 감지하여 새 라인을 읽습니다.
-func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig) error {
+// watchFile은 fsnotify로 파일 변경을 즉시 감지하여 새 라인을 읽고, 회전으로 끝났는지 돌려줍니다.
+// 열기 전에 실패하면 fromStart를 그대로 돌려줘 회전 직후 새 파일이 늦게 생겨도 처음부터 읽게 합니다.
+func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig, fromStart bool) (bool, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return err
+		return fromStart, err
 	}
 	defer watcher.Close()
 
 	if err := watcher.Add(cfg.Path); err != nil {
-		return err
+		return fromStart, err
 	}
 
 	f, err := os.Open(cfg.Path)
 	if err != nil {
-		return err
+		return fromStart, err
 	}
 	defer f.Close()
 
-	// 끝으로 이동 (기존 내용 스킵)
-	if _, err := f.Seek(0, io.SeekEnd); err != nil {
-		return err
-	}
 	reader := bufio.NewReader(f)
 	var pending string // 개행 전까지 쓰인 미완성 라인 (다음 Write 때 이어붙임)
-
+	if fromStart {
+		pending = t.drainNewLines(reader, cfg, "")
+	} else if _, err := f.Seek(0, io.SeekEnd); err != nil {
+		return false, err
+	}
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return false, nil
 		case ev, ok := <-watcher.Events:
 			if !ok {
-				return nil
+				return false, nil
 			}
-			// 파일 회전/삭제 감지: 다시 열어야 함
+			// 파일 회전/삭제 감지: 옛 파일에 남은 줄을 마저 읽고 재시도 루프로 복귀
 			if ev.Op&(fsnotify.Rename|fsnotify.Remove) != 0 {
-				return nil // 재시도 루프로 복귀
+				t.drainNewLines(reader, cfg, pending)
+				return true, nil
 			}
 			if ev.Op&fsnotify.Write != 0 {
 				// copytruncate 회전: 파일이 읽은 위치보다 작아지면 처음부터 다시 읽음
 				if truncated(f, reader) {
 					if _, err := f.Seek(0, io.SeekStart); err != nil {
-						return err
+						return false, err
 					}
 					reader.Reset(f)
 					pending = ""
@@ -152,7 +158,7 @@ func (t *Tailer) watchFile(ctx context.Context, cfg config.TailConfig) error {
 				pending = t.drainNewLines(reader, cfg, pending)
 			}
 		case err := <-watcher.Errors:
-			return err
+			return false, err
 		}
 	}
 }
