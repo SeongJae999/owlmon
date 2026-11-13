@@ -12,7 +12,7 @@ import (
 //
 //	OWLMON_LOGINSIGHT_ENABLED           true/false      기본 false
 //	OWLMON_LOGINSIGHT_INTERVAL          5m / 30s / 1h   기본 5m
-//	OWLMON_LOGINSIGHT_WINDOW            매 tick fetch 범위 기본 5m
+//	OWLMON_LOGINSIGHT_WINDOW            첫 tick 조회 범위·호스트 한도 기준 기본 5m (이후는 id 커서)
 //	OWLMON_LOGINSIGHT_PER_HOST_PER_MIN  호스트당 분당 그룹 한도 기본 10
 //	OWLMON_LOGINSIGHT_CACHE_TTL         템플릿 캐시 TTL 기본 24h
 //	OWLMON_LOGINSIGHT_MAX_LLM_PER_TICK  tick당 최대 LLM 호출 기본 20

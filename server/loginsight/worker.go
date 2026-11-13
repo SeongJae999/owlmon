@@ -26,7 +26,7 @@ type storeIface interface {
 }
 
 // Worker — log_insights 백그라운드 워커.
-// 매 Interval마다 Tick()을 실행해 최근 Window의 ERROR/WARN 로그를 분석.
+// 매 Interval마다 Tick()을 실행해 지난 tick 이후 들어온 ERROR/WARN 로그를 분석.
 type Worker struct {
 	cfg      Config
 	pool     *pgxpool.Pool
@@ -39,6 +39,8 @@ type Worker struct {
 	mu     sync.Mutex
 	health Health
 	fails  int
+
+	lastID int64 // 마지막으로 확정한 logs.id — Tick 고루틴에서만 접근
 }
 
 const alertAfterFails = 3
@@ -200,22 +202,36 @@ func (w *Worker) processGroups(ctx context.Context, groups []LogGroup) (int, err
 	return analyzed, nil
 }
 
-// fetchRecentLogs — logs 테이블에서 Window 내 ERROR/WARN 등 로그 조회.
-// 자체 SQL (db 패키지 변경 회피).
+// fetchRecentLogs — 지난 tick 이후 들어온 ERROR/WARN 등 로그 조회.
+// timestamp(에이전트가 읽은 시각) 창으로 자르면 늦게 도착한 줄(WAL 재전송·flush 지연)과
+// tick이 Interval보다 오래 걸린 구간이 빠져서 id 커서로 이어 읽는다.
 func (w *Worker) fetchRecentLogs(ctx context.Context) ([]LogLine, error) {
-	cutoff := time.Now().Add(-w.cfg.Window)
 	levels := make([]string, len(w.cfg.SeverityFilter))
 	for i, s := range w.cfg.SeverityFilter {
 		levels[i] = strings.ToLower(s)
 	}
+	// 30초 지난 줄까지만 확정 — 진행 중인 INSERT가 커밋 전이라 더 작은 id를 건너뛰는 것 방지
+	var hi int64
+	if err := w.pool.QueryRow(ctx,
+		`SELECT COALESCE(MAX(id), 0) FROM logs WHERE created_at < NOW() - interval '30 seconds'`).Scan(&hi); err != nil {
+		return nil, err
+	}
+	if w.lastID == 0 {
+		// 첫 tick: Window 이전 줄은 이미 본 것으로 간주
+		if err := w.pool.QueryRow(ctx,
+			`SELECT COALESCE(MAX(id), 0) FROM logs WHERE created_at < NOW() - $1 * interval '1 second'`,
+			w.cfg.Window.Seconds()).Scan(&w.lastID); err != nil {
+			return nil, err
+		}
+	}
 	rows, err := w.pool.Query(ctx, `
 		SELECT id, host, line
 		FROM logs
-		WHERE timestamp >= $1
-		  AND LOWER(level) = ANY($2)
-		ORDER BY timestamp ASC
+		WHERE id > $1 AND id <= $2
+		  AND LOWER(level) = ANY($3)
+		ORDER BY id
 		LIMIT 5000`,
-		cutoff, levels)
+		w.lastID, hi, levels)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +245,11 @@ func (w *Worker) fetchRecentLogs(ctx context.Context) ([]LogLine, error) {
 		}
 		out = append(out, l)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	w.lastID = max(w.lastID, hi)
+	return out, nil
 }
 
 // rateLimit — Layer 2 필터: 호스트당 (perHostPerMin × windowMin) 그룹만 통과.
