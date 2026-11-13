@@ -45,3 +45,13 @@ func TestTruncated_DetectsCopyTruncate(t *testing.T) {
 		t.Fatal("copytruncate 감지 실패")
 	}
 }
+
+// UTF-16LE 로그(MSSQL ERRORLOG 등)는 바이트 단위로 읽으면 0x00이 섞여 레벨 감지가 안 됨.
+func TestDrainNewLines_UTF16LEStripsNUL(t *testing.T) {
+	tl := &Tailer{}
+	in := "E\x00R\x00R\x00O\x00R\x00 \x00x\x00\r\x00\n\x00"
+	tl.drainNewLines(bufio.NewReader(strings.NewReader(in)), config.TailConfig{}, "")
+	if len(tl.buffer) != 1 || tl.buffer[0].Line != "ERROR x" || tl.buffer[0].Level != "ERROR" {
+		t.Fatalf("NUL 제거된 ERROR 라인 기대, got %+v", tl.buffer)
+	}
+}

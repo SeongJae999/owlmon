@@ -183,7 +183,8 @@ func (t *Tailer) drainNewLines(reader *bufio.Reader, cfg config.TailConfig, pend
 			}
 			// 개행 없이 계속 쌓이는 경우(바이너리 등) 무한 증가 방지 — 한 줄로 확정
 		}
-		line = strings.TrimRight(line, "\r\n")
+		// UTF-16LE 로그는 0x00이 섞여 레벨 감지가 안 되고 서버 저장도 실패함 — ASCII 부분이라도 살림
+		line = strings.TrimRight(strings.ReplaceAll(line, "\x00", ""), "\r\n")
 		if line == "" {
 			continue
 		}

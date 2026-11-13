@@ -82,7 +82,7 @@ func (s *LogStore) Ingest(ctx context.Context, records []LogRecord) ([]int64, er
 		base := i * 6
 		fmt.Fprintf(&sb, "($%d,$%d,$%d,$%d,$%d,$%d)",
 			base+1, base+2, base+3, base+4, base+5, base+6)
-		args = append(args, r.Timestamp, r.Host, r.Source, r.FilePath, r.Line, r.Level)
+		args = append(args, r.Timestamp, noNUL(r.Host), noNUL(r.Source), noNUL(r.FilePath), noNUL(r.Line), noNUL(r.Level))
 	}
 	sb.WriteString(" RETURNING id")
 
@@ -102,6 +102,9 @@ func (s *LogStore) Ingest(ctx context.Context, records []LogRecord) ([]int64, er
 	}
 	return ids, rows.Err()
 }
+
+// PostgreSQL text는 0x00을 거부해 배치 전체가 실패하고 에이전트가 같은 배치를 무한 재시도한다 (UTF-16 로그를 바이트로 읽으면 섞임)
+func noNUL(s string) string { return strings.ReplaceAll(s, "\x00", "") }
 
 // Search는 로그를 검색합니다.
 func (s *LogStore) Search(ctx context.Context, p LogSearchParams) (*LogSearchResult, error) {
