@@ -58,11 +58,13 @@ func (t *Tailer) SetWALPath(path string) {
 }
 
 // Push는 외부 수집기(journald 등)가 엔트리를 버퍼에 추가합니다.
-// 버퍼가 가득 차면 드롭됩니다.
+// 버퍼가 가득 차면 드롭하고 dropped로 집계합니다 (다음 flush 때 경고).
 func (t *Tailer) Push(entry LogEntry) {
 	t.mu.Lock()
 	if len(t.buffer) < maxBufferSize {
 		t.buffer = append(t.buffer, entry)
+	} else {
+		t.dropped++
 	}
 	t.mu.Unlock()
 }
@@ -249,13 +251,11 @@ func (t *Tailer) flush() {
 
 		// 메모리에 다시 추가 + 디스크 WAL에도 저장
 		t.mu.Lock()
-		remaining := maxBufferSize - len(t.buffer)
-		if remaining > 0 {
-			if len(entries) > remaining {
-				entries = entries[len(entries)-remaining:]
-			}
-			t.buffer = append(entries, t.buffer...)
+		if remaining := maxBufferSize - len(t.buffer); len(entries) > remaining {
+			t.dropped += len(entries) - remaining
+			entries = entries[len(entries)-remaining:]
 		}
+		t.buffer = append(entries, t.buffer...)
 		bufCopy := append([]LogEntry(nil), t.buffer...)
 		t.mu.Unlock()
 

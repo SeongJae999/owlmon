@@ -76,3 +76,34 @@ func TestFlush_PartialFailureKeepsUnsent(t *testing.T) {
 		t.Fatalf("미전송 1500건(1000번부터) 남아야 함: %d건", len(tl.buffer))
 	}
 }
+
+// 버퍼가 가득 찼을 때 journald Push로 버린 줄도 dropped로 집계돼야 함.
+func TestPush_CountsDropWhenFull(t *testing.T) {
+	tl := &Tailer{}
+	fillBuffer(tl, maxBufferSize)
+	tl.Push(LogEntry{Line: "x"})
+	if tl.dropped != 1 {
+		t.Fatalf("dropped=%d, 1 기대", tl.dropped)
+	}
+}
+
+// 전송 실패 후 재적재할 자리가 없어 밀려난 줄도 dropped로 집계돼야 함.
+func TestFlush_RequeueOverflowCounted(t *testing.T) {
+	var tl *Tailer
+	rec := &ingestRecorder{fail: func(int) bool {
+		// 전송 중 새 줄이 버퍼를 가득 채운 상황
+		tl.mu.Lock()
+		fillBuffer(tl, maxBufferSize)
+		tl.mu.Unlock()
+		return true
+	}}
+	srv := httptest.NewServer(rec)
+	defer srv.Close()
+
+	tl = NewTailer(nil, "h", srv.URL, "k")
+	fillBuffer(tl, 10)
+	tl.flush()
+	if tl.dropped != 10 {
+		t.Fatalf("dropped=%d, 10 기대", tl.dropped)
+	}
+}
