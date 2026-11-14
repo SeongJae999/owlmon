@@ -55,12 +55,16 @@ func NewLogHandler(
 	}
 }
 
+// ponytail: 운영 실측 최대 배치는 1000건·약 350KB. 에이전트는 실패한 배치를 무한 재시도하므로 넘으면 그 호스트 수집이 멈춘다 — 그런 배치가 생기면 에이전트가 413에서 쪼개게 할 것
+const maxIngestBody = 32 << 20
+
 // Ingest POST /api/logs/ingest — 에이전트에서 호출 (Agent Key 인증)
 func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 	if !validAgentKey(r, h.legacyKey, h.agentStore) {
 		http.Error(w, "인증 실패 또는 비활성화된 에이전트", http.StatusUnauthorized)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxIngestBody)
 
 	var req struct {
 		Entries []struct {
@@ -73,6 +77,11 @@ func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		} `json:"entries"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			respondError(w, http.StatusRequestEntityTooLarge, "요청이 너무 큼", err)
+			return
+		}
 		respondError(w, http.StatusBadRequest, "잘못된 요청", err)
 		return
 	}

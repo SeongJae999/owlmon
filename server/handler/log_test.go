@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -121,5 +122,17 @@ func TestDeleteAnnotation_BadID_returns503BeforeIDCheck(t *testing.T) {
 
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503 (annStore nil first), got %d", rec.Code)
+	}
+}
+
+func TestIngest_TooLarge_413(t *testing.T) {
+	h := NewLogHandler(nil, nil, nil, "test-agent-key-0123456789", nil, nil, nil)
+	body := `{"entries":[{"line":"` + strings.Repeat("a", maxIngestBody) + `"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/logs/ingest", strings.NewReader(body))
+	req.Header.Set("X-Agent-Key", "test-agent-key-0123456789")
+	rec := httptest.NewRecorder()
+	h.Ingest(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("상한 초과 본문은 413이어야 함: %d", rec.Code)
 	}
 }
