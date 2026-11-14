@@ -193,7 +193,7 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -salt \\
 
 # 4. 서버 컨테이너 재시작
 docker compose start owlmon-server`}
-                note="⚠️ 복원 전 현재 DB 별도 백업 권장. 패스프레이즈 분실 시 복원 불가."
+                note="주의: 복원 전 현재 DB를 따로 백업하세요. 패스프레이즈를 잃어버리면 복원할 수 없습니다."
               />
 
               <h3 className="text-sm font-bold text-base-300 mt-4 mb-1.5">패스프레이즈 직접 지정</h3>

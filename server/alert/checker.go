@@ -556,7 +556,7 @@ func (c *Checker) feedAnomalyDetector() {
 			if a := c.Detector.Feed(host, "cpu", r.value, now); a != nil {
 				key := fmt.Sprintf("anomaly:cpu:%s", host)
 				if a.Severity == "critical" && c.state.ShouldAlert(key) {
-					subject := fmt.Sprintf("🔍 %s CPU 이상 감지 (Z=%.1f)", host, a.ZScore)
+					subject := fmt.Sprintf("[위험] %s CPU 이상 감지 (Z=%.1f)", host, a.ZScore)
 					c.sendAlert(host, "anomaly_cpu", a.Severity, subject, a.Message)
 				}
 			}
@@ -570,7 +570,7 @@ func (c *Checker) feedAnomalyDetector() {
 			if a := c.Detector.Feed(host, "memory", r.value, now); a != nil {
 				key := fmt.Sprintf("anomaly:memory:%s", host)
 				if a.Severity == "critical" && c.state.ShouldAlert(key) {
-					subject := fmt.Sprintf("🔍 %s 메모리 이상 감지 (Z=%.1f)", host, a.ZScore)
+					subject := fmt.Sprintf("[위험] %s 메모리 이상 감지 (Z=%.1f)", host, a.ZScore)
 					c.sendAlert(host, "anomaly_memory", a.Severity, subject, a.Message)
 				}
 			}

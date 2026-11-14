@@ -134,3 +134,8 @@ export async function getAlertAcks(): Promise<AckEntry[]> {
   const res = await axios.get('/api/alert/acks')
   return res.data
 }
+
+// 등급은 옆 배지가 보여 줌 — 제목 앞의 등급 표기와 예전 버전이 붙이던 이모지(🔴·🚨 등)를 떼어 같은 말이 두 번 나오지 않게
+export const alertTitle = (subject: string) => subject
+  .replace(/^\[OWLmon\]\s*/, '')
+  .replace(/^(?:(?:\[(?:위험|주의|심각|경고|정보)\]|\p{Extended_Pictographic}\uFE0F?)\s*)+/u, '')

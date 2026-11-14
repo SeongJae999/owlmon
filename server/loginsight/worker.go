@@ -72,7 +72,7 @@ func (w *Worker) record(err error) {
 		w.fails++
 		if w.fails == alertAfterFails && w.Notify != nil {
 			body := fmt.Sprintf("AI 로그 분석이 %d회 연속 실패했습니다.\n복구될 때까지 새 로그 패턴이 분석되지 않습니다.\n\n오류: %v", w.fails, err)
-			send = func() { w.Notify("warning", "🟠 AI 로그 분석 중단 — 연속 실패", body) }
+			send = func() { w.Notify("warning", "[주의] AI 로그 분석 중단 — 연속 실패", body) }
 		}
 	} else {
 		w.health.LastSuccessAt = &now

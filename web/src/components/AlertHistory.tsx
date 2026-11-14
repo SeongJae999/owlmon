@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { getAlertHistory, downloadAlertHistory, type AlertHistoryFilter } from '../api/alert'
+import { alertTitle, getAlertHistory, downloadAlertHistory, type AlertHistoryFilter } from '../api/alert'
 import { severityLabel } from '../api/rules'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -291,7 +291,7 @@ export default function AlertHistory() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm font-bold text-base-100 line-clamp-1" title={r.subject}>{r.subject}</div>
+                          <div className="text-sm font-bold text-base-100 line-clamp-1" title={r.subject}>{alertTitle(r.subject)}</div>
                           <div className="text-xs text-base-400 line-clamp-2 break-words mt-0.5" title={r.body}>{r.body}</div>
                         </td>
                       </tr>
@@ -323,7 +323,7 @@ export default function AlertHistory() {
                       <Server size={11} className="text-base-500" />
                       <span className="font-semibold truncate">{r.host}</span>
                     </div>
-                    <div className="text-sm font-bold text-base-100 line-clamp-1">{r.subject}</div>
+                    <div className="text-sm font-bold text-base-100 line-clamp-1">{alertTitle(r.subject)}</div>
                     <div className="text-xs text-base-400 line-clamp-2 break-words">{r.body}</div>
                   </div>
                 )

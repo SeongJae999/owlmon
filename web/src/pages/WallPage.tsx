@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Maximize, Minimize, X } from 'lucide-react'
-import { getAlertHistory } from '../api/alert'
+import { alertTitle, getAlertHistory } from '../api/alert'
 import { heartbeat } from '../api/auth'
 import { severityLabel } from '../api/rules'
 import { cn } from '../utils/cn'
@@ -134,7 +134,7 @@ export default function WallPage() {
                     <span className={badge(r.severity === 'critical' ? 'rose' : r.severity === 'warning' ? 'amber' : 'slate')}>
                       {severityLabel(r.severity)}
                     </span>
-                    <span className="min-w-0 text-base-300 truncate">{r.subject.replace(/^\[OWLmon\]\s*/, '')}</span>
+                    <span className="min-w-0 text-base-300 truncate">{alertTitle(r.subject)}</span>
                   </li>
                 ))}
               </ol>
