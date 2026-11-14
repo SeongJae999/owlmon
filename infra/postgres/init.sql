@@ -144,6 +144,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_host      ON logs (host);
 CREATE INDEX IF NOT EXISTS idx_logs_level     ON logs (level);
 CREATE INDEX IF NOT EXISTS idx_logs_line_trgm ON logs USING gin (line gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs (created_at);
 
 -- 로그 라벨링 (운영자가 입력한 원인/조치 — 미래 LLM 학습 데이터, 영구 보관)
 -- logs 테이블이 retention 정책으로 정리돼도 라벨은 살아남도록 별도 테이블.
@@ -227,6 +228,7 @@ CREATE TABLE IF NOT EXISTS log_rule_matches (
 CREATE INDEX IF NOT EXISTS idx_log_rule_matches_rule ON log_rule_matches (rule_id, matched_at DESC);
 CREATE INDEX IF NOT EXISTS idx_log_rule_matches_host ON log_rule_matches (host, matched_at DESC);
 CREATE INDEX IF NOT EXISTS idx_log_rule_matches_time ON log_rule_matches (matched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_log_rule_matches_log  ON log_rule_matches (log_id);
 
 -- 룰별 최근 알림 발송 시각 (cooldown 평가용 — 같은 룰 5분 내 재알림 방지)
 CREATE TABLE IF NOT EXISTS log_rule_alert_history (

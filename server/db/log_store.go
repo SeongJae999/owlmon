@@ -353,6 +353,21 @@ func (s *LogStore) Histogram(ctx context.Context, p LogSearchParams, bucketSec i
 	return out, nil
 }
 
+// init.sql은 새 DB에서만 돌기 때문에 기존 운영 DB에도 생기도록 기동 시 생성.
+// 보존 기간이 테이블 크기를 묶어 두므로 CONCURRENTLY 없이 짧은 쓰기 잠금으로 충분하고, 실패해도 깨진 인덱스가 남지 않는다
+func (s *LogStore) EnsureIndexes(ctx context.Context) error {
+	for _, stmt := range []string{
+		`CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs (created_at)`,
+		// ON DELETE CASCADE가 지워지는 로그마다 log_rule_matches를 log_id로 찾는다
+		`CREATE INDEX IF NOT EXISTS idx_log_rule_matches_log ON log_rule_matches (log_id)`,
+	} {
+		if _, err := s.pool.Exec(ctx, stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Cleanup은 retentionDays보다 오래된 로그를 삭제합니다.
 func (s *LogStore) Cleanup(ctx context.Context, retentionDays int) (int64, error) {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)

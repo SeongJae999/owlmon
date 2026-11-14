@@ -245,6 +245,9 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 	// 7. 로그 자동 정리
 	if appCtx.LogStore != nil {
 		go func() {
+			if err := appCtx.LogStore.EnsureIndexes(ctx); err != nil {
+				log.Printf("로그 인덱스 생성 실패: %v", err)
+			}
 			ticker := time.NewTicker(24 * time.Hour)
 			defer ticker.Stop()
 			for {
