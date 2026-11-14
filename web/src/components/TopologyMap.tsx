@@ -54,9 +54,9 @@ export default function TopologyMap({ layout, lookup, onPick, picked, blocked }:
   return (
     <svg
       viewBox={`${-PAD} ${-PAD} ${scene.width + PAD * 2} ${scene.height + PAD * 2}`}
-      // 실제 크기보다 키우지 않음(확대되면 상자·글씨가 뭉툭해짐), 0.6배보다 줄이지 않음(글씨가 안 읽힘) — 넘치면 바깥이 스크롤
+      // 장비가 적어도 0.72배까지만 키움(장비 이름이 본문 글씨와 비슷한 15px), 많아지면 0.6배까지 줄이고 그 뒤는 바깥이 스크롤
       style={{
-        maxWidth: scene.width + PAD * 2, maxHeight: scene.height + PAD * 2,
+        maxWidth: (scene.width + PAD * 2) * 0.72, maxHeight: (scene.height + PAD * 2) * 0.72,
         minWidth: (scene.width + PAD * 2) * 0.6, minHeight: (scene.height + PAD * 2) * 0.6,
       }}
       preserveAspectRatio="xMidYMin meet" className="block mx-auto w-full h-full" role="group" aria-label="네트워크 구성도"
