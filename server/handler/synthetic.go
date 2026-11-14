@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -46,6 +47,19 @@ func (h *SyntheticHandler) AddMonitor(w http.ResponseWriter, r *http.Request) {
 	if msg := validateMonitor(&m); msg != "" {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
+	}
+
+	// 같은 주소가 여러 번 등록되면 장애 한 번에 메일이 등록 수만큼 나가고 대상 사이트에도 그만큼 요청이 간다 (운영에서 24중 등록 사례)
+	existing, err := h.store.List(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	for _, e := range existing {
+		if sameMonitorURL(e.URL, m.URL) {
+			http.Error(w, fmt.Sprintf("이미 같은 주소를 점검하고 있습니다 (%s)", e.Name), http.StatusConflict)
+			return
+		}
 	}
 
 	created, err := h.store.Add(r.Context(), m)
@@ -219,4 +233,10 @@ func queryInt(q url.Values, key string, def int) int {
 		}
 	}
 	return def
+}
+
+// ponytail: 대소문자·끝 슬래시만 맞춤 — 기본 포트 표기(:443) 차이까지 같게 볼 필요가 생기면 url.Parse로 정규화
+func sameMonitorURL(a, b string) bool {
+	norm := func(u string) string { return strings.ToLower(strings.TrimRight(strings.TrimSpace(u), "/")) }
+	return norm(a) == norm(b)
 }
