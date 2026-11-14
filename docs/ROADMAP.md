@@ -19,6 +19,9 @@
 | 에이전트 오프라인 버퍼링 | 네트워크 끊김 시 로컬 큐에 데이터 임시 저장, 재연결 시 일괄 전송 |
 | 자산 관리 | 호스트 자산 정보 등록/조회/삭제, 가동률 표시 |
 | **이상탐지 (Phase 1)** | Z-score + 이동평균 (계절성 보정), 선형회귀 디스크 예측 |
+| 로그 수집·검색 | 에이전트 파일 tail·journald → `/api/logs/ingest` → PostgreSQL, 키워드 검색 |
+| AI 로그 분석 | 로컬 LLM이 ERROR/WARN 로그를 템플릿 단위로 묶어 원인·조치 요약 (5분 주기) |
+| SSL 인증서 만료 알림 | 서버에서 TLS 핸드쉐이크, 6시간 주기, 30일/7일 전 알림 |
 | 인증 | JWT 로그인, HTTPS 지원 |
 | Windows/Unix 서비스 | 서버/에이전트 서비스 등록 지원 |
 | 개발 환경 | dev.ps1/dev.sh 원클릭 실행, 크래시 자동 재시작 |
@@ -62,25 +65,25 @@
 
 ---
 
-### 3순위 최우선 — 로그 수집 파이프라인 (Phase 0)
+### ~~3순위 최우선 — 로그 수집 파이프라인 (Phase 0)~~ ✅ 완료
 
 > **목적**: 자체 LLM 로그 분석 AI의 기반 데이터 파이프라인 구축
 > GPU 불필요. 데이터가 쌓여야 미래에 파인튜닝 가능
 
-#### 스코프 결정사항
+#### 구현 결과 (계획 대비)
 
-| 항목 | 결정 |
-|------|------|
-| 로그 소스 | Linux: journald + `/var/log/*` 파일 tail · Windows: Event Log (Application/System) |
-| 수집 주체 | 기존 OWLmon Agent 확장 (Vector/Fluent Bit 미사용, 단일 바이너리 유지) |
-| 전송 프로토콜 | OTLP/HTTP Logs (gzip 배치, 기존 메트릭 전송 방식과 일관) |
-| 저장소 | PostgreSQL + 일별 파티셔닝 (`pg_trgm` GIN 인덱스로 텍스트 검색) |
-| 기본 보존 기간 | **90일** (ISMS-P 친화, config로 30/90/180/365 택일 가능) |
-| 라벨링 데이터 | `log_annotations` 테이블 영구 보관 (미래 LLM 학습 데이터) |
-| 민감정보 마스킹 | **기본 on** (이메일/주민번호/휴대폰/카드/IP 정규식) |
-| 컨테이너 로그 | 제외 (journald가 stdout 컨테이너 로그 대부분 포착) |
+| 항목 | 구현 | 원래 계획 |
+|------|------|-----------|
+| 로그 소스 | Linux: journald + 파일 tail · Windows: 파일 tail (Event Log 미구현) | journald + `/var/log/*` · Windows Event Log |
+| 수집 주체 | 기존 OWLmon Agent 확장 (단일 바이너리) | 같음 |
+| 전송 | `POST /api/logs/ingest` JSON 배치 (최대 1000건, Agent Key 인증, 본문 32MB 상한) | OTLP/HTTP `/v1/logs` gzip 배치 |
+| 저장소 | PostgreSQL 단일 `logs` 테이블 (파티션 없음), `pg_trgm` GIN 인덱스 | 일별 파티셔닝 |
+| 보존 기간 | 30일 고정, 서버 기동 직후·24시간마다 `created_at` 기준 삭제 | 90일, 30/90/180/365 설정 |
+| 라벨링 데이터 | `log_annotations` 영구 보관 (미래 LLM 학습 데이터) | 같음 |
+| 민감정보 마스킹 | 기본 on: 주민번호·여권·운전면허·카드·계좌·이메일·전화 (외부 IP는 기본 off) | 이메일/주민번호/휴대폰/카드/IP |
+| 컨테이너 로그 | 제외 (journald가 stdout 컨테이너 로그 대부분 포착) | 같음 |
 
-#### 구현 범위 (6주 마일스톤)
+#### 원래 6주 계획 (참고)
 
 - **Week 1**: DB 스키마 + 파티션 관리자 + `POST /v1/logs` 수신 + JWT
 - **Week 2**: Agent journald + 파일 tail + WAL 버퍼 + OTLP 전송
@@ -99,17 +102,17 @@
 
 #### 스키마 요약
 
-- `logs` — 파티션 테이블 (host_name, source, timestamp, severity, message, template_id, attributes JSONB)
-- `log_annotations` — 영구 보관 (log_id, annotator, problem, solution, alert_id)
+- `logs` — 단일 테이블 (timestamp, host, source, file_path, line, level, created_at). 인덱스: timestamp·host·level·created_at, line `pg_trgm` GIN
+- `log_annotations` — 영구 보관, logs FK 없음 (log_id, log_timestamp, annotator, category, problem, solution, alert_id)
 
 ---
 
 ### 3순위 — 차별화 포인트
 
-#### SSL 인증서 만료 알림
+#### ~~SSL 인증서 만료 알림~~ ✅ 완료
 - **왜**: 학교 홈페이지 인증서 만료 = 민원. 담당자가 놓치는 경우 많음
 - **내용**: 도메인 등록 → 만료 30일/7일 전 이메일 알림
-- **구현**: crypto/tls로 인증서 조회, 에이전트 또는 서버에서 주기적 체크
+- **구현**: 서버에서 crypto/tls 핸드쉐이크, 6시간 주기 (`server/ssl/checker.go`)
 
 ---
 
@@ -157,4 +160,4 @@
 | 설치 난이도 | 높음 | 낮음 (원클릭) |
 | 이상탐지 | 고정 임계값만 | Z-score + 계절성 보정 + 디스크 예측 |
 | SNMP | 강력 | 기본 지원 (v2c) |
-| 로그 분석 | 그래프 중심 | (예정) 로그 수집 + 자체 LLM 해설 |
+| 로그 분석 | 그래프 중심 | 로그 수집·검색 + 로컬 LLM 자동 분석 |
