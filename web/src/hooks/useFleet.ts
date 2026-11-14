@@ -50,7 +50,6 @@ const hostOf = (url: string) => { try { return new URL(url).hostname } catch { r
 // 서버 한 대의 상태 — 메인·상황판·상세가 같은 기준을 쓰도록 순수 함수로 둔다.
 // 확인한 알림만 남았으면 그 알림들로, 새 알림이 있으면 미확인 알림만으로 등급을 정한다
 // (위험을 확인한 뒤 주의가 새로 오면 "주의·미확인"이어야 함 — 확인한 위험으로 다시 "위험·미확인"이 되면 구성도 고정이 잘못 켜짐)
-
 export function serverState(status: 'online' | 'offline' | undefined, mine: ActiveAlert[], inMaint: boolean): State {
   if (inMaint) return 'maint'
   if (status === 'offline') return 'crit'
