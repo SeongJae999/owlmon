@@ -250,15 +250,19 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 			}
 			ticker := time.NewTicker(24 * time.Hour)
 			defer ticker.Stop()
+			// 기동 직후에도 1회 — 하루 안에 재배포가 반복되면 정리가 한 번도 안 돈다
 			for {
+				start := time.Now()
+				deleted, err := appCtx.LogStore.Cleanup(ctx, 30)
+				if err != nil {
+					log.Printf("오래된 로그 정리 실패: %v", err)
+				} else if deleted > 0 {
+					log.Printf("오래된 로그 %d건 삭제 (%s)", deleted, time.Since(start).Round(time.Millisecond))
+				}
 				select {
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					deleted, err := appCtx.LogStore.Cleanup(ctx, 30)
-					if err == nil && deleted > 0 {
-						log.Printf("오래된 로그 %d건 삭제", deleted)
-					}
 				}
 			}
 		}()
