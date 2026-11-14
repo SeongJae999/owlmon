@@ -49,6 +49,7 @@ var ddlStatements = []string{
 	`CREATE INDEX IF NOT EXISTS idx_log_insights_template
 		ON log_insights(template_hash)`,
 	`ALTER TABLE log_insights ADD COLUMN IF NOT EXISTS incident_key TEXT`,
+	`ALTER TABLE log_insights ADD COLUMN IF NOT EXISTS input_text TEXT`,
 	`CREATE TABLE IF NOT EXISTS log_template_cache (
 		template_hash    TEXT PRIMARY KEY,
 		last_insight_id  BIGINT NOT NULL REFERENCES log_insights(id) ON DELETE CASCADE,

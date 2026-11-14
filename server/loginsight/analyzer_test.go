@@ -275,3 +275,19 @@ func TestAnalyzer_ContextAfterMasking(t *testing.T) {
 		t.Error("컨텍스트가 마스킹 후 온전히 붙지 않음")
 	}
 }
+
+// 마스킹·호스트 상태까지 적용돼 실제로 LLM에 간 메시지가 그대로 남아야 학습 입력으로 쓸 수 있다
+func TestAnalyzer_KeepsInputText(t *testing.T) {
+	stub := &stubProvider{name: "x", response: validJSON()}
+	a := NewAnalyzer(stub,
+		WithMasking(func(s string) string { return strings.ReplaceAll(s, "line a", "[MASKED]") }),
+		WithContext(func(context.Context, string) string { return "[현재 호스트 상태] CPU 92%" }),
+	)
+	ins, err := a.Analyze(context.Background(), sampleGroup())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ins.InputText != stub.lastUser || !strings.Contains(ins.InputText, "[MASKED]") || !strings.Contains(ins.InputText, "CPU 92%") {
+		t.Fatalf("보낸 메시지와 같아야 함:\nsaved=%q\nsent=%q", ins.InputText, stub.lastUser)
+	}
+}

@@ -107,6 +107,7 @@ func (a *Analyzer) Analyze(ctx context.Context, g LogGroup) (*Insight, error) {
 	ins.TemplateHash = g.TemplateHash
 	ins.HostName = g.HostName
 	ins.IncidentKey = g.IncidentKey
+	ins.InputText = userMsg
 	ins.SampleLogIDs = g.SampleLogIDs
 	ins.ModelName = a.provider.Name()
 	ins.LatencyMs = int(latency.Milliseconds())

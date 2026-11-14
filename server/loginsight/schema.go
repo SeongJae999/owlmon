@@ -36,6 +36,8 @@ type Insight struct {
 	SampleLogIDs []int64 `json:"sample_log_ids"`
 	HostName     string  `json:"host_name,omitempty"`
 	IncidentKey  string  `json:"incident_key,omitempty"` // 화면에서 같은 원인 카드를 합치는 키
+	// logs는 30일 뒤 지워지고 호스트 상태·패턴 이력은 분석 시점 값이라, 학습 쌍의 입력은 보낸 그대로 남겨야 한다
+	InputText string `json:"-"`
 
 	// LLM이 JSON으로 채우는 필드
 	Severity    Severity `json:"severity"`

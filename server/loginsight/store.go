@@ -44,8 +44,8 @@ func (s *Store) Save(ctx context.Context, ins *Insight) error {
 		INSERT INTO log_insights
 			(template_hash, sample_log_ids, host_name, severity, category,
 			 summary_ko, root_cause_ko, action_ko, needs_human,
-			 model_name, prompt_tokens, output_tokens, latency_ms, created_at, incident_key)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+			 model_name, prompt_tokens, output_tokens, latency_ms, created_at, incident_key, input_text)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 		RETURNING id`,
 		ins.TemplateHash,
 		ins.SampleLogIDs, // pgx가 []int64 → BIGINT[] 자동 변환
@@ -62,6 +62,7 @@ func (s *Store) Save(ctx context.Context, ins *Insight) error {
 		nullInt(ins.LatencyMs),
 		ins.CreatedAt,
 		nullStr(ins.IncidentKey),
+		nullStr(ins.InputText),
 	).Scan(&ins.ID)
 	if err != nil {
 		return err

@@ -96,3 +96,29 @@ func TestFetchRecentLogs_OverLimitContinuesNextTick(t *testing.T) {
 		t.Fatalf("2차 tick에 남은 1건 기대: %+v %v", rest, err)
 	}
 }
+
+func TestStore_SaveKeepsInputText(t *testing.T) {
+	dsn := os.Getenv("OWLMON_TEST_PG_DSN")
+	if dsn == "" {
+		t.Skip("OWLMON_TEST_PG_DSN 미설정")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	if err := EnsureTables(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+	ins := &Insight{TemplateHash: "input-text-test", SampleLogIDs: []int64{1}, Severity: SeverityLow, Category: CatApp,
+		SummaryKo: "요약", ModelName: "m", CreatedAt: time.Now(), InputText: "Host: h\nSample log lines:\n[1] 원문"}
+	if err := NewStore(pool).Save(ctx, ins); err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Exec(ctx, `DELETE FROM log_insights WHERE id = $1`, ins.ID)
+	var got string
+	if err := pool.QueryRow(ctx, `SELECT input_text FROM log_insights WHERE id = $1`, ins.ID).Scan(&got); err != nil || got != ins.InputText {
+		t.Fatalf("input_text 저장 기대: %q err=%v", got, err)
+	}
+}
