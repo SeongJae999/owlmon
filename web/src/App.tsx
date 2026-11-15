@@ -22,6 +22,7 @@ const TrendsPage = lazy(() => import('./pages/TrendsPage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
+const RackPage = lazy(() => import('./pages/RackPage'))
 const TopologyPage = lazy(() => import('./pages/TopologyPage'))
 const WallPage = lazy(() => import('./pages/WallPage'))
 
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/support" element={<SupportPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/racks" element={<RackPage />} />
         <Route path="/topology" element={<TopologyPage />} />
       </Route>
       <Route path="/wall" element={<Suspense fallback={null}><WallPage /></Suspense>} />

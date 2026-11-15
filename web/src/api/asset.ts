@@ -9,7 +9,18 @@ export interface Asset {
   purchase_date: string   // "YYYY-MM-DD" 또는 ""
   warranty_expires: string // "YYYY-MM-DD" 또는 ""
   notes: string
+  rack: string // 빈 값이면 랙에 넣지 않은 장비
+  rack_unit: number // 장비 맨 아래 칸 (1 = 랙 맨 아래)
+  rack_size: number // 차지하는 칸 수
   updated_at: string
+}
+
+export const unitRange = (unit: number, size: number) => size > 1 ? `${unit}~${unit + size - 1}U` : `${unit}U`
+
+// 서버 db.LocationText와 같은 문구 — 알림 메일과 화면이 같은 위치를 보여 주게
+export function locationText(a: Pick<Asset, 'location' | 'rack' | 'rack_unit' | 'rack_size'> | undefined): string {
+  if (!a) return ''
+  return [a.location.trim(), a.rack && a.rack_unit > 0 && `${a.rack} ${unitRange(a.rack_unit, a.rack_size)}`].filter(Boolean).join(' · ')
 }
 
 export async function fetchAssets(): Promise<Asset[]> {

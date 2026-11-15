@@ -5,7 +5,7 @@ import { getSNMPStatus } from '../api/snmp'
 import { getSyntheticStatus } from '../api/synthetic'
 import { getSSLStatus } from '../api/ssl'
 import { getDPMStatus } from '../api/dpm'
-import { fetchAssets } from '../api/asset'
+import { fetchAssets, locationText } from '../api/asset'
 import { hostLabel } from '../config/hostLabels'
 import { defaultLayout, getTopologyLayout } from '../api/topology'
 
@@ -30,6 +30,7 @@ export interface Tile {
   alertCount?: number // 서버: 미확인 알림 수
   purpose?: string
   location?: string // 자산 관리의 위치 — 장애 장비를 찾아가거나 업체에 알려 줄 때
+  rackPlaced?: boolean // 랙 실장도에 그려지는 장비 — 위치를 누르면 랙 화면으로 보냄
   since?: string
 }
 
@@ -222,7 +223,11 @@ export function useFleet() {
       to: `/dpm?focus=${d.instance.id}`,
     })
   }
-  for (const x of tiles) x.location = assets.find(a => a.host_name === x.name)?.location.trim() || undefined
+  for (const x of tiles) {
+    const a = assets.find(a => a.host_name === x.name)
+    x.location = locationText(a) || undefined
+    x.rackPlaced = !!a?.rack && a.rack_unit > 0
+  }
   const GORDER = GROUPS.map(g => g.name)
   // 문제 있는 타일을 맨 앞에, 나머지는 종류별로 묶어서
   tiles.sort((a, b) => Math.min(RANK[a.state], 2) - Math.min(RANK[b.state], 2) || GORDER.indexOf(a.group) - GORDER.indexOf(b.group) || a.name.localeCompare(b.name))

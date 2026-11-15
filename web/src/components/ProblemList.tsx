@@ -118,7 +118,9 @@ export default function ProblemList({ open, fresh, handling, crit, warn, impactO
                     <Link to={x.to} className="font-semibold text-base-100 hover:underline">{x.name}</Link>
                     {x.purpose && <span className="ml-1.5 text-xs text-base-500">{x.purpose}</span>}
                   </span>
-                  {x.location && <span className="block truncate text-xs text-base-400" title={x.location}>{x.location}</span>}
+                  {x.location && (x.rackPlaced
+                    ? <Link to={`/racks?focus=${encodeURIComponent(x.name)}`} className="block truncate text-xs text-base-400 hover:text-base-200 hover:underline" title={`${x.location} — 랙 실장도에서 보기`}>{x.location}</Link>
+                    : <span className="block truncate text-xs text-base-400" title={x.location}>{x.location}</span>)}
                 </span>
                 <span role="cell" className="truncate text-sm text-base-400">{x.group}</span>
                 <span role="cell" className="min-w-0 basis-full md:basis-auto flex items-baseline gap-1.5 text-sm">

@@ -128,10 +128,18 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 		// Asset
 		if appCtx.AssetStore != nil {
+			if err := appCtx.AssetStore.EnsureColumns(context.Background()); err != nil {
+				log.Printf("⚠️ 랙 실장도 테이블·컬럼 준비 실패: %v", err)
+			}
 			assetHandler := handler.NewAssetHandler(appCtx.AssetStore)
 			r.Get("/api/assets", assetHandler.List)
 			r.Put("/api/assets", assetHandler.Upsert)
 			r.Delete("/api/assets/{id}", assetHandler.Delete)
+
+			rackHandler := handler.NewRackHandler(db.NewRackStore(appCtx.DBPool))
+			r.Get("/api/racks", rackHandler.List)
+			r.With(auth.RequireAdmin).Put("/api/racks", rackHandler.Save)
+			r.With(auth.RequireAdmin).Delete("/api/racks", rackHandler.Delete)
 		}
 
 		// 상황판 구성도 (구역 순서 + 장비 연결)

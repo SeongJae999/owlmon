@@ -20,7 +20,7 @@ import HostSpecCard from '../components/HostSpecCard'
 import DiskUsageBreakdown from '../components/DiskUsageBreakdown'
 import DiskTopology from '../components/DiskTopology'
 import { getHostSpec } from '../api/specs'
-import { fetchAssets } from '../api/asset'
+import { fetchAssets, locationText } from '../api/asset'
 import { ChevronLeft, Server, ShieldAlert, ArrowLeft } from 'lucide-react'
 import { cn } from '../utils/cn'
 
@@ -38,7 +38,9 @@ export default function HostDetailPage() {
   const { data: activeAlerts = [], refetch: refetchAlerts, isError: alertsError, isPending: alertsPending } = useAlertStatus()
   const { data: maintenanceHosts = [] } = useMaintenanceHosts()
   const { data: assets = [] } = useQuery({ queryKey: ['assets'], queryFn: fetchAssets, staleTime: 5 * 60_000 })
-  const location = assets.find(a => a.host_name === hostName)?.location.trim()
+  const asset = assets.find(a => a.host_name === hostName)
+  const location = locationText(asset)
+  const rackPlaced = !!asset?.rack && asset.rack_unit > 0
 
   // Chart Data Queries
   const { data: cpuChart = [] } = useQuery({
@@ -124,7 +126,11 @@ export default function HostDetailPage() {
               <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", status.dot)} />
               <span className="text-xs font-medium text-base-400 shrink-0">{status.label}</span>
             </div>
-            {location && <p className="text-sm text-base-300 mt-0.5 truncate" title={location}>위치 {location}</p>}
+            {location && (
+              <p className="text-sm text-base-300 mt-0.5 truncate" title={location}>
+                위치 {rackPlaced ? <Link to={`/racks?focus=${encodeURIComponent(hostName)}`} className="hover:text-base-100 hover:underline">{location}</Link> : location}
+              </p>
+            )}
             {/* 호스트 스펙 인라인 (CPU/RAM 한 줄) — 별도 카드 대신 헤더에 압축 */}
             {hostSpec ? (
               <p className="text-xs text-base-500 mt-0.5">

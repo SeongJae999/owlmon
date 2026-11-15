@@ -37,7 +37,17 @@ CREATE TABLE IF NOT EXISTS assets (
     purchase_date    DATE,                        -- 도입일
     warranty_expires DATE,                        -- 보증 만료일
     notes            TEXT NOT NULL DEFAULT '',
+    rack             TEXT NOT NULL DEFAULT '',          -- 랙 이름 (빈 값이면 랙에 넣지 않음)
+    rack_unit        INT  NOT NULL DEFAULT 0,            -- 장비 맨 아래 칸 (1 = 랙 맨 아래)
+    rack_size        INT  NOT NULL DEFAULT 1,            -- 차지하는 칸 수 (U)
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 랙 실장도
+CREATE TABLE IF NOT EXISTS racks (
+    name   TEXT PRIMARY KEY,
+    room   TEXT NOT NULL DEFAULT '',                     -- 전산실·통신실
+    height INT  NOT NULL DEFAULT 42 CHECK (height BETWEEN 1 AND 60)
 );
 
 -- SNMP 네트워크 장비

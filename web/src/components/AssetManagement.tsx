@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { fetchAssets, upsertAsset, deleteAsset, type Asset } from '../api/asset'
+import { fetchAssets, upsertAsset, deleteAsset, locationText, type Asset } from '../api/asset'
+import { fetchRacks } from '../api/rack'
+import { errorText } from '../api/users'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Server, MapPin, Calendar, Edit2, Trash2, Plus, X, Save, RefreshCcw, Info } from 'lucide-react'
 import { cn } from '../utils/cn'
@@ -15,6 +17,9 @@ const emptyForm = (): Omit<Asset, 'id' | 'updated_at'> => ({
   purchase_date: '',
   warranty_expires: '',
   notes: '',
+  rack: '',
+  rack_unit: 0,
+  rack_size: 1,
 })
 
 export default function AssetManagement() {
@@ -27,11 +32,13 @@ export default function AssetManagement() {
     queryKey: ['assets'],
     queryFn: fetchAssets,
   })
+  const { data: racks = [] } = useQuery({ queryKey: ['racks'], queryFn: fetchRacks })
 
   const saveMutation = useMutation({
     mutationFn: upsertAsset,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
+      queryClient.invalidateQueries({ queryKey: ['racks'] })
       cancel()
     }
   })
@@ -44,6 +51,7 @@ export default function AssetManagement() {
   })
 
   const startEdit = (asset: Asset) => {
+    saveMutation.reset()
     setEditingId(asset.id)
     setEditing({
       host_name: asset.host_name,
@@ -53,15 +61,20 @@ export default function AssetManagement() {
       purchase_date: asset.purchase_date,
       warranty_expires: asset.warranty_expires,
       notes: asset.notes,
+      rack: asset.rack ?? '',
+      rack_unit: asset.rack_unit ?? 0,
+      rack_size: asset.rack_size || 1,
     })
   }
 
   const startNew = () => {
+    saveMutation.reset()
     setEditingId(null)
     setEditing(emptyForm())
   }
 
   const cancel = () => {
+    saveMutation.reset()
     setEditing(null)
     setEditingId(null)
   }
@@ -119,7 +132,19 @@ export default function AssetManagement() {
               <FormField label="도입 일자" type="date" value={editing.purchase_date} onChange={v => setEditing({...editing, purchase_date: v})} />
               <FormField label="보증 만료일" type="date" value={editing.warranty_expires} onChange={v => setEditing({...editing, warranty_expires: v})} />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="space-y-1.5">
+                <label htmlFor="asset-rack" className="text-xs font-bold text-base-400 ml-1">랙</label>
+                <input id="asset-rack" list="asset-rack-list" value={editing.rack} placeholder="예: A랙 (처음 쓰는 이름이면 42U 랙으로 만들어짐)"
+                  onChange={e => setEditing({ ...editing, rack: e.target.value, rack_unit: e.target.value.trim() ? editing.rack_unit || 1 : 0 })}
+                  className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium text-base-400" />
+                <datalist id="asset-rack-list">{racks.map(r => <option key={r.name} value={r.name}>{r.room}</option>)}</datalist>
+              </div>
+              <NumberField label="시작 U (맨 아래 칸)" value={editing.rack_unit} disabled={!editing.rack.trim()} onChange={v => setEditing({ ...editing, rack_unit: v })} />
+              <NumberField label="U 수 (높이)" value={editing.rack_size} disabled={!editing.rack.trim()} onChange={v => setEditing({ ...editing, rack_size: v })} />
+            </div>
             <FormField label="추가 메모" value={editing.notes} onChange={v => setEditing({...editing, notes: v})} placeholder="기타 특이사항" />
+            {saveMutation.isError && <p role="alert" className="text-sm text-rose-300">{errorText(saveMutation.error, '저장하지 못했습니다')}</p>}
           </div>
 
           <div className="p-6 bg-base-800/50 border-t border-base-800 flex justify-end gap-3">
@@ -180,7 +205,7 @@ export default function AssetManagement() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-base-400">
                           <MapPin size={10} className="text-base-400" />
-                          {a.location || '-'}
+                          {locationText(a) || '-'}
                         </div>
                         <div className="text-xs text-base-400 mt-0.5 line-clamp-1">{a.description || '상세 설명 없음'}</div>
                       </td>
@@ -262,7 +287,7 @@ export default function AssetManagement() {
                   </div>
                   <div className="flex items-center gap-1.5 text-xs font-bold text-base-400">
                     <MapPin size={10} />
-                    {a.location || '-'}
+                    {locationText(a) || '-'}
                     <span className="font-normal text-base-500 truncate">· {a.description || '상세 설명 없음'}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
@@ -294,6 +319,19 @@ export default function AssetManagement() {
           setDeleteTarget(null)
         }}
         onCancel={() => setDeleteTarget(null)}
+      />
+    </div>
+  )
+}
+
+function NumberField({ label, value, onChange, disabled }: { label: string; value: number; onChange: (v: number) => void; disabled?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-bold text-base-400 ml-1">{label}</label>
+      <input
+        type="number" min={1} max={60} value={disabled ? '' : value || ''} disabled={disabled}
+        onChange={e => onChange(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+        className="w-full bg-base-800 border border-base-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition font-medium text-base-400 disabled:opacity-40"
       />
     </div>
   )

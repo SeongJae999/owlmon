@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -45,6 +46,11 @@ func (h *AssetHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.store.Upsert(r.Context(), a)
+	var rackErr *db.RackError
+	if errors.As(err, &rackErr) {
+		http.Error(w, rackErr.Msg, http.StatusConflict)
+		return
+	}
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
 		return

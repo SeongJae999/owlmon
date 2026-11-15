@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileUp, Upload, X } from 'lucide-react'
 import { getSNMPDevices } from '../api/snmp'
-import { fetchAssets } from '../api/asset'
+import { fetchAssets, unitRange } from '../api/asset'
+import { fetchRacks } from '../api/rack'
 import { applyImport, planImport, KIND_NAME, TEMPLATE_EXAMPLE, TEMPLATE_HEADER, type ApplyResult, type Plan } from '../api/bulkImport'
 import type { TopologyLayout } from '../api/topology'
 import { decodeText, parseTable, toCSV } from '../utils/csv'
@@ -24,6 +25,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
   const qc = useQueryClient()
   const { data: snmp, isSuccess: snmpReady, isError: snmpError } = useQuery({ queryKey: ['snmpDevices'], queryFn: getSNMPDevices })
   const { data: assets, isSuccess: assetsReady, isError: assetsError } = useQuery({ queryKey: ['assets'], queryFn: fetchAssets })
+  const { data: racks, isSuccess: racksReady, isError: racksError } = useQuery({ queryKey: ['racks'], queryFn: fetchRacks })
   const [text, setText] = useState('')
   const [fileName, setFileName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -35,9 +37,9 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
     return () => window.removeEventListener('keydown', onKey)
   }, [busy, onClose])
 
-  const ready = snmpReady && assetsReady
+  const ready = snmpReady && assetsReady && racksReady
   // 기존 등록과 비교해야 중복을 잡을 수 있으니, 목록을 못 받으면 미리보기를 만들지 않는다
-  const plan: Plan | null = ready && text.trim() ? planImport(parseTable(text), { layout, snmp: snmp ?? [], assets: assets ?? [], servers }) : null
+  const plan: Plan | null = ready && text.trim() ? planImport(parseTable(text), { layout, snmp: snmp ?? [], assets: assets ?? [], servers, racks: racks ?? [] }) : null
   const errors = plan?.rows.filter(r => r.errors.length).length ?? 0
   const counts = plan && {
     snmp: plan.rows.filter(r => r.snmp === 'add').length,
@@ -61,6 +63,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
       qc.invalidateQueries({ queryKey: ['snmpDevices'] })
       qc.invalidateQueries({ queryKey: ['snmpStatus'] })
       qc.invalidateQueries({ queryKey: ['assets'] })
+      qc.invalidateQueries({ queryKey: ['racks'] })
       qc.invalidateQueries({ queryKey: ['topologyLayout'] })
     }
   }
@@ -74,7 +77,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
       className="w-full max-w-6xl rounded-xl border border-base-800 bg-base-900 shadow-2xl p-5 space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-sm font-semibold text-base-200">장비 한 번에 등록</h2>
-        <p className="text-sm text-base-500">스위치·방화벽은 IP를 적으면 감시 대상으로 등록되고, 위치·용도는 자산 관리에, 상위 장비는 구성도에 반영됩니다</p>
+        <p className="text-sm text-base-500">스위치·방화벽은 IP를 적으면 감시 대상으로 등록되고, 위치·랙·용도는 장비 목록에, 상위 장비는 구성도에 반영됩니다</p>
         <button type="button" onClick={onClose} disabled={busy} aria-label="닫기" className="ml-auto p-1.5 rounded-lg text-base-400 hover:text-base-100 hover:bg-base-800 disabled:opacity-50"><X size={16} /></button>
       </div>
       {unsaved && !done && <p className="text-sm text-amber-300">구성도에 저장하지 않은 변경이 있습니다 — 여기서 등록하면 그 변경은 사라집니다</p>}
@@ -104,13 +107,13 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
       />
       {fileName && <p className="text-xs text-base-500">{fileName}에서 읽었습니다</p>}
 
-      {(snmpError || assetsError) && <p role="alert" className="text-sm text-rose-300">기존 장비·자산 목록을 불러오지 못해 중복을 확인할 수 없습니다. 잠시 뒤 다시 열어 주세요</p>}
+      {(snmpError || assetsError || racksError) && <p role="alert" className="text-sm text-rose-300">기존 장비·자산 목록을 불러오지 못해 중복을 확인할 수 없습니다. 잠시 뒤 다시 열어 주세요</p>}
       {plan?.headerError && <p role="alert" className="text-sm text-rose-300">{plan.headerError}</p>}
 
       {plan && !plan.headerError && plan.rows.length > 0 && (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[1000px] text-sm">
               <thead>
                 <tr className="text-left text-xs text-base-500 border-b border-base-800">
                   <th className="py-2 pr-3 font-medium w-12">줄</th>
@@ -120,6 +123,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
                   <th className="py-2 pr-3 font-medium">상위 장비</th>
                   <th className="py-2 pr-3 font-medium w-24">구역</th>
                   <th className="py-2 pr-3 font-medium">위치</th>
+                  <th className="py-2 pr-3 font-medium w-28">랙</th>
                   <th className="py-2 pr-3 font-medium">용도</th>
                   <th className="py-2 font-medium">할 일 · 확인할 점</th>
                 </tr>
@@ -127,7 +131,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
               <tbody className="divide-y divide-base-800/70">
                 {plan.rows.map(r => {
                   const res = done?.results.find(x => x.line === r.line)
-                  const todo = [r.snmp === 'add' && '감시 등록', r.snmp === 'exists' && '이미 감시 중', r.snmp === 'community' && '이미 감시 중 · 커뮤니티 변경', r.asset && '위치·용도 저장'].filter(Boolean).join(' · ')
+                  const todo = [r.snmp === 'add' && '감시 등록', r.snmp === 'exists' && '이미 감시 중', r.snmp === 'community' && '이미 감시 중 · 커뮤니티 변경', r.asset && '장비 정보 저장'].filter(Boolean).join(' · ')
                   return (
                     <tr key={r.line} className={cn(r.errors.length > 0 && 'bg-rose-500/5')}>
                       <td className="py-2 pr-3 text-base-500 tabular-nums">{r.line}</td>
@@ -137,6 +141,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
                       <td className="py-2 pr-3 text-base-300">{r.parent || <span className="text-base-500">맨 위</span>}</td>
                       <td className="py-2 pr-3 text-base-300">{r.zone}</td>
                       <td className="py-2 pr-3 text-base-300">{r.location}</td>
+                      <td className="py-2 pr-3 text-base-300 whitespace-nowrap">{r.rack && r.unit >= 1 ? `${r.rack} ${unitRange(r.unit, r.size)}` : r.rack}</td>
                       <td className="py-2 pr-3 text-base-300">{r.purpose}</td>
                       <td className="py-2 text-base-300">
                         {res ? (
@@ -166,7 +171,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
               </p>
             ) : (
               <p className="text-sm text-base-400">
-                {plan.rows.length}대 · 감시 등록 {counts!.snmp} · 위치·용도 저장 {counts!.asset} · 구성도 반영 {plan.rows.length}
+                {plan.rows.length}대 · 감시 등록 {counts!.snmp} · 장비 정보 저장 {counts!.asset} · 구성도 반영 {plan.rows.length}
                 {errors > 0 && <span className="text-rose-300"> · 오류 {errors}줄 — 고친 뒤 다시 올려 주세요</span>}
               </p>
             )}
@@ -179,7 +184,7 @@ export default function BulkImport({ layout, servers, unsaved, onClose }: { layo
           </div>
         </>
       )}
-      {!ready && !(snmpError || assetsError) && <p className="text-sm text-base-500">기존 장비 목록을 불러오는 중…</p>}
+      {!ready && !(snmpError || assetsError || racksError) && <p className="text-sm text-base-500">기존 장비 목록을 불러오는 중…</p>}
     </section>
     </div>
   )

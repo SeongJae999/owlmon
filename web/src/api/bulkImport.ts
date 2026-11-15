@@ -1,14 +1,15 @@
 import { addSNMPDevice, updateSNMPDevice, type SNMPDevice } from './snmp'
-import { upsertAsset, type Asset } from './asset'
+import { unitRange, upsertAsset, type Asset } from './asset'
 import { saveTopologyLayout, type DeviceKind, type TopologyDevice, type TopologyLayout } from './topology'
 import { errorText } from './users'
+import type { Rack } from './rack'
 
-export const TEMPLATE_HEADER = ['이름', '종류', 'IP', '상위 장비', '구역', '위치', '용도', 'SNMP 커뮤니티']
+export const TEMPLATE_HEADER = ['이름', '종류', 'IP', '상위 장비', '구역', '위치', '랙', 'U', 'U수', '용도', 'SNMP 커뮤니티']
 export const TEMPLATE_EXAMPLE = [
-  ['인터넷', '인터넷', '', '', '인터넷', '', 'KT 회선', ''],
-  ['방화벽', '방화벽', '192.168.0.1', '인터넷', '네트워크', '본관 2층 서버실 A랙 40U', '외부 방화벽', 'public'],
-  ['코어 스위치', '스위치', '192.168.0.2', '방화벽', '네트워크', '본관 2층 서버실 A랙 38U', '', 'public'],
-  ['web1', '서버', '192.168.0.11', '코어 스위치', '서버', '본관 2층 서버실 A랙 14U', '홈페이지', ''],
+  ['인터넷', '인터넷', '', '', '인터넷', '', '', '', '', 'KT 회선', ''],
+  ['방화벽', '방화벽', '192.168.0.1', '인터넷', '네트워크', '본관 2층 서버실', 'A랙', '40', '1', '외부 방화벽', 'public'],
+  ['코어 스위치', '스위치', '192.168.0.2', '방화벽', '네트워크', '본관 2층 서버실', 'A랙', '38', '1', '', 'public'],
+  ['web1', '서버', '192.168.0.11', '코어 스위치', '서버', '본관 2층 서버실', 'A랙', '14', '2', '홈페이지', ''],
 ]
 
 // 헤더는 띄어쓰기·대소문자를 무시하고 비슷한 이름도 받는다 — 각 기관이 쓰던 장비 대장 열 이름을 그대로 붙여넣는 경우가 많음
@@ -21,6 +22,9 @@ const COLUMNS: Record<string, string[]> = {
   location: ['위치', '설치위치', 'location'],
   purpose: ['용도', '설명', 'description', 'purpose'],
   community: ['snmp커뮤니티', '커뮤니티', 'community'],
+  rack: ['랙', '랙이름', 'rack'],
+  unit: ['u', '시작u', '랙위치', 'unit'],
+  size: ['u수', '높이u', '크기', 'size'],
 }
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '')
 
@@ -52,6 +56,9 @@ export interface PlanRow {
   location: string
   purpose: string
   community: string
+  rack: string // 비우면 기존 랙 위치 유지, '없음'·'-'면 랙에서 뺌
+  unit: number
+  size: number
   snmp: 'add' | 'exists' | 'community' | 'none'
   snmpDevice?: SNMPDevice // 이미 감시 중인 장비 — 커뮤니티만 바꿀 때 씀
   asset: boolean
@@ -62,6 +69,7 @@ export interface PlanRow {
 export interface Plan {
   rows: PlanRow[]
   layout: TopologyLayout
+  assetOrder: number[] // 장비 정보 저장 순서(줄 번호) — 다른 장비가 비우는 칸에 들어가는 줄은 그 장비 다음에
   headerError?: string
 }
 
@@ -70,10 +78,11 @@ export interface PlanContext {
   snmp: SNMPDevice[]
   assets: Asset[]
   servers: string[] // 에이전트가 연결된 서버
+  racks: Rack[]
 }
 
 export function planImport(table: string[][], ctx: PlanContext): Plan {
-  const empty = { rows: [], layout: ctx.layout }
+  const empty = { rows: [], layout: ctx.layout, assetOrder: [] }
   if (table.length < 2) return { ...empty, headerError: '첫 줄에 열 이름, 둘째 줄부터 장비를 적어 주세요' }
   // 맨 앞 빈 줄(붙여넣기 전에 Enter)은 건너뛰고 첫 내용 줄을 열 이름으로 — 줄 번호는 원래 행 번호 유지
   const headerAt = table.findIndex(r => r.some(c => c !== ''))
@@ -100,7 +109,27 @@ export function planImport(table: string[][], ctx: PlanContext): Plan {
       parent: top ? '' : parentText || prev?.parent || '',
       zone: cell(r, 'zone') || prev?.zone || (kind ? DEFAULT_ZONE[kind] : ''),
       location: cell(r, 'location'), purpose: cell(r, 'purpose'),
-      community: cell(r, 'community'), snmp: 'none', asset: false, errors: [], warnings: [],
+      community: cell(r, 'community'), rack: '', unit: 0, size: 1, snmp: 'none', asset: false, errors: [], warnings: [],
+    }
+    // 랙도 비운 칸은 기존 값 유지 — 위치만 고치려고 올린 대장이 랙 배치를 지우면 안 됨
+    const prevAsset = ctx.assets.find(a => a.host_name === name)
+    const rackText = cell(r, 'rack'), unitText = cell(r, 'unit'), sizeText = cell(r, 'size')
+    const toInt = (t: string) => /^\d+$/.test(t) ? Number(t) : NaN
+    if (TOP_WORDS.includes(norm(rackText))) {
+      row.rack = ''
+    } else if (rackText) {
+      row.rack = rackText
+      row.unit = toInt(unitText)
+      // U수를 비우면 장비 높이는 그대로 — 다른 랙으로 옮겨도 장비 크기는 같음
+      row.size = sizeText ? toInt(sizeText) : prevAsset?.rack ? prevAsset.rack_size || 1 : 1
+      if (!unitText) row.errors.push('랙을 적었으면 시작 U도 적어 주세요 (맨 아래 칸이 1)')
+      else if (!(row.unit >= 1)) row.errors.push('U는 1 이상의 숫자로 적어 주세요')
+      if (!(row.size >= 1)) row.errors.push('U수는 1 이상의 숫자로 적어 주세요')
+    } else {
+      row.rack = prevAsset?.rack ?? ''
+      row.unit = prevAsset?.rack_unit ?? 0
+      row.size = prevAsset?.rack_size || 1
+      if (unitText || sizeText) row.errors.push('U·U수를 적었으면 랙 이름도 적어 주세요')
     }
     if (prev && (prev.parent ?? '') !== row.parent) row.warnings.push(`구성도 연결이 바뀝니다: ${prev.parent || '맨 위'} → ${row.parent || '맨 위'}`)
     if (prev && prev.zone !== row.zone) row.warnings.push(`구역이 바뀝니다: ${prev.zone} → ${row.zone}`)
@@ -147,7 +176,8 @@ export function planImport(table: string[][], ctx: PlanContext): Plan {
 
     // 비운 칸은 기존 값을 지우지 않는다 — 위치만 적은 줄이 기존 용도·IP를 날리면 안 됨
     const prev = ctx.assets.find(a => a.host_name === r.name)
-    r.asset = !!r.name && ((!!r.location && r.location !== prev?.location) || (!!r.purpose && r.purpose !== prev?.description) || (!!r.ip && r.ip !== prev?.ip))
+    const rackChanged = r.rack !== (prev?.rack ?? '') || (!!r.rack && (r.unit !== prev?.rack_unit || r.size !== prev?.rack_size))
+    r.asset = !!r.name && ((!!r.location && r.location !== prev?.location) || (!!r.purpose && r.purpose !== prev?.description) || (!!r.ip && r.ip !== prev?.ip) || rackChanged)
   }
 
   // 기존 구성도에 파일 내용을 덮어씀 — 파일에 없는 장비와 이중화 짝은 그대로 둔다
@@ -180,9 +210,41 @@ export function planImport(table: string[][], ctx: PlanContext): Plan {
       r.errors.push(`상위 장비 "${r.parent}"가 구성도에 없습니다 — 그 장비도 파일에 한 줄 넣어 주세요`)
     }
   }
+  // 랙 높이·겹침 — 파일에 없는 기존 장비와, 파일 안의 장비끼리 모두 본다 (서버도 같은 검사를 하지만 미리 줄마다 알려 줌)
+  const heightOf = (rack: string) => ctx.racks.find(k => k.name === rack)?.height ?? 42
+  const inFile = new Set(rows.map(r => r.name))
+  const occupants = [
+    ...ctx.assets.filter(a => a.rack && a.rack_unit > 0 && !inFile.has(a.host_name)).map(a => ({ name: a.host_name, rack: a.rack, unit: a.rack_unit, size: a.rack_size || 1, row: undefined as PlanRow | undefined })),
+    ...rows.filter(r => r.rack && r.unit >= 1 && r.size >= 1).map(r => ({ name: r.name, rack: r.rack, unit: r.unit, size: r.size, row: r as PlanRow | undefined })),
+  ]
+  for (const o of occupants) {
+    if (!o.row) continue
+    const h = heightOf(o.rack)
+    if (o.unit + o.size - 1 > h) o.row.errors.push(`${o.rack} 높이(${h}U)를 넘습니다 — ${unitRange(o.unit, o.size)}`)
+    const hit = occupants.find(x => x !== o && x.rack === o.rack && x.unit <= o.unit + o.size - 1 && x.unit + x.size - 1 >= o.unit)
+    if (hit) o.row.errors.push(`${o.rack} ${unitRange(hit.unit, hit.size)}의 ${hit.name}와 칸이 겹칩니다`)
+  }
+
+  // 서버는 한 줄씩 저장하며 그 순간의 칸을 검사함 — 파일 안에서 A가 비우는 칸으로 B가 들어가면 A를 먼저 저장해야 거절되지 않음
+  const prevOf = (r: PlanRow) => ctx.assets.find(a => a.host_name === r.name && a.rack && a.rack_unit > 0)
+  const savers = rows.filter(r => r.asset && !r.errors.length)
+  const leaves = (m: PlanRow) => { const p = prevOf(m); return !!p && (p.rack !== m.rack || p.rack_unit !== m.unit || (p.rack_size || 1) !== m.size) }
+  const waitsFor = new Map(savers.map(r => [r, savers.filter(m => {
+    const p = m !== r && leaves(m) ? prevOf(m) : undefined
+    return !!p && !!r.rack && p.rack === r.rack && p.rack_unit <= r.unit + r.size - 1 && p.rack_unit + (p.rack_size || 1) - 1 >= r.unit
+  })]))
+  const assetOrder: number[] = []
+  for (let left = [...savers], progress = true; left.length && progress;) {
+    progress = false
+    for (const r of [...left]) {
+      if (waitsFor.get(r)!.every(m => assetOrder.includes(m.line))) { assetOrder.push(r.line); left.splice(left.indexOf(r), 1); progress = true }
+    }
+    if (!progress) for (const r of left) r.errors.push('다른 장비와 칸을 맞바꾸는 줄은 한 번에 저장할 수 없습니다 — 한 장비를 먼저 빈 칸으로 옮겨 올린 뒤 다시 올려 주세요')
+  }
+
   // 오류 줄은 등록하지 않으니 할 일·건수에서도 뺀다
   for (const r of rows) if (r.errors.length) { r.snmp = 'none'; r.asset = false }
-  return { rows, layout }
+  return { rows, layout, assetOrder: assetOrder.filter(l => rows.some(r => r.line === l && r.asset)) }
 }
 
 export interface ApplyResult {
@@ -216,25 +278,30 @@ export async function applyImport(plan: Plan, assets: Asset[]): Promise<{ result
         res.messages.push(`커뮤니티 변경 실패: ${errorText(e, '서버 오류')}`)
       }
     }
-    if (r.asset) {
-      const prev = assets.find(a => a.host_name === r.name)
-      try {
-        await upsertAsset({
-          host_name: r.name,
-          ip: r.ip || prev?.ip || '',
-          location: r.location || prev?.location || '',
-          description: r.purpose || prev?.description || '',
-          purchase_date: prev?.purchase_date ?? '',
-          warranty_expires: prev?.warranty_expires ?? '',
-          notes: prev?.notes ?? '',
-        })
-        res.messages.push('위치·용도 저장')
-      } catch (e) {
-        res.ok = false
-        res.messages.push(`위치·용도 저장 실패: ${errorText(e, '서버 오류')}`)
-      }
-    }
     results.push(res)
+  }
+  for (const line of plan.assetOrder) {
+    const r = plan.rows.find(x => x.line === line)!
+    const res = results.find(x => x.line === line)!
+    const prev = assets.find(a => a.host_name === r.name)
+    try {
+      await upsertAsset({
+        host_name: r.name,
+        ip: r.ip || prev?.ip || '',
+        location: r.location || prev?.location || '',
+        description: r.purpose || prev?.description || '',
+        purchase_date: prev?.purchase_date ?? '',
+        warranty_expires: prev?.warranty_expires ?? '',
+        notes: prev?.notes ?? '',
+        rack: r.rack,
+        rack_unit: r.rack ? r.unit : 0,
+        rack_size: r.rack ? r.size : 1,
+      })
+      res.messages.push('장비 정보 저장')
+    } catch (e) {
+      res.ok = false
+      res.messages.push(`장비 정보 저장 실패: ${errorText(e, '서버 오류')}`)
+    }
   }
   try {
     await saveTopologyLayout(plan.layout)
