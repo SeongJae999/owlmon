@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, CornerLeftUp, Plus, RotateCcw, Save, Trash2, Workflow, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CornerLeftUp, FileUp, Plus, RotateCcw, Save, Trash2, Workflow, X } from 'lucide-react'
 import PageToolbar from '../components/PageToolbar'
 import TopologyMap from '../components/TopologyMap'
+import BulkImport from '../components/BulkImport'
 import { useHosts } from '../hooks/useMonitoring'
 import { getSNMPStatus } from '../api/snmp'
+import { getMe } from '../api/auth'
 import { errorText } from '../api/users'
 import {
   defaultLayout, getTopologyLayout, saveTopologyLayout,
@@ -24,8 +26,11 @@ export default function TopologyPage() {
   const { data: hosts, isSuccess: hostsReady } = useHosts()
   const { data: snmp, isSuccess: snmpReady } = useQuery({ queryKey: ['snmpStatus'], queryFn: getSNMPStatus })
   const { data: layout, isSuccess: layoutReady, isError } = useQuery({ queryKey: ['topologyLayout'], queryFn: getTopologyLayout })
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
   // 저장하면 편집기가 새로 그려지므로 저장 완료 안내는 바깥에서 들고 있는다
   const [notice, setNotice] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [unsaved, setUnsaved] = useState(false)
 
   if (isError) return <div role="alert" className="py-12 text-center text-sm text-rose-300">구성도 설정을 불러오지 못했습니다</div>
   if (!hostsReady || !snmpReady || !layoutReady) return <div className="py-12 text-center text-sm text-base-500">불러오는 중...</div>
@@ -33,7 +38,16 @@ export default function TopologyPage() {
   const servers = hosts ?? []
   const networks = (snmp ?? []).map(d => d.Device.Name)
   // 저장된 내용이 바뀌면 편집기를 새로 그려 초안을 다시 잡는다
-  return <Editor key={JSON.stringify(layout)} saved={layout} servers={servers} networks={networks} notice={notice} setNotice={setNotice} />
+  return (
+    <>
+      <Editor key={JSON.stringify(layout)} saved={layout} servers={servers} networks={networks} notice={notice} setNotice={setNotice}
+        onImport={me?.role === 'admin' ? () => setImporting(true) : undefined} onDirty={setUnsaved} />
+      {importing && (
+        <BulkImport layout={layout.devices.length ? layout : defaultLayout(servers, networks)} servers={servers} unsaved={unsaved}
+          onClose={() => setImporting(false)} />
+      )}
+    </>
+  )
 }
 
 function initialRows(saved: TopologyLayout, servers: string[], networks: string[]): { zones: string[]; rows: Row[] } {
@@ -59,8 +73,9 @@ function toLayout(zones: string[], rows: Row[]): TopologyLayout {
   }
 }
 
-function Editor({ saved, servers, networks, notice, setNotice }: {
+function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty }: {
   saved: TopologyLayout; servers: string[]; networks: string[]; notice: string; setNotice: (s: string) => void
+  onImport?: () => void; onDirty: (dirty: boolean) => void
 }) {
   const qc = useQueryClient()
   const init = initialRows(saved, servers, networks)
@@ -81,6 +96,11 @@ function Editor({ saved, servers, networks, notice, setNotice }: {
 
   const draft = toLayout(zones, rows)
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved.devices.length ? saved : null)
+  // 저장된 구성도가 없을 땐 dirty가 늘 참(자동 배치를 저장할 수 있게) — 일괄 등록 경고는 실제로 손댄 경우만
+  // 기준은 처음 열 때 값으로 고정 — 저장된 구성도가 없으면 자동 배치가 1분마다 바뀌는 서버 목록을 따라 달라짐
+  const [baseline] = useState(() => JSON.stringify(toLayout(init.zones, init.rows)))
+  const edited = JSON.stringify(draft) !== baseline
+  useEffect(() => onDirty(edited), [edited, onDirty])
 
   const update = (name: string, patch: Partial<Row>) => setRows(rs => rs.map(r => r.name === name ? { ...r, ...patch } : r))
 
@@ -162,6 +182,14 @@ function Editor({ saved, servers, networks, notice, setNotice }: {
   return (
     <div className="space-y-5">
       <PageToolbar icon={Workflow} title="구성도" description="장비를 누른 뒤 그 장비가 연결된 위쪽 장비를 누르면 선이 이어집니다. 배치는 자동으로 정렬됩니다">
+        {onImport && (
+          <button
+            type="button" onClick={onImport}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-base-700 text-sm font-semibold text-base-200 hover:bg-base-800"
+          >
+            <FileUp size={16} /> 엑셀로 한 번에 등록
+          </button>
+        )}
         {saved.devices.length > 0 && (
           <button
             type="button" disabled={saving}
