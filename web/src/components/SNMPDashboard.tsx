@@ -10,6 +10,7 @@ import PageToolbar from './PageToolbar'
 import ConfirmDialog from './ConfirmDialog'
 import Loading from './Loading'
 import { useFocus } from '../hooks/useFocus'
+import { errorText } from '../api/users'
 
 function formatBps(bps: number): string {
   if (bps >= 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
@@ -337,7 +338,7 @@ export default function SNMPDashboard() {
           <div className="flex justify-end gap-3 pt-2">
             {addMutation.isError && (
               <p className="text-xs text-rose-500 font-bold flex items-center gap-2 mr-auto">
-                <AlertTriangle size={14} /> 장치 추가 실패: 설정값을 확인하세요.
+                <AlertTriangle size={14} /> {errorText(addMutation.error, '장치 추가 실패: 설정값을 확인하세요.')}
               </p>
             )}
             <button 
@@ -452,7 +453,7 @@ export default function SNMPDashboard() {
             <div className="flex justify-end gap-2 pt-2">
               {updateMutation.isError && (
                 <p className="text-xs text-rose-300 font-bold flex items-center gap-2 mr-auto">
-                  <AlertTriangle size={14} /> 수정 실패
+                  <AlertTriangle size={14} /> {errorText(updateMutation.error, '수정 실패')}
                 </p>
               )}
               <button type="button" onClick={() => setEditing(null)} className="px-5 py-2.5 rounded-xl bg-base-800 text-base-300 hover:bg-base-700 text-sm font-bold transition-colors">

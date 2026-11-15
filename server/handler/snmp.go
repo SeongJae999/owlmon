@@ -3,8 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -51,11 +54,33 @@ func (h *SNMPHandler) AddDevice(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 요청", http.StatusBadRequest)
 		return
 	}
+	req.Name, req.IP = strings.TrimSpace(req.Name), strings.TrimSpace(req.IP)
+	if req.Name == "" || req.IP == "" {
+		http.Error(w, "장비 이름과 IP를 입력하세요", http.StatusBadRequest)
+		return
+	}
+	// 포트를 붙인 값(1.2.3.4:161)이나 MAC 주소가 저장되면 폴링이 매번 실패해 계속 '다운'으로 보임
+	if net.ParseIP(req.IP) == nil {
+		http.Error(w, "IP 주소 형식이 아닙니다 (예: 192.168.0.1)", http.StatusBadRequest)
+		return
+	}
 	if req.Community == "" {
 		req.Community = "public"
 	}
 	if req.Port == 0 {
 		req.Port = 161
+	}
+	// IP 중복은 DB 제약에 걸려 "서버 내부 오류"로만 보였고, 이름 중복은 구성도·알림이 이름으로 장비를 찾아 두 장비가 섞인다
+	existing, err := h.store.List(r.Context())
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	for _, d := range existing {
+		if d.IP == req.IP || d.Name == req.Name {
+			http.Error(w, fmt.Sprintf("이미 등록된 장비입니다 (%s, %s)", d.Name, d.IP), http.StatusConflict)
+			return
+		}
 	}
 
 	dev, err := h.store.Add(r.Context(), snmp.Device{
