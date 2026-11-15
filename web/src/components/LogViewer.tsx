@@ -425,7 +425,8 @@ export default function LogViewer() {
       </div>
 
       {/* ─── Histogram ─────────────────────────────── */}
-      {histogram && histogram.buckets.length > 0 && (
+      {/* 이전 서버는 0건일 때 buckets를 null로 줌 — 그래도 화면 전체가 멈추지 않게 */}
+      {histogram?.buckets?.length ? (
         <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-base-400 flex items-center gap-1.5">
@@ -468,7 +469,7 @@ export default function LogViewer() {
             </ResponsiveContainer>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ─── Log Content ─────────────────────────────────── */}
       <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm overflow-hidden">

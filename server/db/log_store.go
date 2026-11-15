@@ -339,7 +339,8 @@ func (s *LogStore) Histogram(ctx context.Context, p LogSearchParams, bucketSec i
 	}
 	defer rows.Close()
 
-	var out []HistogramBucket
+	// 결과 0건이면 null이 아니라 빈 목록으로 — 화면이 목록이라고 보고 길이를 읽다 멈춤
+	out := []HistogramBucket{}
 	for rows.Next() {
 		var b HistogramBucket
 		if err := rows.Scan(&b.TS, &b.Count, &b.ErrorCount); err != nil {
