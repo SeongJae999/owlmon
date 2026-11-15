@@ -181,7 +181,7 @@ function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty
 
   return (
     <div className="space-y-5">
-      <PageToolbar icon={Workflow} title="구성도" description="장비를 누른 뒤 그 장비가 연결된 위쪽 장비를 누르면 선이 이어집니다. 배치는 자동으로 정렬됩니다">
+      <PageToolbar icon={Workflow} title="구성도 편집" description="장비를 누른 뒤 그 장비가 연결된 위쪽 장비를 누르면 선이 이어집니다. 배치는 자동으로 정렬됩니다">
         {onImport && (
           <button
             type="button" onClick={onImport}

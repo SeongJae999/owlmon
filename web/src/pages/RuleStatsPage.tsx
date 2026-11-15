@@ -1,10 +1,9 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { listRules, getRuleStatsDetailed, severityLabel, categoryLabel } from '../api/rules'
-import { BarChart3, AlertTriangle, CheckCircle2, TrendingUp, Filter } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, TrendingUp, Filter } from 'lucide-react'
 import { cn } from '../utils/cn'
 import SummaryCard from '../components/SummaryCard'
-import PageToolbar from '../components/PageToolbar'
 
 /**
  * 규칙 매칭 통계 페이지
@@ -163,19 +162,6 @@ export function RuleStatsContent() {
   )
 }
 
-// Legacy 페이지 wrapper — /rules/stats URL 호환
-export default function RuleStatsPage() {
-  return (
-    <div className="space-y-6">
-      <PageToolbar
-        icon={BarChart3}
-        title="감지 규칙 통계"
-        description="어떤 규칙이 시끄러운가, 어떤 규칙이 한 번도 안 잡혔는가 — 운영자가 규칙을 다듬는 도구"
-      />
-      <RuleStatsContent />
-    </div>
-  )
-}
 
 
 function relativeTime(iso: string): string {

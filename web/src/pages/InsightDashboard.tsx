@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Sparkles, RefreshCw, AlertTriangle, Filter, ChevronDown, ChevronRight } from 'lucide-react'
+import { Sparkles, RefreshCw, AlertTriangle, Filter, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import {
   listInsights,
   getInsightStatus,
@@ -103,6 +104,9 @@ export default function InsightDashboard() {
   return (
     <div className="space-y-6">
       <PageToolbar icon={Sparkles} title="AI 분석 결과" description="5분마다 오류·경고 로그를 AI가 읽고 원인과 조치를 정리합니다">
+        <Link to="/logs" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-base-700 text-sm font-semibold text-base-300 hover:bg-base-800">
+          <FileText size={16} /> 로그 검색
+        </Link>
         <button
           onClick={() => refetch()}
           disabled={isFetching}

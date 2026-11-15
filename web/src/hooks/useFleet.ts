@@ -37,7 +37,7 @@ export interface Tile {
 export const RANK: Record<State, number> = { crit: 0, warn: 1, wait: 2, maint: 3, ok: 4 }
 export const LABEL: Record<State, string> = { crit: '위험', warn: '주의', maint: '점검 중', ok: '정상', wait: '확인 중' }
 export const GROUPS: { name: Group; unit: string; to: string }[] = [
-  { name: '서버', unit: '대', to: '/#hosts' },
+  { name: '서버', unit: '대', to: '/?group=서버' },
   { name: '네트워크 장비', unit: '대', to: '/snmp' },
   { name: '웹사이트', unit: '곳', to: '/website' },
   { name: '데이터베이스', unit: '개', to: '/dpm' },

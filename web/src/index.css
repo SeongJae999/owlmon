@@ -195,3 +195,9 @@ html, body {
     to { stroke-dashoffset: -24; }
   }
 }
+
+/* 위쪽 메뉴가 좁은 화면에서 가로로 넘칠 때 스크롤은 되되 막대는 숨김 */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   searchLogs, getLogSources, getLogHistogram, downloadLogs,
   type LogSearchParams, type LogRecord, type MatchedRule,
@@ -228,6 +229,12 @@ export default function LogViewer() {
 
   return (
     <div className="space-y-4">
+      {/* AI 분석 결과는 메뉴에 없음 — 로그를 보다가 AI가 정리한 원인·조치로 넘어가는 길 */}
+      <div className="flex justify-end">
+        <Link to="/insights" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-300 hover:underline">
+          AI 분석 결과 보기 →
+        </Link>
+      </div>
       {/* ─── Search & Filter Bar ─────────────────────────── */}
       <div className="bg-base-900 p-3 rounded-xl border border-base-800 shadow-sm space-y-3">
         {/* Row 1: 검색 input + 4개 필터 (lg에서 한 줄, 미만에서 줄 바꿈) */}

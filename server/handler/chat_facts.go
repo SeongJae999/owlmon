@@ -586,7 +586,7 @@ func renderChatOverview(head string, snap fleetSnapshot, others []chatProblem, h
 
 	insightLine := ""
 	if highInsights > 0 {
-		insightLine = fmt.Sprintf("AI 로그 분석(AI 추정)에서 위험 이상 %d건이 있습니다. 'AI 분석' 메뉴에서 확인해 주세요.", highInsights)
+		insightLine = fmt.Sprintf("AI 로그 분석(AI 추정)에서 위험 이상 %d건이 있습니다. '로그' 메뉴의 'AI 분석 결과'에서 확인해 주세요.", highInsights)
 	}
 
 	return joinChat(
@@ -735,11 +735,11 @@ func renderChatUsage(head, q string, snap fleetSnapshot) string {
 		}
 		disk = block("디스크 사용률 (서버별 최대)", rows)
 	}
-	return joinChat(first, cpu, mem, disk, "자세히 보기: '사용량 추이' 메뉴")
+	return joinChat(first, cpu, mem, disk, "자세히 보기: '지금 상태'에서 서버를 누른 뒤 '사용량 추이'")
 }
 
 func renderChatDisk(head string, preds []anomaly.DiskPrediction, snap fleetSnapshot, host string) string {
-	footer := "최근 최대 6시간의 추세로 계산한 추정치입니다. 자세히 보기: '사용량 추이' 메뉴"
+	footer := "최근 최대 6시간의 추세로 계산한 추정치입니다. 자세히 보기: '지금 상태'에서 서버를 누른 뒤 '사용량 추이'"
 	scope := ""
 	if host != "" {
 		scope = chatLabel(host) + " "
@@ -772,7 +772,7 @@ func renderChatDisk(head string, preds []anomaly.DiskPrediction, snap fleetSnaps
 		return joinChat(head+" · "+scope+"응답이 없는 서버라 디스크 예측을 표시하지 않습니다.", "자세히 보기: '지금 상태' 메뉴")
 	}
 	if total == 0 {
-		return joinChat(head+" · "+scope+"아직 디스크 예측 데이터가 없습니다. 서버 시작 후 1시간 정도 지나야 예측할 수 있습니다.", "자세히 보기: '사용량 추이' 메뉴")
+		return joinChat(head+" · "+scope+"아직 디스크 예측 데이터가 없습니다. 서버 시작 후 1시간 정도 지나야 예측할 수 있습니다.", "자세히 보기: '지금 상태'에서 서버를 누른 뒤 '사용량 추이'")
 	}
 	sort.Slice(growing, func(i, j int) bool { return growing[i].DaysLeft < growing[j].DaysLeft })
 	lines := make([]string, 0, len(growing))
@@ -806,9 +806,9 @@ func renderChatDisk(head string, preds []anomaly.DiskPrediction, snap fleetSnaps
 }
 
 func renderChatSSL(head string, certs []ssl.CertInfo, now time.Time) string {
-	footer := "6시간마다 점검합니다. 자세히 보기: '웹사이트' 메뉴"
+	footer := "6시간마다 점검합니다. 자세히 보기: '장비 → 웹사이트' 메뉴"
 	if len(certs) == 0 {
-		return joinChat(head+" · 등록된 인증서 점검 대상이 없습니다.", "자세히 보기: '웹사이트' 메뉴")
+		return joinChat(head+" · 등록된 인증서 점검 대상이 없습니다.", "자세히 보기: '장비 → 웹사이트' 메뉴")
 	}
 	sorted := append([]ssl.CertInfo{}, certs...)
 	days := func(c ssl.CertInfo) int { return int(c.NotAfter.Sub(now).Hours() / 24) }
@@ -852,10 +852,10 @@ const chatHistoryLimit = 10000
 func (d *ChatDeps) answerHistory(ctx context.Context, head, q, host string, now time.Time) string {
 	p, found, unsupported := chatParsePeriod(q, now)
 	if unsupported {
-		return joinChat(head+" · 그 기간은 조회할 수 없습니다.", "어제, 지난주, 이번 달, 최근 N일처럼 물어봐 주세요. 자세히 보기: '알림 기록' 메뉴")
+		return joinChat(head+" · 그 기간은 조회할 수 없습니다.", "어제, 지난주, 이번 달, 최근 N일처럼 물어봐 주세요. 자세히 보기: 화면 위쪽 종 아이콘(지난 알림)")
 	}
 	if d.History == nil {
-		return joinChat(head+" · 알림 기록 저장소가 꺼져 있어 조회할 수 없습니다.", "자세히 보기: '알림 기록' 메뉴")
+		return joinChat(head+" · 알림 기록 저장소가 꺼져 있어 조회할 수 없습니다.", "자세히 보기: 화면 위쪽 종 아이콘(지난 알림)")
 	}
 	defaulted := false
 	if !found {
@@ -903,7 +903,7 @@ func renderChatHistory(head string, records []db.AlertRecord, p chatPeriod, host
 	if defaulted {
 		notes = "지정한 기간이 없거나 해석하지 못해 최근 24시간 기준입니다. " + notes
 	}
-	footer := "자세히 보기: '알림 기록' 메뉴"
+	footer := "자세히 보기: 화면 위쪽 종 아이콘(지난 알림)"
 	if total == 0 {
 		line := head + " · " + scope + ": 알림 기록이 없습니다"
 		if recovered > 0 {
@@ -988,7 +988,7 @@ func groupChatInsights(items []loginsight.Insight, host string) []chatInsightGro
 }
 
 func (d *ChatDeps) answerInsights(ctx context.Context, head, host string, now time.Time) string {
-	footer := "내용과 조치 방법은 'AI 분석' 메뉴에서 확인해 주세요."
+	footer := "내용과 조치 방법은 '로그' 메뉴의 'AI 분석 결과'에서 확인해 주세요."
 	if d.Insights == nil || d.Health == nil {
 		return joinChat(head+" · AI 로그 분석이 꺼져 있어 결과가 없습니다.", "'로그' 메뉴에서 원본 로그를 확인할 수 있습니다.")
 	}

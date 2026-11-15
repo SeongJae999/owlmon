@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { getAlertConfig, setAlertConfig, type AlertConfig } from '../api/alert'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Mail, Bell, AlertTriangle, Plus, X, Save, CheckCircle2, RefreshCcw } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { getMe } from '../api/auth'
 import { cn } from '../utils/cn'
 import Loading from './Loading'
 
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export default function AlertSettings({ onSave }: Props) {
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
   const queryClient = useQueryClient()
   const [recipientInput, setRecipientInput] = useState('')
   const [localCfg, setLocalCfg] = useState<AlertConfig | null>(null)
@@ -75,6 +78,20 @@ export default function AlertSettings({ onSave }: Props) {
 
   return (
     <div className="max-w-3xl space-y-6">
+      {/* 관리 화면은 메뉴에 없음 — 설정 첫 줄에서 모두 들어감. 조회 계정도 알림 기록 화면 링크로 여기 올 수 있으니 관리자에게만 */}
+      {me?.role === 'admin' && <nav aria-label="관리 화면" className="flex flex-wrap gap-2">
+        {[
+          { to: '/assets', label: '장비 목록' },
+          { to: '/topology', label: '구성도 편집 · 엑셀로 장비 한 번에 등록' },
+          { to: '/rules', label: '로그 감지 규칙' },
+          ...(me?.multi_user ? [{ to: '/users', label: '사용자 관리' }] : []),
+          { to: '/audit', label: '사용 기록' },
+        ].map(l => (
+          <Link key={l.to} to={l.to} className="px-3 py-1.5 rounded-lg border border-base-700 bg-base-900 text-sm font-semibold text-base-200 hover:bg-base-800">
+            {l.label}
+          </Link>
+        ))}
+      </nav>}
       <div className="bg-base-900 rounded-xl border border-base-800 shadow-sm overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-base-800 bg-base-800/30 flex items-center justify-between">

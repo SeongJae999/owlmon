@@ -59,7 +59,7 @@ export default function DeviceTable({ tiles, filter, groupFailed, groupPending, 
     return groupFailed(filter) ? empty(`${filter} 목록을 불러오지 못했습니다`, '서버 또는 수집기 연결을 확인하세요. 30초마다 다시 시도합니다', true)
       : groupPending(filter) ? empty(`${filter} 상태를 확인하는 중…`, '첫 응답을 기다리고 있습니다')
       : filter === '서버' ? empty('연결된 서버가 없습니다', '에이전트를 설치하면 자동으로 표시됩니다 (첫 수집 후 30초 이내)')
-      : empty(`등록된 ${filter}가 없습니다`, '해당 메뉴에서 추가하면 표시됩니다')
+      : empty(`등록된 ${filter}가 없습니다`, "위의 '화면 열기'에서 추가하면 표시됩니다")
   }
   if (tiles.length === 0 && !anyFailed && GROUPS.some(g => groupPending(g.name))) {
     return empty('장비 상태를 확인하는 중…', '첫 응답을 기다리고 있습니다')
@@ -75,7 +75,7 @@ export default function DeviceTable({ tiles, filter, groupFailed, groupPending, 
       <div className="rounded-xl border border-base-800 bg-base-900/50 p-10 flex flex-col items-center text-center gap-2">
         <Monitor size={36} className="text-base-700" />
         <p className="text-sm font-semibold text-base-300">등록된 장비가 없습니다</p>
-        <p className="text-xs text-base-500">서버는 에이전트를 설치하면, 네트워크·웹사이트·DB는 각 메뉴에서 추가하면 표시됩니다</p>
+        <p className="text-xs text-base-500">서버는 에이전트를 설치하면 자동으로 표시됩니다. 네트워크 장비·웹사이트·DB는 위 종류 카드를 고른 뒤 '화면 열기'에서 추가하세요</p>
       </div>
     )
   }

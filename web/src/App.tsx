@@ -17,13 +17,12 @@ const LogViewer = lazy(() => import('./components/LogViewer'))
 const InsightDashboard = lazy(() => import('./pages/InsightDashboard'))
 const MonthlyReportModal = lazy(() => import('./components/MonthlyReport'))
 const RulesPage = lazy(() => import('./pages/RulesPage'))
-const RuleStatsPage = lazy(() => import('./pages/RuleStatsPage'))
 const TrendsPage = lazy(() => import('./pages/TrendsPage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
-const RackPage = lazy(() => import('./pages/RackPage'))
 const TopologyPage = lazy(() => import('./pages/TopologyPage'))
+const RackPage = lazy(() => import('./pages/RackPage'))
 const WallPage = lazy(() => import('./pages/WallPage'))
 
 export default function App() {
@@ -50,7 +49,7 @@ export default function App() {
         {/* OWL AI는 모든 화면 우측 하단 버튼으로 이동 (ChatWidget) */}
         <Route path="/chat" element={<Navigate to="/" replace />} />
         <Route path="/rules" element={<RulesPage />} />
-        <Route path="/rules/stats" element={<RuleStatsPage />} />
+        <Route path="/rules/stats" element={<Navigate to="/rules" replace />} />
         <Route path="/history" element={<AlertHistory />} />
         <Route path="/settings" element={<AlertSettings />} />
         <Route path="/report" element={<MonthlyReportModal />} />
@@ -58,8 +57,8 @@ export default function App() {
         <Route path="/support" element={<SupportPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
         <Route path="/users" element={<UsersPage />} />
-        <Route path="/racks" element={<RackPage />} />
         <Route path="/topology" element={<TopologyPage />} />
+        <Route path="/racks" element={<RackPage />} />
       </Route>
       <Route path="/wall" element={<Suspense fallback={null}><WallPage /></Suspense>} />
       <Route path="*" element={<Navigate to="/" replace />} />

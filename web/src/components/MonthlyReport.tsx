@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getReportPreview, sendReport, type MonthlyReport, type HostReport } from '../api/report'
 import { getEmailStatus } from '../api/alert'
+import { Link } from 'react-router-dom'
 import { FileBarChart, Mail, Calendar, Server, CheckCircle2, AlertTriangle, RefreshCcw, Info } from 'lucide-react'
 import { cn } from '../utils/cn'
 
@@ -221,7 +222,7 @@ export default function MonthlyReportModal() {
             )}
             {emailStatus?.smtp_configured && (emailStatus?.recipients_count ?? 0) === 0 && (
               <div>
-                <strong>수신자 미등록:</strong> <a href="/settings" className="underline font-bold">알림 설정</a>에서 이메일 주소 추가
+                <strong>수신자 미등록:</strong> <Link to="/settings" className="underline font-bold">알림 설정</Link>에서 이메일 주소 추가
               </div>
             )}
           </div>

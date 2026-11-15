@@ -177,7 +177,7 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 			detail = fmt.Sprintf(" (%d초 이내 %d회 이상 매칭)", m.ThresholdWindow, m.ThresholdCount)
 		}
 		body := fmt.Sprintf(
-			"호스트: %s\n규칙: %s%s\n등급: %s\n자세히: 웹 대시보드 → 로그 감지 규칙 / 로그 검색에서 확인.",
+			"호스트: %s\n규칙: %s%s\n등급: %s\n자세히: 웹 대시보드의 '로그' 메뉴에서 원본 로그를, '설정 → 로그 감지 규칙'에서 규칙을 확인.",
 			key.Host, m.Name, detail, severityKo(m.Severity))
 		h.sendAlert(key.Host, "log_rule", m.Severity, subject, body)
 	}
