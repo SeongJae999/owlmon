@@ -2,6 +2,7 @@ package alert
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"sync"
 )
@@ -14,6 +15,45 @@ type AlertConfig struct {
 	MemThreshold float64  `json:"mem_threshold"` // 메모리 위험 임계값 (%)
 	DiskWarn     float64  `json:"disk_warn"`     // 디스크 경고 임계값 (%)
 	DiskCrit     float64  `json:"disk_crit"`     // 디스크 위험 임계값 (%)
+	Channels     Channels `json:"channels"`      // 메일 외 통보 경로 (웹훅·문자·단계 통보)
+}
+
+// ErrChannelsNotSaved는 임계값·수신자는 저장됐지만 DB에 channels 칸이 없어 웹훅·문자 설정을 못 저장한 경우
+var ErrChannelsNotSaved = errors.New("알림 경로 설정 칸 없음")
+
+type Channels struct {
+	Webhooks   []Webhook  `json:"webhooks"`
+	SMS        SMSGateway `json:"sms"`
+	Escalation Escalation `json:"escalation"`
+}
+
+// Webhook은 메신저·상위 관제로 보내는 HTTP POST 대상
+type Webhook struct {
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	Format      string `json:"format"`       // "json"(기본) | "slack" — Slack·Mattermost·잔디 등 {"text"} 형식
+	MinSeverity string `json:"min_severity"` // 이 등급 이상만 ("warning" | "critical")
+	Recovery    bool   `json:"recovery"`     // 복구 알림도 보냄
+}
+
+// SMSGateway는 문자 업체·기관 내부 문자 서버의 HTTP API — 업체마다 형식이 달라 주소·헤더·본문 양식을 그대로 받음
+type SMSGateway struct {
+	Enabled     bool              `json:"enabled"`
+	URL         string            `json:"url"`
+	Method      string            `json:"method"`       // 기본 POST
+	ContentType string            `json:"content_type"` // 본문 형식 — json이면 값이 JSON 문자열로, form이면 URL 인코딩으로 들어감
+	Headers     map[string]string `json:"headers"`      // 인증 키 등
+	Body        string            `json:"body"`         // {{phone}} {{message}} 자리표시자
+	Phones      []string          `json:"phones"`
+	MinSeverity string            `json:"min_severity"` // 기본 critical
+	Recovery    bool              `json:"recovery"`
+}
+
+// Escalation은 위험 알림을 정해진 시간 안에 아무도 확인하지 않으면 2차 담당자에게 다시 알리는 설정
+type Escalation struct {
+	AfterMin   int      `json:"after_min"` // 0이면 끔
+	Recipients []string `json:"recipients"`
+	Phones     []string `json:"phones"`
 }
 
 func defaultConfig() *AlertConfig {

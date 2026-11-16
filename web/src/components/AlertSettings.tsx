@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { getAlertConfig, setAlertConfig, type AlertConfig } from '../api/alert'
+import { getAlertConfig, normalizeChannels, setAlertConfig, type AlertConfig } from '../api/alert'
+import NotifyChannels from './NotifyChannels'
+import { errorText } from '../api/users'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Mail, Bell, AlertTriangle, Plus, X, Save, CheckCircle2, RefreshCcw } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -24,7 +26,7 @@ export default function AlertSettings({ onSave }: Props) {
 
   // Sync local config when data is loaded
   React.useEffect(() => {
-    if (cfg) setLocalCfg(cfg)
+    if (cfg) setLocalCfg({ ...cfg, channels: normalizeChannels(cfg.channels) })
   }, [cfg])
 
   const mutation = useMutation({
@@ -169,6 +171,11 @@ export default function AlertSettings({ onSave }: Props) {
             </div>
           </div>
 
+          {/* 메일 외 경로 — 조회 전용 계정에겐 서버가 비워 보내므로 관리자에게만 */}
+          {me?.role === 'admin' && (
+            <NotifyChannels value={localCfg.channels ?? normalizeChannels()} onChange={c => setLocalCfg({ ...localCfg, channels: c })} />
+          )}
+
           {/* Thresholds */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 px-1">
@@ -205,7 +212,7 @@ export default function AlertSettings({ onSave }: Props) {
             )}
             {mutation.isError && (
               <p className="text-xs text-rose-500 font-bold flex items-center gap-2">
-                <AlertTriangle size={14} /> 저장 실패: 다시 시도해 주세요.
+                <AlertTriangle size={14} /> {errorText(mutation.error, '저장 실패: 다시 시도해 주세요.')}
               </p>
             )}
           </div>

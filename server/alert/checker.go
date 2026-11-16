@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,17 @@ type Checker struct {
 	sslMu           sync.Mutex
 	sslPrev         map[string]sslSeen       // 도메인별 직전 인증서 상태 (만료 전환·교체 감지)
 	locate          func(host string) string // nil이면 위치 줄 생략
+	notifier        *Notifier
+	escMu           sync.Mutex
+	unacked         map[string]*pendingAlert // 단계 통보 대기 중인 위험 알림 (key: 호스트/항목/대상)
+	watched         map[string]func(context.Context) (map[string]bool, error)
+	downHosts       map[string]time.Time // 끊긴 시각, escMu로 보호
+}
+
+type pendingAlert struct {
+	host, category, target, subject, body string
+	at                                    time.Time
+	escalated                             bool
 }
 
 func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStorer, history HistorySaver) *Checker {
@@ -54,8 +66,21 @@ func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStor
 		Predictor:     anomaly.NewPredictor(),
 		SSLChecker:    ssl.NewCertChecker(),
 		sslPrev:       make(map[string]sslSeen),
+		notifier:      NewNotifier(email),
+		unacked:       make(map[string]*pendingAlert),
+		watched:       make(map[string]func(context.Context) (map[string]bool, error)),
+		downHosts:     make(map[string]time.Time),
 	}
 }
+
+// SetWatched는 항목별로 지금 감시 중인 이름 목록을 알려 줌 — 장애 중에 끄거나 지우거나 이름을 바꾼 대상은 화면에서 확인할 수 없으니 2차 통보하지 않음.
+// 시작 전에만 부름
+func (c *Checker) SetWatched(category string, fn func(context.Context) (map[string]bool, error)) {
+	c.watched[category] = fn
+}
+
+// Notifier는 설정 화면의 '시험 발송'이 같은 발송 코드를 쓰게 공개
+func (c *Checker) Notifier() *Notifier { return c.notifier }
 
 // IT 전담이 없는 기관은 메일 받은 사람이 장비 위치를 모름 — 자산 관리에 적은 위치를 본문에 붙인다
 func (c *Checker) SetLocator(f func(host string) string) { c.locate = f }
@@ -115,11 +140,16 @@ func (c *Checker) checkSSLCerts() {
 		log.Printf("SSL 도메인 목록 조회 실패: %v", err)
 		return
 	}
+	results := c.SSLChecker.CheckAll(entries)
+	// 지운 도메인은 정리 분기에 닿지 않음 — 이번 목록에 없는 도메인의 단계 통보 대기를 버림
+	current := make(map[string]bool, len(results))
+	for _, info := range results {
+		current[info.Domain] = true
+	}
+	c.dropUnacked(func(p *pendingAlert) bool { return p.category == "ssl" && !current[p.host] })
 	if len(entries) == 0 {
 		return
 	}
-
-	results := c.SSLChecker.CheckAll(entries)
 
 	// 확인 해제는 알림이 꺼져 있어도 추적한다 — 꺼진 동안 눌린 확인이 켠 뒤의 만료 메일을 막지 않게
 	for _, info := range results {
@@ -137,6 +167,10 @@ func (c *Checker) checkSSLCerts() {
 		}
 		if clearWarn {
 			c.state.ClearAck(info.Domain, "ssl", "warning")
+		}
+		// 갱신돼 위험 등급을 벗어나면 복구 알림이 없으므로 여기서 대기를 끝냄 — 갱신된 인증서로 2차 통보가 나가지 않게
+		if info.Status != "expired" && info.Status != "critical" {
+			c.dropUnacked(func(p *pendingAlert) bool { return p.host == info.Domain && p.category == "ssl" })
 		}
 	}
 
@@ -212,6 +246,7 @@ func (p sslSeen) next(status string, notAfter, now time.Time) sslSeen {
 
 // Start는 백그라운드에서 주기적으로 알림 조건을 체크합니다.
 func (c *Checker) Start(ctx context.Context, interval time.Duration) {
+	c.notifier.Start(ctx)
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
@@ -230,8 +265,11 @@ func (c *Checker) Start(ctx context.Context, interval time.Duration) {
 func (c *Checker) check() {
 	cfg := c.configStore.Get()
 	if !cfg.Enabled {
+		// 꺼 둔 동안의 장애가 다시 켤 때 한꺼번에 2차 통보되지 않게
+		c.dropUnacked(func(*pendingAlert) bool { return true })
 		return
 	}
+	c.escalate(cfg, time.Now())
 	if !c.promHealthy() {
 		return
 	}
@@ -314,14 +352,16 @@ func (c *Checker) checkDisk(warn, crit float64) {
 			if c.state.ShouldAlert(critKey) {
 				subject := fmt.Sprintf("[위험] %s 디스크 %s %.1f%%", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크가 거의 꽉 찼습니다. 즉시 용량을 확보하세요.", host, mount, val)
-				c.sendAlert(host, "disk", "critical", subject, body)
+				c.send(host, "disk", mount, "critical", subject, body)
 			}
 		} else if val >= warn {
-			c.state.ClearIfFiring(critKey)
+			if c.state.ClearIfFiring(critKey) {
+				c.dropUnacked(func(p *pendingAlert) bool { return p.host == host && p.category == "disk" && p.target == mount })
+			}
 			if c.state.ShouldAlert(warnKey) {
 				subject := fmt.Sprintf("[주의] %s 디스크 %s %.1f%%", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크 용량이 부족해지고 있습니다. 확인해 주세요.", host, mount, val)
-				c.sendAlert(host, "disk", "warning", subject, body)
+				c.send(host, "disk", mount, "warning", subject, body)
 			}
 		} else {
 			if c.state.ClearIfFiring(critKey) || c.state.ClearIfFiring(warnKey) {
@@ -329,7 +369,7 @@ func (c *Checker) checkDisk(warn, crit float64) {
 				c.state.ClearAck(host, "disk", "warning")
 				subject := fmt.Sprintf("[복구] %s 디스크 정상 복구 (%s %.1f%%)", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n정상 범위로 돌아왔습니다.", host, mount, val)
-				c.sendAlert(host, "disk", "info", subject, body)
+				c.send(host, "disk", mount, "info", subject, body)
 			}
 		}
 	}
@@ -342,6 +382,7 @@ func (c *Checker) checkServerDown() {
 	if err != nil {
 		return
 	}
+	var downs, ups []Alert
 	for _, host := range hosts {
 		results, err := c.query(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name=%q}[2m])`, host))
 		if err != nil {
@@ -349,21 +390,26 @@ func (c *Checker) checkServerDown() {
 		}
 		key := fmt.Sprintf("down:%s", host)
 		if len(results) == 0 {
+			c.setDown(host, true)
 			if c.state.ShouldAlert(key) {
-				subject := fmt.Sprintf("[위험] %s 서버 연결 끊김", host)
-				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 끊겼습니다. 서버 상태를 확인하세요.", host)
-				c.sendAlert(host, "down", "critical", subject, body)
+				downs = append(downs, Alert{Host: host, Category: "down",
+					Subject: fmt.Sprintf("[위험] %s 서버 연결 끊김", host),
+					Body:    fmt.Sprintf("호스트: %s\n\n에이전트 연결이 끊겼습니다. 서버 상태를 확인하세요.", host)})
 			}
 		} else {
 			// 패널은 7일 전 끊긴 서버도 보여 주므로 메일 발송 이력 없이 확인될 수 있다. 복귀하면 항상 풀어야 다음 장애 메일이 나간다
 			c.state.ClearAck(host, "down", "critical")
+			c.setDown(host, false)
 			if c.state.ClearIfFiring(key) {
-				subject := fmt.Sprintf("[복구] %s 서버 연결 복구", host)
-				body := fmt.Sprintf("호스트: %s\n\n에이전트 연결이 복구되었습니다.", host)
-				c.sendAlert(host, "down", "info", subject, body)
+				ups = append(ups, Alert{Host: host, Category: "down",
+					Subject: fmt.Sprintf("[복구] %s 서버 연결 복구", host),
+					Body:    fmt.Sprintf("호스트: %s\n\n에이전트 연결이 복구되었습니다.", host)})
 			}
 		}
 	}
+	// 네트워크 장애로 서버 여러 대가 한꺼번에 끊기면 한 통으로
+	c.SendGroup("critical", "[위험] 서버 %d대 연결 끊김", downs)
+	c.SendGroup("info", "[복구] 서버 %d대 연결 복구", ups)
 }
 
 // checkRapidGrowth는 디스크/메모리가 단기간에 급변하는 경우를 알립니다.
@@ -448,39 +494,96 @@ func (c *Checker) checkServiceFailures() {
 }
 
 func (c *Checker) sendAlert(host, category, severity, subject, body string) {
-	// 유지보수 모드: 이메일 및 히스토리 저장 모두 억제
+	c.send(host, category, "", severity, subject, body)
+}
+
+// target은 같은 호스트·항목 안의 대상(디스크 마운트) — 한 마운트의 복구가 다른 마운트의 단계 통보 대기를 지우지 않게
+func (c *Checker) send(host, category, target, severity, subject, body string) {
+	cfg := c.configStore.Get()
+	if body, ok := c.admit(cfg, host, category, target, severity, subject, body); ok {
+		c.notifier.Enqueue(routeNotice(cfg, c.defaultTo(), severity, subject, body))
+	}
+}
+
+// admit은 점검·알림 꺼짐·확인 여부를 거르고 이력과 단계 통보 대기를 처리함. 보낼 알림이면 위치를 붙인 본문을 돌려줌
+func (c *Checker) admit(cfg AlertConfig, host, category, target, severity, subject, body string) (string, bool) {
 	if c.state.IsInMaintenance(host) {
 		log.Printf("유지보수 모드 — 알림 억제: %s", subject)
-		return
+		// 점검 중에 복구돼도 대기는 끝내야 점검을 끈 뒤 이미 끝난 장애가 2차 통보되지 않음
+		if severity == "info" {
+			c.trackUnacked(host, category, target, severity, subject, body)
+		}
+		return "", false
 	}
 	if c.locate != nil {
 		body = withLocation(body, c.locate(host))
 	}
-	// 확인된 알림: 이메일만 억제, 히스토리는 저장
-	if severity != "info" && c.state.IsAcked(host, category, severity) {
-		log.Printf("알림 확인됨 — 이메일 억제: %s", subject)
-		if c.history != nil {
-			_ = c.history.Save(context.Background(), host, category, severity, subject, body)
+	switch {
+	case !cfg.Enabled:
+		// Synthetic·DPM·네트워크 장비·로그 분석은 check()의 스위치를 거치지 않고 들어옴
+		log.Printf("알림 꺼짐 — 발송 생략: %s", subject)
+	case severity != "info" && c.state.IsAcked(host, category, severity):
+		log.Printf("알림 확인됨 — 발송 억제: %s", subject)
+	default:
+		c.trackUnacked(host, category, target, severity, subject, body)
+		c.saveHistory(host, category, severity, subject, body)
+		return body, true
+	}
+	c.saveHistory(host, category, severity, subject, body)
+	return body, false
+}
+
+func (c *Checker) saveHistory(host, category, severity, subject, body string) {
+	if c.history == nil {
+		return
+	}
+	if err := c.history.Save(context.Background(), host, category, severity, subject, body); err != nil {
+		log.Printf("알림 히스토리 저장 실패: %v", err)
+	}
+}
+
+// 받는 곳은 알림 설정 값을 매번 반영 (공유 EmailConfig를 바꾸지 않음 — 보고서 고루틴과 경쟁)
+func (c *Checker) defaultTo() []string {
+	if c.email == nil {
+		return nil
+	}
+	return c.email.To
+}
+
+type Alert struct {
+	Host, Category, Subject, Body string
+}
+
+// 같은 주기에 이보다 많이 생기면 한 통으로 묶음
+const groupAt = 4
+
+// SendGroup은 같은 주기에 함께 생긴 알림이 많으면 한 통으로 보냄 — 상위 스위치 장애로 수백 대가 끊기면 장비마다 메일·문자가 나가 대기열과 문자 비용이 터짐.
+// 이력·확인·단계 통보 대기는 장비별로 그대로 처리. subjectFmt의 %d에 실제 보낼 건수가 들어감
+func (c *Checker) SendGroup(severity, subjectFmt string, alerts []Alert) {
+	if len(alerts) < groupAt {
+		for _, a := range alerts {
+			c.sendAlert(a.Host, a.Category, severity, a.Subject, a.Body)
 		}
 		return
 	}
-	if c.email != nil {
-		// 수신자는 알림 설정 값을 매번 반영 (공유 EmailConfig를 바꾸지 않음 — 보고서 고루틴과 경쟁)
-		to := c.email.To
-		if r := c.configStore.Get().Recipients; len(r) > 0 {
-			to = r
-		}
-		if err := c.email.SendTo(to, subject, body); err != nil {
-			log.Printf("알림 이메일 발송 실패: %v", err)
-		} else {
-			log.Printf("알림 발송: %s", subject)
-		}
-	}
-	if c.history != nil {
-		if err := c.history.Save(context.Background(), host, category, severity, subject, body); err != nil {
-			log.Printf("알림 히스토리 저장 실패: %v", err)
+	cfg := c.configStore.Get()
+	var lines []string
+	for _, a := range alerts {
+		if _, ok := c.admit(cfg, a.Host, a.Category, "", severity, a.Subject, a.Body); ok {
+			line := "- " + a.Subject
+			if c.locate != nil {
+				if loc := c.locate(a.Host); loc != "" {
+					line += " (" + loc + ")"
+				}
+			}
+			lines = append(lines, line)
 		}
 	}
+	if len(lines) == 0 {
+		return
+	}
+	subject := fmt.Sprintf(subjectFmt, len(lines))
+	c.notifier.Enqueue(routeNotice(cfg, c.defaultTo(), severity, subject, strings.Join(lines, "\n")))
 }
 
 // SendAlert는 외부에서 알림을 발송할 수 있도록 sendAlert를 공개합니다.
@@ -492,6 +595,10 @@ func (c *Checker) SendAlert(host, category, severity, subject, body string) {
 // Ack는 알림을 확인 처리합니다.
 func (c *Checker) Ack(host, category, severity, by string) {
 	c.state.Ack(host, category, severity, by)
+	// 주의 확인으로 다른 마운트의 위험 대기를 지우지 않게 위험 확인만 반영 — 위험→주의 하강은 checkDisk·SSL에서 정리
+	if severity == "critical" {
+		c.dropUnacked(func(p *pendingAlert) bool { return p.host == host && p.category == category })
+	}
 }
 
 func (c *Checker) AckInfo(host, category, severity string) (AckInfo, bool) {
@@ -503,6 +610,148 @@ func (c *Checker) Acks() []AckInfo { return c.state.Acks() }
 // 장애가 끝나거나 새로 시작될 때 풀어야 함 — 남아 있으면 다음 장애 메일이 억제됨
 func (c *Checker) ClearAck(host, category, severity string) {
 	c.state.ClearAck(host, category, severity)
+	// 장애가 끝났거나(복구) 새 장애로 다시 시작되는 시점 — 지난 장애의 단계 통보 대기는 버림
+	c.dropUnacked(func(p *pendingAlert) bool { return p.host == host && p.category == category })
+}
+
+// 끊긴 서버는 화면에 CPU·메모리·디스크 행이 없어 확인할 수 없음 — 끊긴 동안은 그 항목의 확인 대기 시간을 멈추고(대기는 유지) '끊김'으로만 확인받음.
+// 대기를 지우면 짧은 수집 공백 뒤에 아직 위험인 항목이 재발송 쿨다운 동안 2차 통보되지 않고,
+// 시간을 그대로 흘리면 오래 끊겼다 돌아온 직후 확인할 틈 없이 2차 통보됨
+func (c *Checker) setDown(host string, down bool) {
+	c.escMu.Lock()
+	defer c.escMu.Unlock()
+	since, was := c.downHosts[host]
+	switch {
+	case down && !was:
+		c.downHosts[host] = time.Now()
+	case !down && was:
+		delete(c.downHosts, host)
+		gap := time.Since(since)
+		for _, p := range c.unacked {
+			// 복귀한 주기에 새로 생긴 대기(끊긴 뒤 생성)는 그대로 — 끊기기 전 대기만 멈췄던 시간만큼 미룸
+			if p.host == host && hostMetric(p.category) && p.at.Before(since) {
+				p.at = p.at.Add(gap)
+			}
+		}
+	}
+}
+
+func hostMetric(category string) bool {
+	return category == "cpu" || category == "memory" || category == "disk"
+}
+
+// 화면에서 확인할 수 있고 복구 경로가 있는 항목만 단계 통보 — 나머지(이상탐지·급증·서비스·로그 분석)는 확인할 방법이 없어 늘 2차 통보가 나감
+var escalatable = map[string]bool{"cpu": true, "memory": true, "disk": true, "down": true, "snmp": true, "synthetic": true, "ssl": true, "dpm": true}
+
+// 위험 알림만 단계 통보 대상. 복구(info) 알림이 오면 같은 대상의 대기를 끝냄
+func (c *Checker) trackUnacked(host, category, target, severity, subject, body string) {
+	if !escalatable[category] {
+		return
+	}
+	k := host + "/" + category + "/" + target
+	c.escMu.Lock()
+	defer c.escMu.Unlock()
+	switch severity {
+	case "info":
+		delete(c.unacked, k)
+	case "critical":
+		if c.unacked[k] == nil {
+			c.unacked[k] = &pendingAlert{host: host, category: category, target: target, subject: subject, body: body, at: time.Now()}
+		}
+	}
+}
+
+func (c *Checker) dropUnacked(match func(*pendingAlert) bool) {
+	c.escMu.Lock()
+	defer c.escMu.Unlock()
+	for k, p := range c.unacked {
+		if match(p) {
+			delete(c.unacked, k)
+		}
+	}
+}
+
+// 오래 남은 대기는 복구 신호를 놓친 것으로 보고 버림 — 계속 쌓이지 않게. 단계 통보 시간보다는 길어야 함
+const unackedTTL = 24 * time.Hour
+
+// escalate는 확인되지 않고 정해진 시간이 지난 위험 알림을 2차 담당자에게 한 번 더 보냄. 같은 주기에 여러 건이면 한 통으로 묶음
+func (c *Checker) escalate(cfg AlertConfig, now time.Time) {
+	esc := cfg.Channels.Escalation
+	after := time.Duration(esc.AfterMin) * time.Minute
+	ttl := unackedTTL
+	if after+time.Hour > ttl {
+		ttl = after + time.Hour
+	}
+	c.escMu.Lock()
+	var cands []string
+	cats := map[string]bool{}
+	for k, p := range c.unacked {
+		switch {
+		case c.state.IsAcked(p.host, p.category, "critical"):
+			delete(c.unacked, k)
+		case esc.AfterMin > 0 && !p.escalated && now.Sub(p.at) >= after && !c.state.IsInMaintenance(p.host) &&
+			!(!c.downHosts[p.host].IsZero() && hostMetric(p.category)):
+			cands = append(cands, k)
+			cats[p.category] = true
+		case now.Sub(p.at) > ttl && (c.downHosts[p.host].IsZero() || !hostMetric(p.category)):
+			delete(c.unacked, k) // 끊긴 서버의 항목은 시계가 멈춘 것이라 TTL로 지우지 않음
+		}
+	}
+	c.escMu.Unlock()
+	if len(cands) == 0 {
+		return
+	}
+	// DB 조회는 잠금 밖에서. 조회가 실패하면 감시 중으로 봄 (2차 통보를 놓치는 것보다 나음)
+	names := map[string]map[string]bool{}
+	for cat, fn := range c.watched {
+		if !cats[cat] {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if m, err := fn(ctx); err == nil {
+			names[cat] = m
+		}
+		cancel()
+	}
+	var due []pendingAlert
+	c.escMu.Lock()
+	for _, k := range cands {
+		p := c.unacked[k]
+		if p == nil || p.escalated {
+			continue
+		}
+		if m, ok := names[p.category]; ok && !m[p.host] {
+			delete(c.unacked, k)
+			continue
+		}
+		p.escalated = true
+		due = append(due, *p)
+	}
+	c.escMu.Unlock()
+	if len(due) == 0 {
+		return
+	}
+	sort.Slice(due, func(i, j int) bool { return due[i].at.Before(due[j].at) })
+	m := Notice{Severity: "critical", Emails: esc.Recipients, SMS: cfg.Channels.SMS, Escalate: true}
+	if g := cfg.Channels.SMS; g.Enabled && g.URL != "" {
+		m.Phones = esc.Phones
+	}
+	tail := fmt.Sprintf("\n\n%d분 동안 아무도 확인하지 않아 2차 담당자에게 보냅니다.", esc.AfterMin)
+	if len(due) == 1 {
+		m.Subject = fmt.Sprintf("[미확인 %d분] %s", esc.AfterMin, due[0].subject)
+		m.Body = due[0].body + tail
+	} else {
+		m.Subject = fmt.Sprintf("[미확인 %d분] 위험 알림 %d건", esc.AfterMin, len(due))
+		lines := make([]string, len(due))
+		for i, p := range due {
+			lines[i] = "- " + p.subject
+		}
+		m.Body = strings.Join(lines, "\n") + tail
+	}
+	c.notifier.Enqueue(m)
+	for _, p := range due {
+		c.saveHistory(p.host, p.category, "critical", fmt.Sprintf("[미확인 %d분] %s", esc.AfterMin, p.subject), p.body+tail)
+	}
 }
 
 // IsAcked는 알림이 확인됐는지 반환합니다.
@@ -513,6 +762,10 @@ func (c *Checker) IsAcked(host, category, severity string) bool {
 // SetMaintenance는 호스트의 유지보수 모드를 설정합니다.
 func (c *Checker) SetMaintenance(host string, on bool) {
 	c.state.SetMaintenance(host, on)
+	if on {
+		// 점검 중엔 복구 알림도 억제돼 대기가 끝나지 않음 — 점검을 끈 뒤 지난 장애가 2차 통보되지 않게
+		c.dropUnacked(func(p *pendingAlert) bool { return p.host == host })
+	}
 }
 
 // IsInMaintenance는 호스트가 유지보수 모드인지 반환합니다.

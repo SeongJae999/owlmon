@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS alert_config (
     mem_threshold NUMERIC   NOT NULL DEFAULT 95,
     disk_warn     NUMERIC   NOT NULL DEFAULT 85,
     disk_crit     NUMERIC   NOT NULL DEFAULT 90,
+    channels      JSONB     NOT NULL DEFAULT '{}',   -- 웹훅·문자 게이트웨이·단계 통보
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 INSERT INTO alert_config (id) VALUES (1) ON CONFLICT DO NOTHING;

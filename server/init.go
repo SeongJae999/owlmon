@@ -65,7 +65,11 @@ func InitDB() *AppContext {
 		} else {
 			log.Println("PostgreSQL 연결 성공")
 			appCtx.DBPool = pool
-			appCtx.ConfigStore = db.NewAlertConfigStore(pool)
+			alertCfgStore := db.NewAlertConfigStore(pool)
+			if err := alertCfgStore.EnsureColumns(context.Background()); err != nil {
+				log.Printf("⚠️ 알림 경로(웹훅·문자) 설정 칸 준비 실패: %v", err)
+			}
+			appCtx.ConfigStore = alertCfgStore
 			appCtx.HistorySaver = db.NewHistorySaver(pool)
 			appCtx.HistoryStore = db.NewAlertHistoryStore(pool)
 			appCtx.SNMPDeviceStore = db.NewSNMPDeviceStore(pool)
@@ -123,6 +127,49 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 				log.Printf("자산 위치 조회 실패 (%s): %v", host, err) // 위치 없이 메일은 그대로 보냄
 			}
 			return loc
+		})
+	}
+
+	// 장애 중에 끄거나 지우거나 이름을 바꾼 대상은 2차 통보하지 않게 지금 감시 중인 이름을 알려 줌 (Start 전에 설정)
+	if appCtx.SyntheticStore != nil {
+		checker.SetWatched("synthetic", func(c context.Context) (map[string]bool, error) {
+			list, err := appCtx.SyntheticStore.List(c)
+			names := map[string]bool{}
+			for _, m := range list {
+				names[m.Name] = names[m.Name] || m.Enabled
+			}
+			return names, err
+		})
+	}
+	if appCtx.DPMStore != nil {
+		checker.SetWatched("dpm", func(c context.Context) (map[string]bool, error) {
+			list, err := appCtx.DPMStore.List(c)
+			names := map[string]bool{}
+			for _, x := range list {
+				names[x.Name] = names[x.Name] || x.Enabled
+			}
+			return names, err
+		})
+	}
+
+	// SSL은 '지금 확인'으로 갱신·삭제가 바로 반영된 최신 점검 결과 기준 — 아직 만료·임박(또는 접속 실패로 모름)인 도메인만 감시 중으로 봄
+	if appCtx.SSLDomainStore != nil {
+		checker.SetWatched("ssl", func(c context.Context) (map[string]bool, error) {
+			list, err := appCtx.SSLDomainStore.List(c)
+			if err != nil {
+				return nil, err
+			}
+			registered := map[string]bool{}
+			for _, d := range list {
+				registered[d.Domain] = true
+			}
+			names := map[string]bool{}
+			for _, r := range checker.SSLChecker.GetResults() {
+				if registered[r.Domain] && (r.Status == "expired" || r.Status == "critical" || r.Status == "error") {
+					names[r.Domain] = true
+				}
+			}
+			return names, nil
 		})
 	}
 

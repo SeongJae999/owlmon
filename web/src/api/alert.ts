@@ -7,6 +7,34 @@ export interface AlertConfig {
   mem_threshold: number
   disk_warn: number
   disk_crit: number
+  channels?: Channels // 조회 전용 계정에겐 서버가 비워 보냄
+}
+
+export type MinSeverity = '' | 'warning' | 'critical'
+export interface Webhook { name: string; url: string; format: 'json' | 'slack'; min_severity: MinSeverity; recovery: boolean }
+export interface SMSGateway {
+  enabled: boolean; url: string; method: 'POST' | 'GET' | 'PUT'; content_type: string
+  headers: Record<string, string>; body: string; phones: string[]; min_severity: MinSeverity; recovery: boolean
+}
+export interface Escalation { after_min: number; recipients: string[]; phones: string[] }
+export interface Channels { webhooks: Webhook[]; sms: SMSGateway; escalation: Escalation }
+
+// 서버(Go)는 빈 목록을 null로 보낼 수 있어 화면에서 쓰기 전에 채움
+export function normalizeChannels(c?: Partial<Channels> | null): Channels {
+  const sms = c?.sms
+  return {
+    webhooks: (c?.webhooks ?? []).map(w => ({ ...w, format: w.format || 'json', min_severity: w.min_severity ?? '' })),
+    sms: {
+      enabled: !!sms?.enabled, url: sms?.url ?? '', method: sms?.method || 'POST', content_type: sms?.content_type || 'application/json',
+      headers: sms?.headers ?? {}, body: sms?.body ?? '{"to":"{{phone}}","text":"{{message}}"}', phones: sms?.phones ?? [],
+      min_severity: sms?.min_severity ?? '', recovery: !!sms?.recovery,
+    },
+    escalation: { after_min: c?.escalation?.after_min ?? 0, recipients: c?.escalation?.recipients ?? [], phones: c?.escalation?.phones ?? [] },
+  }
+}
+
+export async function testChannel(req: { channel: 'webhook'; webhook: Webhook } | { channel: 'sms'; sms: SMSGateway; phone: string }): Promise<void> {
+  await axios.post('/api/alert/test', req)
 }
 
 // 화면 경고/위험 기준 — 홈·상세가 같은 값을 쓰도록 단일 출처 (서버 알림 기준 = 위험, 경고는 그보다 낮게)
