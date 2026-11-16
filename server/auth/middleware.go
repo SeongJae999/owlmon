@@ -42,8 +42,17 @@ var (
 )
 
 // UserCheck는 현재 역할을 돌려주고, 세션이 끝났으면 ErrSessionEnded·ErrIdle을 돌려준다.
-// nil이면(DB 없는 단일 계정 모드) 항상 관리자.
 type UserCheck func(ctx context.Context, username, sessionID string) (role string, err error)
+
+// SingleAdmin은 DB 없는 단일 계정 모드용 — 환경변수 관리자 이름의 토큰만 받는다
+func SingleAdmin(admin string) UserCheck {
+	return func(_ context.Context, username, _ string) (string, error) {
+		if username != admin {
+			return "", ErrSessionEnded
+		}
+		return RoleAdmin, nil
+	}
+}
 
 // JWTMiddleware는 Authorization 헤더의 Bearer 토큰을 검증합니다.
 func JWTMiddleware(secret string, check UserCheck) func(http.Handler) http.Handler {
@@ -62,20 +71,20 @@ func JWTMiddleware(secret string, check UserCheck) func(http.Handler) http.Handl
 				return
 			}
 
-			role := RoleAdmin
-			if check != nil {
-				var err error
-				role, err = check(r.Context(), claims.Username, claims.ID)
-				switch {
-				case errors.Is(err, ErrSessionEnded), errors.Is(err, ErrIdle):
-					http.Error(w, err.Error(), http.StatusUnauthorized)
-					return
-				case err != nil:
-					// DB 순간 장애로 401을 주면 상황판까지 전부 로그아웃되므로 일시 오류로 응답
-					log.Printf("세션 확인 실패: %v", err)
-					http.Error(w, "일시적인 오류입니다. 잠시 후 다시 시도하세요", http.StatusServiceUnavailable)
-					return
-				}
+			if check == nil {
+				http.Error(w, ErrSessionEnded.Error(), http.StatusUnauthorized)
+				return
+			}
+			role, err := check(r.Context(), claims.Username, claims.ID)
+			switch {
+			case errors.Is(err, ErrSessionEnded), errors.Is(err, ErrIdle):
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			case err != nil:
+				// DB 순간 장애로 401을 주면 상황판까지 전부 로그아웃되므로 일시 오류로 응답
+				log.Printf("세션 확인 실패: %v", err)
+				http.Error(w, "일시적인 오류입니다. 잠시 후 다시 시도하세요", http.StatusServiceUnavailable)
+				return
 			}
 
 			ctx := context.WithValue(r.Context(), usernameKey, claims.Username)

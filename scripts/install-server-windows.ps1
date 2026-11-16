@@ -74,6 +74,8 @@ if ($existing) {
 Write-Host "[4/4] Windows 서비스 등록 중..." -ForegroundColor Yellow
 sc.exe create $ServiceName binPath= "`"$ServerExe`"" start= auto DisplayName= "OWLmon Server" | Out-Null
 sc.exe description $ServiceName "OWLmon 모니터링 서버 - Prometheus 프록시 및 이메일 알림" | Out-Null
+# DB에 못 붙으면 서버가 종료되므로 서비스 관리자가 다시 띄우게 한다
+sc.exe failure $ServiceName reset= 86400 actions= restart/10000/restart/10000/restart/30000 | Out-Null
 
 # 환경변수 영구 저장 (레지스트리)
 $envVars = @(

@@ -159,6 +159,32 @@ func TestJWTMiddleware_DisabledTokenRejected(t *testing.T) {
 	}
 }
 
+// DB 없는 단일 계정 모드에서 다른 이름(viewer·중지 계정)의 토큰이 관리자가 되면 안 됨
+func TestJWTMiddleware_SingleAdminOnly(t *testing.T) {
+	cases := []struct {
+		user  string
+		check auth.UserCheck
+		want  int
+	}{
+		{"admin", auth.SingleAdmin("admin"), http.StatusOK},
+		{"viewer1", auth.SingleAdmin("admin"), http.StatusUnauthorized},
+		{"admin", nil, http.StatusUnauthorized},
+	}
+	for _, c := range cases {
+		var role string
+		tok, _ := auth.GenerateToken(c.user, "sid", "s", time.Hour)
+		req := httptest.NewRequest(http.MethodGet, "/api/x", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		auth.JWTMiddleware("s", c.check)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			role = auth.RoleFromContext(r.Context())
+		})).ServeHTTP(rec, req)
+		if rec.Code != c.want || (c.want == http.StatusOK && role != auth.RoleAdmin) {
+			t.Errorf("%s nil=%v: got %d role=%q, want %d", c.user, c.check == nil, rec.Code, role, c.want)
+		}
+	}
+}
+
 // 로그아웃한 토큰은 만료 전이어도 거부되고, 다른 세션은 유지돼야 함
 func TestLogout_EndsOnlyThisSession(t *testing.T) {
 	h := newMultiUserHandler(t)

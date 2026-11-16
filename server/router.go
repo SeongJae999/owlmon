@@ -31,13 +31,14 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 	if appCtx.DBPool != nil {
 		users := db.NewUserStore(appCtx.DBPool)
 		if err := users.EnsureTable(context.Background(), username, passwordHash); err != nil {
-			log.Printf("⚠️ users 테이블 준비 실패 — 환경변수 단일 계정으로 동작: %v", err)
-		} else {
-			authHandler.WithUsers(users)
-			userCheck = users.Current
-			usersHandler = handler.NewUsersHandler(users)
-			log.Println("다중 계정 모드 (users 테이블) — 이후 비밀번호 변경은 화면에서")
+			log.Fatalf("users 테이블 준비 실패 — 종료: %v", err)
 		}
+		authHandler.WithUsers(users)
+		userCheck = users.Current
+		usersHandler = handler.NewUsersHandler(users)
+		log.Println("다중 계정 모드 (users 테이블) — 이후 비밀번호 변경은 화면에서")
+	} else {
+		userCheck = auth.SingleAdmin(username)
 	}
 	proxyHandler, _ := handler.NewProxyHandler(prometheusURL)
 	alertHandler := handler.NewAlertHandler(appCtx.ConfigStore, checker, appCtx.EmailConfig)

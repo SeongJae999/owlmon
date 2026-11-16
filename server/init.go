@@ -60,44 +60,49 @@ func InitDB() *AppContext {
 	pgDSN := getEnv("POSTGRES_DSN", "")
 
 	if pgDSN != "" {
+		// DSN이 있는데 DB 없이 뜨면 단일 계정 모드로 바뀌어 viewer 토큰이 관리자가 되므로, 못 붙으면 종료하고 서비스 재시작에 맡긴다
 		pool, err := db.Connect(context.Background(), pgDSN)
-		if err != nil {
-			log.Printf("PostgreSQL 연결 실패: %v", err)
-		} else {
-			log.Println("PostgreSQL 연결 성공")
-			appCtx.DBPool = pool
-			alertCfgStore := db.NewAlertConfigStore(pool)
-			if err := alertCfgStore.EnsureColumns(context.Background()); err != nil {
-				log.Printf("⚠️ 알림 경로(웹훅·문자) 설정 칸 준비 실패: %v", err)
-			}
-			appCtx.ConfigStore = alertCfgStore
-			appCtx.HistorySaver = db.NewHistorySaver(pool)
-			appCtx.HistoryStore = db.NewAlertHistoryStore(pool)
-			appCtx.SNMPDeviceStore = db.NewSNMPDeviceStore(pool)
-			appCtx.AssetStore = db.NewAssetStore(pool)
-			appCtx.SSLDomainStore = db.NewSSLDomainStore(pool)
-			appCtx.LogStore = db.NewLogStore(pool)
-			appCtx.LogAnnotationStore = db.NewLogAnnotationStore(pool)
-			appCtx.SyntheticStore = db.NewSyntheticStore(pool)
-			appCtx.DPMStore = db.NewDPMStore(pool)
-			appCtx.AgentStore = db.NewAgentStore(pool)
-			appCtx.SpecsStore = db.NewSpecsStore(pool)
-			appCtx.LogRuleMatchStore = db.NewLogRuleMatchStore(pool)
-			appCtx.AuditStore = audit.NewStore(pool)
-			appCtx.LogInsightStore = loginsight.NewStore(pool)
-			// 조회 API·챗봇도 이 테이블의 열을 읽으므로 분석 워커가 꺼져 있어도 스키마를 맞춘다
-			if err := loginsight.EnsureTables(context.Background(), pool); err != nil {
-				log.Printf("로그 인사이트 테이블 준비 실패: %v", err)
-			}
-			// 룰 엔진 초기화 + 첫 로드
-			engine := rules.NewEngine(pool)
-			if err := engine.Reload(context.Background()); err != nil {
-				log.Printf("로그 룰 로드 실패: %v", err)
-			} else {
-				log.Printf("로그 룰 %d개 로드 완료", engine.RuleCount())
-			}
-			appCtx.RulesEngine = engine
+		for deadline := time.Now().Add(time.Minute); err != nil && time.Now().Before(deadline); {
+			log.Printf("PostgreSQL 연결 실패, 재시도: %v", err)
+			time.Sleep(2 * time.Second)
+			pool, err = db.Connect(context.Background(), pgDSN)
 		}
+		if err != nil {
+			log.Fatalf("PostgreSQL 연결 실패 — 종료: %v", err)
+		}
+		log.Println("PostgreSQL 연결 성공")
+		appCtx.DBPool = pool
+		alertCfgStore := db.NewAlertConfigStore(pool)
+		if err := alertCfgStore.EnsureColumns(context.Background()); err != nil {
+			log.Printf("⚠️ 알림 경로(웹훅·문자) 설정 칸 준비 실패: %v", err)
+		}
+		appCtx.ConfigStore = alertCfgStore
+		appCtx.HistorySaver = db.NewHistorySaver(pool)
+		appCtx.HistoryStore = db.NewAlertHistoryStore(pool)
+		appCtx.SNMPDeviceStore = db.NewSNMPDeviceStore(pool)
+		appCtx.AssetStore = db.NewAssetStore(pool)
+		appCtx.SSLDomainStore = db.NewSSLDomainStore(pool)
+		appCtx.LogStore = db.NewLogStore(pool)
+		appCtx.LogAnnotationStore = db.NewLogAnnotationStore(pool)
+		appCtx.SyntheticStore = db.NewSyntheticStore(pool)
+		appCtx.DPMStore = db.NewDPMStore(pool)
+		appCtx.AgentStore = db.NewAgentStore(pool)
+		appCtx.SpecsStore = db.NewSpecsStore(pool)
+		appCtx.LogRuleMatchStore = db.NewLogRuleMatchStore(pool)
+		appCtx.AuditStore = audit.NewStore(pool)
+		appCtx.LogInsightStore = loginsight.NewStore(pool)
+		// 조회 API·챗봇도 이 테이블의 열을 읽으므로 분석 워커가 꺼져 있어도 스키마를 맞춘다
+		if err := loginsight.EnsureTables(context.Background(), pool); err != nil {
+			log.Printf("로그 인사이트 테이블 준비 실패: %v", err)
+		}
+		// 룰 엔진 초기화 + 첫 로드
+		engine := rules.NewEngine(pool)
+		if err := engine.Reload(context.Background()); err != nil {
+			log.Printf("로그 룰 로드 실패: %v", err)
+		} else {
+			log.Printf("로그 룰 %d개 로드 완료", engine.RuleCount())
+		}
+		appCtx.RulesEngine = engine
 	}
 
 	// PostgreSQL 미연결 시 파일 기반 폴백
