@@ -195,6 +195,27 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 		})
 	}
 
+	// 위쪽 장비 장애로 함께 끊긴 장비를 원인 알림에 묶는 데 씀 — 저장된 구성도만 (자동 배치는 추정이라 알림을 막는 근거로 안 씀)
+	if appCtx.DBPool != nil {
+		topoStore := db.NewTopologyStore(appCtx.DBPool)
+		checker.SetTopology(func(c context.Context) (alert.Topology, error) {
+			l, err := topoStore.Get(c)
+			t := alert.Topology{Parent: map[string]string{}, Pair: map[string]string{}}
+			for _, d := range l.Devices {
+				if d.Parent != "" {
+					t.Parent[d.Name] = d.Parent
+				}
+				if d.Pair != "" {
+					t.Pair[d.Name] = d.Pair
+					if _, ok := t.Pair[d.Pair]; !ok {
+						t.Pair[d.Pair] = d.Name // 짝은 한쪽에만 적혀 있어도 서로 짝
+					}
+				}
+			}
+			return t, err
+		})
+	}
+
 	// 1. 이상탐지 및 알림 체커 시작
 	checker.Start(ctx, 30*time.Second)
 
@@ -452,7 +473,10 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 		case ev.Removed:
 			// 장애 중에 지우거나 이름을 바꾼 장비 — 확인할 화면이 없어 옛 이름의 확인·단계 통보 대기만 정리
 			checker.ClearAck(d.Name, "snmp", "critical")
+			checker.SetNetDown(d.Name, false)
+			checker.ForgetQuiet(d.Name)
 		case ev.Down:
+			checker.SetNetDown(d.Name, true)
 			// 이번 장애가 시작되기 전에 눌린 확인만 풂 — 화면에 '응답 없음'이 뜬 뒤 알림 판정 전에 누른 확인은 살려 둠
 			if a, ok := checker.AckInfo(d.Name, "snmp", "critical"); ok && a.At.Before(ev.Since) {
 				checker.ClearAck(d.Name, "snmp", "critical")
@@ -461,6 +485,7 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 				Subject: fmt.Sprintf("[위험] %s 네트워크 장비 응답 없음", d.Name),
 				Body:    fmt.Sprintf("장비: %s\nIP: %s\n응답 없음 시작: %s\n\nSNMP 응답이 없습니다. 전원·케이블·장비 상태를 확인하세요.", d.Name, d.IP, ev.Since.Format("2006-01-02 15:04:05"))})
 		default:
+			checker.SetNetDown(d.Name, false)
 			checker.ClearAck(d.Name, "snmp", "critical")
 			ups = append(ups, alert.Alert{Host: d.Name, Category: "snmp",
 				Subject: fmt.Sprintf("[복구] %s 네트워크 장비 응답 복구", d.Name),
@@ -468,6 +493,6 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 		}
 	}
 	// 상위 스위치 하나가 죽으면 아래 장비가 같은 주기에 모두 끊김 — 많으면 한 통으로
-	checker.SendGroup("critical", "[위험] 네트워크 장비 %d대 응답 없음", downs)
-	checker.SendGroup("info", "[복구] 네트워크 장비 %d대 응답 복구", ups)
+	checker.SendDowns("[위험] 네트워크 장비 %d대 응답 없음", downs)
+	checker.SendUps("[복구] 네트워크 장비 %d대 응답 복구", ups)
 }

@@ -52,6 +52,7 @@ type Checker struct {
 	cfgAt           time.Time
 	locMu           sync.Mutex
 	locCache        map[string]cachedLoc
+	sup             suppressor
 }
 
 type cachedLoc struct {
@@ -450,9 +451,10 @@ func (c *Checker) checkServerDown() {
 			}
 		}
 	}
-	// 네트워크 장애로 서버 여러 대가 한꺼번에 끊기면 한 통으로
-	c.SendGroup("critical", "[위험] 서버 %d대 연결 끊김", downs)
-	c.SendGroup("info", "[복구] 서버 %d대 연결 복구", ups)
+	// 위쪽 장비 장애로 함께 끊긴 서버는 원인 알림에 묶고, 남은 것도 여러 대면 한 통으로
+	c.SendDowns("[위험] 서버 %d대 연결 끊김", downs)
+	c.SendUps("[복구] 서버 %d대 연결 복구", ups)
+	c.reviewQuiet()
 }
 
 // checkRapidGrowth는 디스크/메모리가 단기간에 급변하는 경우를 알립니다.
