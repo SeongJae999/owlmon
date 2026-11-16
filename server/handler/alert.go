@@ -41,17 +41,28 @@ func (h *AlertHandler) GetEmailStatus(w http.ResponseWriter, r *http.Request) {
 		issues = append(issues, "SMTP_PASSWORD 미설정")
 	}
 
-	recipientsCount := 0
 	cfg := h.store.Get()
-	recipientsCount = len(cfg.Recipients)
+	recipientsCount := len(cfg.Recipients)
+	// 화면에 수신자가 없으면 실제 발송은 SMTP_TO로 감(routeNotice 기본 수신자) — 그것도 수신자로 셈
+	if recipientsCount == 0 && h.email != nil {
+		for _, a := range h.email.To {
+			if a != "" {
+				recipientsCount++
+			}
+		}
+	}
 	if recipientsCount == 0 {
 		issues = append(issues, "알림 수신자 등록 없음 (관리자 이메일)")
 	}
 
+	// 메일을 일부러 안 쓰고 웹훅·문자만 쓰는 기관도 있음 — 알림이 어디로든 나가면 정상
+	sms := cfg.Channels.SMS
+	otherChannels := len(cfg.Channels.Webhooks) > 0 || (sms.Enabled && sms.URL != "" && len(sms.Phones) > 0)
 	resp := map[string]interface{}{
 		"smtp_configured":  smtpConfigured,
 		"recipients_count": recipientsCount,
-		"healthy":          smtpConfigured && recipientsCount > 0,
+		"other_channels":   otherChannels,
+		"healthy":          (smtpConfigured && recipientsCount > 0) || otherChannels,
 		"issues":           issues,
 	}
 	w.Header().Set("Content-Type", "application/json")
