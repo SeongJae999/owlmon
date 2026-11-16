@@ -69,17 +69,36 @@ export function layoutTopology(layout: TopologyLayout): Scene {
   const roots: TopologyDevice[] = []
   for (const d of layout.devices) {
     if (d.parent && d.parent !== d.name && byName.has(d.parent)) {
-      children.set(d.parent, [...(children.get(d.parent) ?? []), d])
+      const l = children.get(d.parent)
+      if (l) l.push(d)
+      else children.set(d.parent, [d])
     } else roots.push(d)
   }
   // 이중화 짝은 나란히 놓이도록 짝 바로 뒤로 정렬
   for (const [k, list] of children) {
+    // 짝 찾기를 장비마다 목록 전체로 돌리면 스위치 하나에 서버 수천 대일 때 제곱이 됨 — 이름·짝으로 미리 색인
+    const named = new Map<string, number>()
+    const pairTo = new Map<string, number>()
+    list.forEach((m, i) => {
+      if (!named.has(m.name)) named.set(m.name, i)
+      if (m.pair !== undefined && !pairTo.has(m.pair)) pairTo.set(m.pair, i)
+    })
+    const firstOther = (d: TopologyDevice, i: number) => {
+      const a = d.pair !== undefined ? named.get(d.pair) : undefined
+      const b = pairTo.get(d.name)
+      // 자기 자신을 짝으로 적은 잘못된 데이터면 색인의 첫 후보가 자신이라 예전처럼 끝까지 찾음
+      if (a === i || b === i) return list.find(m => m !== d && (m.pair === d.name || d.pair === m.name))
+      const j = Math.min(a ?? Infinity, b ?? Infinity)
+      return j === Infinity ? undefined : list[j]
+    }
     const ordered: TopologyDevice[] = []
-    for (const d of list) {
-      if (ordered.includes(d)) continue
+    const done = new Set<TopologyDevice>()
+    for (const [i, d] of list.entries()) {
+      if (done.has(d)) continue
       ordered.push(d)
-      const mate = list.find(m => m !== d && (m.pair === d.name || d.pair === m.name))
-      if (mate && !ordered.includes(mate)) ordered.push(mate)
+      done.add(d)
+      const mate = firstOther(d, i)
+      if (mate && !done.has(mate)) { ordered.push(mate); done.add(mate) }
     }
     children.set(k, ordered)
   }

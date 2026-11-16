@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -124,23 +125,54 @@ func (h *AlertHandler) SetConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // AckAlert는 알림을 확인 처리합니다. (이메일 재발송 억제)
-// POST /api/alert/ack  body: {"host":"...", "category":"...", "severity":"..."}
+// POST /api/alert/ack  body: {"host":"...", "category":"...", "severity":"..."} 또는 그 배열
 func (h *AlertHandler) AckAlert(w http.ResponseWriter, r *http.Request) {
 	if h.checker == nil {
 		http.Error(w, "알림 체커 비활성", http.StatusServiceUnavailable)
 		return
 	}
-	var req struct {
-		Host     string `json:"host"`
-		Category string `json:"category"`
-		Severity string `json:"severity"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Host == "" {
+	reqs, ok := decodeAcks(r.Body)
+	if !ok {
 		http.Error(w, "잘못된 요청 형식", http.StatusBadRequest)
 		return
 	}
-	h.checker.Ack(req.Host, req.Category, req.Severity, auth.UsernameFromContext(r.Context()))
+	by := auth.UsernameFromContext(r.Context())
+	for _, a := range reqs {
+		h.checker.Ack(a.Host, a.Category, a.Severity, by)
+	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type ackReq struct {
+	Host     string `json:"host"`
+	Category string `json:"category"`
+	Severity string `json:"severity"`
+}
+
+// 원인 장비 한 행이 하위 수백 대 확인을 함께 보냄 — 요청을 나눠 보내면 일부만 확인된 채 화면이 갱신됨
+func decodeAcks(body io.Reader) ([]ackReq, bool) {
+	raw, err := io.ReadAll(io.LimitReader(body, 4<<20))
+	if err != nil {
+		return nil, false
+	}
+	raw = bytes.TrimSpace(raw)
+	var reqs []ackReq
+	if len(raw) > 0 && raw[0] == '[' {
+		err = json.Unmarshal(raw, &reqs)
+	} else {
+		var one ackReq
+		err = json.Unmarshal(raw, &one)
+		reqs = []ackReq{one}
+	}
+	if err != nil || len(reqs) == 0 {
+		return nil, false
+	}
+	for _, a := range reqs {
+		if a.Host == "" {
+			return nil, false
+		}
+	}
+	return reqs, true
 }
 
 // GetMaintenance는 유지보수 중인 호스트 목록을 반환합니다.

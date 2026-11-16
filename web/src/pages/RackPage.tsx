@@ -21,7 +21,7 @@ export default function RackPage() {
   const { data: racks, isSuccess: racksReady, isError: racksError } = useQuery({ queryKey: ['racks'], queryFn: fetchRacks })
   const { data: assets, isSuccess: assetsReady, isError: assetsError } = useQuery({ queryKey: ['assets'], queryFn: fetchAssets })
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
-  const { tiles, groupPending, groupFailed } = useFleet()
+  const { tiles, kindPending, kindFailed } = useFleet()
   const admin = me?.role === 'admin'
   const [form, setForm] = useState<{ rack: Rack; editing: boolean } | null>(null)
   const [error, setError] = useState('')
@@ -29,7 +29,7 @@ export default function RackPage() {
   // 처리할 문제·장비 상세의 위치를 누르고 들어오면 그 장비를 가운데로 (?focus=장비이름)
   const focus = useSearchParams()[0].get('focus')
   // 위쪽 안내 띠·장비 상태가 늦게 와서 화면이 밀리므로, 다 받은 뒤 한 박자 늦게 맞춘다
-  const settled = racksReady && assetsReady && !groupPending('서버') && !groupPending('네트워크 장비')
+  const settled = racksReady && assetsReady && !kindPending('서버') && !kindPending('네트워크 장비')
   useEffect(() => {
     if (!settled || !focus) return
     // 본문이 부드러운 스크롤이라 그대로 두면 이어지는 렌더에 묻혀 멈춤 — 바로 이동. 아래쪽 목록이 늦게 그려지면 여유가 모자라 한 번 더
@@ -41,18 +41,24 @@ export default function RackPage() {
   if (racksError || assetsError) return <div role="alert" className="py-12 text-center text-sm text-rose-300">랙·장비 정보를 불러오지 못했습니다</div>
   if (!racksReady || !assetsReady) return <div className="py-12 text-center text-sm text-base-500">불러오는 중...</div>
 
-  // 같은 이름의 웹사이트·인증서 타일과 섞이지 않게 랙에 들어가는 종류부터 찾는다
-  const tileOf = (name: string): Tile | undefined =>
-    tiles.find(t => t.name === name && (t.group === '서버' || t.group === '네트워크 장비')) ?? tiles.find(t => t.name === name && t.group === '데이터베이스')
+  // 같은 이름의 웹사이트·인증서 타일과 섞이지 않게 랙에 들어가는 종류부터 찾는다 (이름별 첫 타일 — 수천 대에서 장비마다 전체를 훑지 않게)
+  const topoByName = new Map<string, Tile>()
+  const dbByName = new Map<string, Tile>()
+  for (const t of tiles) {
+    const m = t.kind === '서버' || t.kind === '네트워크 장비' ? topoByName : t.kind === '데이터베이스' ? dbByName : null
+    if (m && !m.has(t.name)) m.set(t.name, t)
+  }
+  const tileOf = (name: string): Tile | undefined => topoByName.get(name) ?? dbByName.get(name)
   // 랙 목록에 없는 랙을 가리키는 장비(동시 삭제 등)는 그릴 곳이 없으니 위치 없는 장비로 본다
   const rackNames = new Set((racks ?? []).map(r => r.name))
   const placed = (assets ?? []).filter(a => a.rack && a.rack_unit > 0 && rackNames.has(a.rack))
-  const unplaced = tiles.filter(t => (t.group === '서버' || t.group === '네트워크 장비') && !placed.some(a => a.host_name === t.name))
+  const placedNames = new Set(placed.map(a => a.host_name))
+  const unplaced = tiles.filter(t => (t.kind === '서버' || t.kind === '네트워크 장비') && !placedNames.has(t.name))
   // 장비 상태를 아직 못 받았거나 못 받으면 상태가 없는 장비를 "감시 안 함"으로 단정하지 않음
   // 랙 장비는 서버·네트워크 장비, 없으면 DB로 상태를 찾으니 세 종류 모두 본다
-  const statusPending = groupPending('서버') || groupPending('네트워크 장비') || groupPending('데이터베이스')
-  const statusFailed = groupFailed('서버') || groupFailed('네트워크 장비') || groupFailed('데이터베이스')
-  const noTile = statusFailed ? '상태 모름' : statusPending ? '확인 중' : '감시하지 않는 장비'
+  const statusPending = kindPending('서버') || kindPending('네트워크 장비') || kindPending('데이터베이스')
+  const statusFailed = kindFailed('서버') || kindFailed('네트워크 장비') || kindFailed('데이터베이스')
+  const noTile = statusFailed ? '상태 모름' : statusPending ? '불러오는 중' : '감시하지 않는 장비'
   const rooms = [...new Set((racks ?? []).map(r => r.room))]
 
   const run = async (fn: () => Promise<void>) => {

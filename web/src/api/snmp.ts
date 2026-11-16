@@ -27,6 +27,7 @@ export interface DeviceStatus {
   LastError?: string
   ResponseMs?: number
   DownSince?: string
+  DataAgeSec?: number // 마지막으로 상태를 확인한 뒤 지난 초 (서버가 잼)
   NoData?: boolean // 에이전트 수집이 끊기고 서버도 닿지 않아 상태를 모름 — 알림도 보류 중
 }
 
