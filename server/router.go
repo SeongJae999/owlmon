@@ -112,6 +112,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Get("/api/alert/acks", alertHandler.ListAcks)
 		r.Get("/api/alert/status", statusHandler.GetStatus)
 		r.Get("/api/uptime", statusHandler.GetUptime)
+		r.Get("/api/hosts/freshness", statusHandler.GetFreshness)
 
 		if appCtx.HistoryStore != nil {
 			historyHandler := handler.NewHistoryHandler(appCtx.HistoryStore)

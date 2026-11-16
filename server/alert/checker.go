@@ -53,6 +53,7 @@ type Checker struct {
 	locMu           sync.Mutex
 	locCache        map[string]cachedLoc
 	sup             suppressor
+	live            prom.HostLiveness // checkServerDown에서만 씀
 }
 
 type cachedLoc struct {
@@ -426,14 +427,26 @@ func (c *Checker) checkServerDown() {
 	if err != nil {
 		return
 	}
+	// 호스트마다 조회하면 3,000대에서 한 주기에 3,000번 — 최신 샘플 시각을 한 번에 받아 판정.
+	// 기준은 화면과 같은 prom.HostLiveness(연속 3회 수집 없음, 서버 시계) — 예전 '2분간 샘플 없음'보다 빠르고 에이전트 시계 차이에 흔들리지 않음
+	results, err := c.query(`max by (host_name) (timestamp(system_cpu_usage_percent))`)
+	if err != nil {
+		return
+	}
+	latest := make(map[string]float64, len(results))
+	for _, r := range results {
+		latest[r.metric["host_name"]] = r.value
+	}
+	now := time.Now()
+	c.live.Observe(latest, now)
+	alive := make(map[string]bool, len(latest))
+	for h := range latest {
+		alive[h] = !c.live.State(h, now).Down
+	}
 	var downs, ups []Alert
 	for _, host := range hosts {
-		results, err := c.query(fmt.Sprintf(`count_over_time(system_cpu_usage_percent{host_name=%q}[2m])`, host))
-		if err != nil {
-			continue
-		}
 		key := fmt.Sprintf("down:%s", host)
-		if len(results) == 0 {
+		if !alive[host] {
 			c.setDown(host, true)
 			if c.state.ShouldAlert(key) {
 				downs = append(downs, Alert{Host: host, Category: "down",

@@ -51,6 +51,9 @@ type StatusHandler struct {
 	seenFullAt time.Time // 7일 조회로 lastSeen을 새로 만든 시각
 	seenAt     time.Time // 최신 시각 조회로 lastSeen을 갱신한 시각
 
+	// 끊김·수집 지연 판정 — 알림(체커)과 같은 규칙. 샘플 시각이 바뀐 때를 서버 시계로 기록
+	live prom.HostLiveness
+
 	// fetchUptime에서만 읽고 쓴다. 지난 날의 호스트별 샘플 수 — 끝난 날은 바뀌지 않으므로 한 번만 셈
 	dayCounts map[string]map[string]float64 // "2006-01-02" → host → 샘플 수
 }
@@ -245,13 +248,16 @@ func (h *StatusHandler) fetchProm() (promStatus, error) {
 		}
 		h.seenFullAt = now
 	}
+	latest := make(map[string]float64, len(results[3]))
 	for _, r := range results[3] {
 		t := time.Unix(int64(r.value), 0)
 		host := r.metric["host_name"]
 		if t.After(h.lastSeen[host]) {
 			h.lastSeen[host] = t
 		}
+		latest[host] = r.value
 	}
+	h.live.Observe(latest, now)
 	for host, t := range h.lastSeen {
 		if now.Sub(t) > 7*24*time.Hour {
 			delete(h.lastSeen, host)
@@ -277,7 +283,7 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 	now := time.Now()
 	for host, t := range st.seen {
 		snap.Seen[host] = t
-		if now.Sub(t) > 2*time.Minute {
+		if h.live.State(host, now).Down {
 			snap.Down[host] = true
 		}
 	}
@@ -401,6 +407,31 @@ func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 
 // GetUptime은 이번 달 호스트별 가동률(%)을 반환합니다.
 // GET /api/uptime
+// GetFreshness GET /api/hosts/freshness — 서버별 실제 수집 경과 초와 수집 간격. 경과 초는 서버 시계로 잼(에이전트·브라우저 시계와 무관)
+func (h *StatusHandler) GetFreshness(w http.ResponseWriter, r *http.Request) {
+	st, err := h.promCache.get(statusCacheTTL, h.fetchProm)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	type fresh struct {
+		AgeSec      float64 `json:"age_sec"`
+		IntervalSec float64 `json:"interval_sec,omitempty"`
+		Down        bool    `json:"down,omitempty"` // 화면의 끊김 표시도 알림과 같은 기준으로
+	}
+	now := time.Now()
+	out := make(map[string]fresh, len(st.seen))
+	for host := range st.seen {
+		s := h.live.State(host, now)
+		if !s.Known {
+			out[host] = fresh{Down: true}
+			continue
+		}
+		out[host] = fresh{AgeSec: s.Age.Seconds(), IntervalSec: s.Interval.Seconds(), Down: s.Down}
+	}
+	writeJSON(w, out)
+}
+
 func (h *StatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
 	result, err := h.uptimeCache.get(uptimeCacheTTL, h.fetchUptime)
 	if err != nil {

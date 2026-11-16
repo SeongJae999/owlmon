@@ -213,3 +213,29 @@ func TestUptimeOneQueryIncludesDownHosts(t *testing.T) {
 		t.Errorf("꺼진 서버도 포함: %v", got)
 	}
 }
+
+// 에이전트 시계가 50초 늦어도 '수집 지연'으로 보이지 않게 — 샘플 시각이 바뀐 때를 서버 시계로 잼
+func TestFreshnessUsesServerClock(t *testing.T) {
+	now := float64(time.Now().Unix())
+	p, h := newCountingProm(t)
+	p.set("7d", promVector(row("web-01", now-50)))
+	p.set("now", promVector(row("web-01", now-50))) // 늦은 시계로 찍힌 샘플
+	if _, err := h.fetchProm(); err != nil {
+		t.Fatal(err)
+	}
+	p.set("now", promVector(row("web-01", now-35))) // 15초 뒤 새 샘플
+	if _, err := h.fetchProm(); err != nil {
+		t.Fatal(err)
+	}
+	s := h.live.State("web-01", time.Now())
+	if s.Age > 2*time.Second || s.Down {
+		t.Fatalf("시계 차이가 나이·끊김에 섞임: %+v", s)
+	}
+	if s.Interval != 15*time.Second {
+		t.Fatalf("수집 간격: %v", s.Interval)
+	}
+	// 시계가 늦은 서버도 화면 목록에서 끊김으로 보지 않음 (예전 기준은 '지금 − 샘플 시각 > 2분')
+	if snap := h.snapshot(); snap.Down["web-01"] {
+		t.Fatal("늦은 시계를 끊김으로 판정")
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // 가짜 Prometheus — 받은 쿼리를 세고, 쿼리 문자열에 맞는 응답을 돌려줌
@@ -39,6 +40,34 @@ func series(label string, vals ...string) string {
 		parts[i] = fmt.Sprintf(`{"metric":{"%s":"%s"},"value":[0,"1"]}`, label, v)
 	}
 	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// 끊김 판정은 호스트 수와 무관하게 조회 2번(호스트 목록 + 일괄 최신 샘플 시각)이고, 최신 시각에서 빠진 호스트만 끊김
+func TestServerDownBatchQuery(t *testing.T) {
+	f := &fakeProm{reply: func(q string) string {
+		switch {
+		case strings.Contains(q, "count(system_cpu_usage_percent)"):
+			return series("host_name", "web-01", "web-02", "web-03", "web-04", "web-05")
+		case strings.Contains(q, "timestamp("):
+			return fmt.Sprintf(`[{"metric":{"host_name":"web-01"},"value":[0,"%d"]}]`, time.Now().Unix())
+		}
+		return ""
+	}}
+	url := f.start(t)
+	c := NewChecker(url, &EmailConfig{To: []string{"ops@x.kr"}}, &memConfig{AlertConfig{Enabled: true}}, nil)
+
+	c.checkServerDown()
+
+	if n := len(f.queries); n != 2 {
+		t.Fatalf("조회 %d종 — 호스트마다 조회하면 안 됨: %v", n, f.queries)
+	}
+	if len(c.downHosts) != 4 || !c.downHosts["web-01"].IsZero() {
+		t.Fatalf("끊김 판정이 틀림: %v", c.downHosts)
+	}
+	got := drain(c.notifier)
+	if len(got) != 1 || got[0].Subject != "[위험] 서버 4대 연결 끊김" {
+		t.Fatalf("끊김 묶음 메일: %+v", got)
+	}
 }
 
 // 한 주기에 CPU·메모리·디스크 쿼리는 임계 판정과 이상탐지·예측이 함께 써서 한 번씩만, 급증은 호스트별 최댓값으로 집계해 받음

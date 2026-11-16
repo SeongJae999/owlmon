@@ -202,6 +202,9 @@ func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 		SysDescr    string      `json:"SysDescr,omitempty"`
 		DownSince   *time.Time  `json:"DownSince,omitempty"` // 화면 "N분째"와 확인 유효성 판단에 씀 — 빠져 있어 늘 비어 보였음
 		NoData      bool        `json:"NoData,omitempty"`    // 수집 경로가 끊겨 상태를 모름 — 알림도 보류 중이라 '응답 없음'으로 보이면 안 됨
+		// 마지막으로 상태를 확인한 뒤 지난 초 (에이전트 새 샘플·서버 폴링 중 최근 것). CollectedAt은 응답 시각이라 실제 수집 시점을 알 수 없음.
+		// 시각이 아니라 경과 초로 줌 — 서버와 브라우저 시계가 달라도 화면이 그대로 쓸 수 있게
+		DataAgeSec *float64 `json:"DataAgeSec,omitempty"`
 	}
 
 	out := make([]devStat, 0, len(devices))
@@ -227,8 +230,18 @@ func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		// 알림과 같은 판정 — 에이전트 수집 값이나 서버 직접 폴링 중 하나라도 응답하면 정상
+		var at time.Time
 		if upErr == nil {
 			ds.Up = latest[d.Name].Up
+			at = latest[d.Name].At
+		}
+		// 실패한 서버 폴링은 상태를 확인한 게 아님 — 그 시각으로 덮으면 에이전트 수집이 밀린 게 가려짐
+		if m := h.poller.Status(d.ID); m != nil && m.Up && m.CollectedAt.After(at) {
+			at = m.CollectedAt
+		}
+		if !at.IsZero() {
+			age := max(0, time.Since(at).Seconds())
+			ds.DataAgeSec = &age
 		}
 		ds.Up = h.poller.Up(d, map[string]bool{d.Name: ds.Up}, time.Now())
 		if !ds.Up {
