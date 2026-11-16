@@ -54,7 +54,7 @@ func CheckCert(domain string, port int) CertInfo {
 
 	cert := certs[0]
 	info.Issuer = cert.Issuer.CommonName
-	if info.Issuer == "" {
+	if info.Issuer == "" && len(cert.Issuer.Organization) > 0 {
 		info.Issuer = cert.Issuer.Organization[0]
 	}
 	info.NotAfter = cert.NotAfter
@@ -110,6 +110,13 @@ func (cc *CertChecker) CheckAll(domains []DomainEntry) []CertInfo {
 		go func(idx int, domain DomainEntry) {
 			defer wg.Done()
 			defer func() { <-slots }()
+			// 도메인 하나의 이상한 인증서가 서버 프로세스 전체를 죽이지 않게 그 도메인만 오류로 남긴다
+			defer func() {
+				if r := recover(); r != nil {
+					results[idx] = CertInfo{Domain: domain.Domain, Port: domain.Port, CheckedAt: time.Now(),
+						Status: "error", Error: fmt.Sprintf("인증서 확인 중 오류: %v", r)}
+				}
+			}()
 			results[idx] = checkCert(domain.Domain, domain.Port)
 		}(i, d)
 	}
