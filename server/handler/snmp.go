@@ -164,13 +164,13 @@ func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 
 	// 응답 — 클라이언트가 사용하는 DeviceStatus 형식과 호환
 	type ifStat struct {
-		Index   int     `json:"Index"`
-		Name    string  `json:"Name"`
-		OperUp  bool    `json:"OperUp"`
-		InBytes uint64  `json:"InBytes"`
-		OutBytes uint64 `json:"OutBytes"`
-		InBps   float64 `json:"InBps"`
-		OutBps  float64 `json:"OutBps"`
+		Index    int     `json:"Index"`
+		Name     string  `json:"Name"`
+		OperUp   bool    `json:"OperUp"`
+		InBytes  uint64  `json:"InBytes"`
+		OutBytes uint64  `json:"OutBytes"`
+		InBps    float64 `json:"InBps"`
+		OutBps   float64 `json:"OutBps"`
 	}
 	type devStat struct {
 		Device      snmp.Device `json:"Device"`
@@ -181,10 +181,14 @@ func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 		LastError   string      `json:"LastError,omitempty"`
 		ResponseMs  int64       `json:"ResponseMs,omitempty"`
 		SysDescr    string      `json:"SysDescr,omitempty"`
+		DownSince   *time.Time  `json:"DownSince,omitempty"` // 화면 "N분째"와 확인 유효성 판단에 씀 — 빠져 있어 늘 비어 보였음
+		NoData      bool        `json:"NoData,omitempty"`    // 수집 경로가 끊겨 상태를 모름 — 알림도 보류 중이라 '응답 없음'으로 보이면 안 됨
 	}
 
 	out := make([]devStat, 0, len(devices))
 	nowStr := time.Now().Format(time.RFC3339)
+	// 응답 여부는 알림과 같은 조회(수집기별 최신 샘플) — 장비별 스냅샷은 첫 시계열을 써서 복구 뒤 몇 분간 '응답 없음'이 남음
+	latest, upErr := prom.SNMPUpAll(h.prometheusURL)
 	for _, d := range devices {
 		snap, _ := prom.SNMPStatusForDevice(h.prometheusURL, d.Name)
 		ds := devStat{
@@ -203,11 +207,17 @@ func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 		}
-		// Prometheus에 데이터 없으면 — server 직접 폴링 결과(메모리)도 함께 확인
+		// 알림과 같은 판정 — 에이전트 수집 값이나 서버 직접 폴링 중 하나라도 응답하면 정상
+		if upErr == nil {
+			ds.Up = latest[d.Name].Up
+		}
+		ds.Up = h.poller.Up(d, map[string]bool{d.Name: ds.Up}, time.Now())
 		if !ds.Up {
 			if memStatus := h.poller.Status(d.ID); memStatus != nil && memStatus.LastError != "" {
 				ds.LastError = memStatus.LastError
 			}
+			ds.DownSince = h.poller.DownSince(d.ID)
+			ds.NoData = h.poller.NoData(d.ID)
 		}
 		out = append(out, ds)
 	}

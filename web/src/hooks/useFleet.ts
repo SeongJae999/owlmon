@@ -158,17 +158,17 @@ export function useFleet() {
     })
   }
   for (const d of snmp ?? []) {
-    const down = !!d.CollectedAt && !d.Up
+    const down = !!d.CollectedAt && !d.Up && !d.NoData
     const key = { host: d.Device.Name, category: 'snmp', severity: 'critical' }
-    // 네트워크 장비는 메일 경로가 없어 서버가 확인을 풀지 않음 — 이번 장애가 시작된 뒤의 확인만 인정
+    // 이번 장애가 시작된 뒤의 확인만 인정 — 서버도 같은 기준(DownSince 이전 확인만 해제)으로 알림을 거름
     const a = down ? ackOf(key) : undefined
     const ackValid = a && (!d.DownSince || a.acked_at >= d.DownSince)
     tiles.push({
       key: `n-${d.Device.ID}`, group: '네트워크 장비', name: d.Device.Name, sub: d.Device.IP, purpose: purposeOf(d.Device.Name),
-      state: !d.CollectedAt ? 'wait' : d.Up ? 'ok' : 'crit',
+      state: !d.CollectedAt || (!d.Up && d.NoData) ? 'wait' : d.Up ? 'ok' : 'crit',
       down,
-      since: d.Up ? undefined : d.DownSince,
-      detail: !d.CollectedAt ? '첫 응답 대기' : d.Up ? `응답 ${d.ResponseMs ?? 0}ms` : '응답 없음',
+      since: d.Up || d.NoData ? undefined : d.DownSince,
+      detail: !d.CollectedAt ? '첫 응답 대기' : d.Up ? `응답 ${d.ResponseMs ?? 0}ms` : d.NoData ? '수집 끊김 — 담당 에이전트 확인' : '응답 없음',
       acked: ackValid ? { by: a.acked_by, at: a.acked_at } : undefined,
       ackKeys: down && !ackValid ? [key] : undefined,
       to: `/snmp?focus=${d.Device.ID}`,

@@ -16,11 +16,11 @@ import (
 const (
 	oidSysName    = "1.3.6.1.2.1.1.5.0"
 	oidSysUpTime  = "1.3.6.1.2.1.1.3.0"
-	oidIfDescr    = "1.3.6.1.2.1.2.2.1.2"    // 인터페이스 이름 테이블
-	oidIfOperStat = "1.3.6.1.2.1.2.2.1.8"    // 운영 상태 (1=up, 2=down)
-	oidIfInOctets = "1.3.6.1.2.1.2.2.1.10"   // 수신 바이트 (32bit)
-	oidIfOutOctet = "1.3.6.1.2.1.2.2.1.16"   // 송신 바이트 (32bit)
-	oidHCIn       = "1.3.6.1.2.1.31.1.1.1.6" // 수신 바이트 (64bit)
+	oidIfDescr    = "1.3.6.1.2.1.2.2.1.2"     // 인터페이스 이름 테이블
+	oidIfOperStat = "1.3.6.1.2.1.2.2.1.8"     // 운영 상태 (1=up, 2=down)
+	oidIfInOctets = "1.3.6.1.2.1.2.2.1.10"    // 수신 바이트 (32bit)
+	oidIfOutOctet = "1.3.6.1.2.1.2.2.1.16"    // 송신 바이트 (32bit)
+	oidHCIn       = "1.3.6.1.2.1.31.1.1.1.6"  // 수신 바이트 (64bit)
 	oidHCOut      = "1.3.6.1.2.1.31.1.1.1.10" // 송신 바이트 (64bit)
 )
 
@@ -35,13 +35,13 @@ type Device struct {
 
 // InterfaceStats는 단일 인터페이스 상태입니다.
 type InterfaceStats struct {
-	Index     int
-	Name      string
-	OperUp    bool    // true = up
-	InBytes   uint64
-	OutBytes  uint64
-	InBps     float64 // bytes/sec (delta)
-	OutBps    float64 // bytes/sec (delta)
+	Index    int
+	Name     string
+	OperUp   bool // true = up
+	InBytes  uint64
+	OutBytes uint64
+	InBps    float64 // bytes/sec (delta)
+	OutBps   float64 // bytes/sec (delta)
 }
 
 // DeviceStatus는 장비 전체 상태입니다.
@@ -51,9 +51,9 @@ type DeviceStatus struct {
 	UptimeSec   float64
 	Interfaces  []InterfaceStats
 	CollectedAt time.Time
-	LastError   string `json:",omitempty"` // 폴링 실패 시 사람이 읽을 수 있는 메시지
+	LastError   string     `json:",omitempty"` // 폴링 실패 시 사람이 읽을 수 있는 메시지
 	DownSince   *time.Time `json:",omitempty"` // 응답이 끊기기 시작한 시각 (상황판 "N분째" 표시)
-	ResponseMs  int64                       // 폴링 소요 시간 (ms)
+	ResponseMs  int64      // 폴링 소요 시간 (ms)
 }
 
 // ifCounter는 이전 폴링 값(delta 계산용)을 저장합니다.
@@ -65,9 +65,28 @@ type ifCounter struct {
 // Poller는 SNMP 장비를 주기적으로 폴링합니다.
 type Poller struct {
 	mu       sync.RWMutex
-	statuses map[int64]*DeviceStatus  // device ID → 최신 상태
-	counters map[string]*ifCounter    // "deviceID:ifIndex" → 이전 카운터
-	inflight map[int64]bool           // 폴링 진행 중인 장비 (느린 장비 중복 폴링 → 고루틴 누적 방지)
+	statuses map[int64]*DeviceStatus // device ID → 최신 상태
+	counters map[string]*ifCounter   // "deviceID:ifIndex" → 이전 카운터
+	inflight map[int64]bool          // 폴링 진행 중인 장비 (느린 장비 중복 폴링 → 고루틴 누적 방지)
+	watch    map[int64]*downWatch    // 장애 알림용 판정 (Observe)
+}
+
+type downWatch struct {
+	name     string // 이름이 바뀌면 옛 이름으로 걸린 알림·확인을 풀어야 함
+	streak   int    // 연속 무응답
+	upStreak int    // 장애 알림 뒤 연속 응답
+	since    time.Time
+	alerted  bool
+	// 마지막으로 센 샘플 시각 — 같은 샘플을 주기마다 다시 세면 '연속 두 번'이 한 번 유실로 채워짐.
+	// 출처별로 따로 비교 — 서버 폴링 시각이 흘렀다고 같은 에이전트 샘플을 다시 세지 않게
+	agentAt, serverAt time.Time
+	serverReach       bool // 서버 직접 폴링이 응답받은 적 있음 — 서버가 닿는 장비라 서버 폴링 실패가 장애 근거가 됨
+	noData            bool // 직전 판정에 근거가 없었음(수집 경로 끊김) — 화면이 '응답 없음' 대신 '수집 끊김'으로 보이게
+}
+
+// 장애 판정 기록만 초기화 — 샘플 시각·도달 여부는 유지
+func (w *downWatch) reset() {
+	w.streak, w.upStreak, w.since, w.alerted = 0, 0, time.Time{}, false
 }
 
 func NewPoller() *Poller {
@@ -75,7 +94,149 @@ func NewPoller() *Poller {
 		statuses: make(map[int64]*DeviceStatus),
 		inflight: make(map[int64]bool),
 		counters: make(map[string]*ifCounter),
+		watch:    make(map[int64]*downWatch),
 	}
+}
+
+// 한 번 놓친 응답(UDP 유실)으로 알림이 나가지 않게 연속 두 번(약 1분) 응답이 없어야 장애로 봄.
+// 복구도 연속 두 번 — 링크가 불안정한 장비가 주기마다 위험·복구를 반복해 보내지 않게
+const (
+	downAfter = 2
+	upAfter   = 2
+)
+
+// Event는 장애 시작·복구 전환. Removed는 장애 중에 목록에서 빠지거나 이름이 바뀐 장비 — 복구 알림 없이 옛 이름의 알림만 정리
+type Event struct {
+	Device  Device
+	Down    bool // true = 장애 시작, false = 복구
+	Removed bool
+	Since   time.Time // 응답이 끊기기 시작한 시각
+}
+
+// 서버 직접 폴링 결과가 이보다 오래되면 응답 근거로 쓰지 않음
+const memFresh = 2 * time.Minute
+
+// Up은 화면·알림이 같은 기준을 쓰도록 한 곳에서 판정 — 에이전트가 수집한 값(Prometheus) 또는 서버 직접 폴링 중 하나라도 응답하면 정상
+func (p *Poller) Up(dev Device, promUp map[string]bool, now time.Time) bool {
+	if promUp[dev.Name] {
+		return true
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	st := p.statuses[dev.ID]
+	return st != nil && st.Up && now.Sub(st.CollectedAt) < memFresh
+}
+
+// Sample은 에이전트가 수집한 장비 응답 (Prometheus snmp_device_up 최신 샘플)
+type Sample struct {
+	Up bool
+	At time.Time
+}
+
+// evidence는 응답 여부와 근거가 된 샘플 시각(출처별)을 돌려줌. 둘 다 0이면 근거 없음. 호출 측이 p.mu를 잡고 있어야 함.
+// 서버 폴링 실패는 서버가 닿는 장비(응답받은 적 있음)거나 에이전트 수집 기록이 없는 장비일 때만 근거 —
+// 에이전트가 오래 꺼져도 서버가 못 닿는 망분리 장비 전부가 장애로 나가지 않게
+func (p *Poller) evidence(dev Device, w *downWatch, latest map[string]Sample, recent map[string]bool, now time.Time) (up bool, agentAt, serverAt time.Time) {
+	s, inProm := latest[dev.Name]
+	st := p.statuses[dev.ID]
+	fresh := st != nil && now.Sub(st.CollectedAt) < memFresh
+	if fresh && st.Up {
+		w.serverReach = true
+	}
+	switch {
+	case inProm && s.Up:
+		return true, s.At, time.Time{}
+	case fresh && st.Up:
+		return true, time.Time{}, st.CollectedAt
+	}
+	if inProm {
+		agentAt = s.At
+	}
+	if fresh && (w.serverReach || !recent[dev.Name]) {
+		serverAt = st.CollectedAt
+	}
+	return false, agentAt, serverAt
+}
+
+// Observe는 감시 주기마다 불려 장애 시작·복구 전환만 돌려줌. 목록에서 빠진 장비의 기록은 지움
+func (p *Poller) Observe(devices []Device, latest map[string]Sample, recent map[string]bool, now time.Time) []Event {
+	var events []Event
+	seen := map[int64]bool{}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, d := range devices {
+		seen[d.ID] = true
+		w := p.watch[d.ID]
+		if w != nil && w.name != d.Name {
+			if w.alerted {
+				events = append(events, Event{Device: Device{ID: d.ID, Name: w.name, IP: d.IP}, Removed: true, Since: w.since})
+			}
+			w = nil
+		}
+		if w == nil {
+			w = &downWatch{name: d.Name}
+			p.watch[d.ID] = w
+		}
+		up, agentAt, serverAt := p.evidence(d, w, latest, recent, now)
+		w.noData = !up && agentAt.IsZero() && serverAt.IsZero()
+		newAgent, newServer := agentAt.After(w.agentAt), serverAt.After(w.serverAt)
+		if newAgent {
+			w.agentAt = agentAt
+		}
+		if newServer {
+			w.serverAt = serverAt
+		}
+		switch {
+		case !newAgent && !newServer:
+			// 근거 없음이거나 새 샘플 없음 — 연속 횟수를 그대로 둠 (수집 주기가 감시 주기보다 길거나 폴링이 밀림)
+		case up && w.alerted:
+			w.upStreak++
+			if w.upStreak >= upAfter {
+				events = append(events, Event{Device: d, Down: false, Since: w.since})
+				w.reset()
+			}
+		case up:
+			w.reset()
+		default:
+			w.upStreak = 0
+			if w.streak == 0 {
+				w.since = now
+			}
+			w.streak++
+			if w.streak >= downAfter && !w.alerted {
+				w.alerted = true
+				events = append(events, Event{Device: d, Down: true, Since: w.since})
+			}
+		}
+	}
+	for id, w := range p.watch {
+		if !seen[id] {
+			if w.alerted {
+				events = append(events, Event{Device: Device{ID: id, Name: w.name}, Removed: true, Since: w.since})
+			}
+			delete(p.watch, id)
+		}
+	}
+	return events
+}
+
+// NoData는 직전 판정에 근거가 없던 장비 — 에이전트 수집이 끊겼고 서버도 닿지 않아 상태를 모름
+func (p *Poller) NoData(id int64) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	w := p.watch[id]
+	return w != nil && w.noData
+}
+
+// DownSince는 응답이 끊긴 장비의 시작 시각 (응답 중이면 nil) — 화면의 "N분째"
+func (p *Poller) DownSince(id int64) *time.Time {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if w := p.watch[id]; w != nil && w.streak > 0 {
+		t := w.since
+		return &t
+	}
+	return nil
 }
 
 // Poll은 단일 장비를 폴링하고 내부 상태를 갱신합니다.

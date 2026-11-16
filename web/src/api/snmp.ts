@@ -27,6 +27,7 @@ export interface DeviceStatus {
   LastError?: string
   ResponseMs?: number
   DownSince?: string
+  NoData?: boolean // 에이전트 수집이 끊기고 서버도 닿지 않아 상태를 모름 — 알림도 보류 중
 }
 
 export async function getSNMPDevices(): Promise<SNMPDevice[]> {

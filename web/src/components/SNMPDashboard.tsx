@@ -51,7 +51,7 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
   return (
     <div className={cn(
       "bg-base-900 rounded-xl border p-5 shadow-premium transition relative overflow-hidden",
-      status.Up ? "border-base-800" : "border-rose-500/40 ring-1 ring-rose-500/20"
+      status.Up || status.NoData ? "border-base-800" : "border-rose-500/40 ring-1 ring-rose-500/20"
     )}>
 
       {/* Header */}
@@ -59,7 +59,7 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-2.5 h-2.5 rounded-full ring-4 ring-offset-2 ring-offset-base-900",
-            status.Up ? "bg-emerald-500 ring-emerald-500/20 animate-pulse" : "bg-rose-500 ring-rose-500/20"
+            status.Up ? "bg-emerald-500 ring-emerald-500/20 animate-pulse" : status.NoData ? "bg-base-500 ring-base-500/20" : "bg-rose-500 ring-rose-500/20"
           )} />
           <div>
             <h4 className="font-bold text-base-100 leading-tight">{status.Device.Name}</h4>
@@ -102,7 +102,17 @@ function DeviceCard({ status, onDelete, onEdit }: { status: DeviceStatus; onDele
         </div>
       </div>
 
-      {!status.Up ? (
+      {!status.Up && status.NoData ? (
+        <div className="bg-base-800/60 border border-base-700 rounded-xl p-4 flex items-start gap-3 text-base-200 text-xs font-medium">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5 text-base-400" />
+          <div className="space-y-1 min-w-0">
+            <p className="font-bold">수집 끊김 — 상태 모름</p>
+            <p className="text-xs text-base-400">
+              이 장비를 수집하던 에이전트의 값이 들어오지 않고, 서버도 직접 닿지 않습니다. 장비 장애로 단정할 수 없어 알림을 보내지 않습니다. 담당 에이전트(PC)가 켜져 있는지 확인하세요.
+            </p>
+          </div>
+        </div>
+      ) : !status.Up ? (
         <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-start gap-3 text-rose-200 text-xs font-medium">
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <div className="space-y-1 min-w-0">

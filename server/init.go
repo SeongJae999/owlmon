@@ -271,6 +271,8 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 			appCtx.SNMPPoller = snmppkg.NewPoller()
 		}
 		go func() {
+			var agentSeen map[string]bool
+			var seenAt time.Time
 			ticker := time.NewTicker(30 * time.Second) // 60s → 30s (UI 갱신 체감 ↑)
 			defer ticker.Stop()
 			for {
@@ -278,6 +280,28 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 				if err == nil {
 					for _, dev := range devices {
 						go appCtx.SNMPPoller.Poll(dev)
+					}
+					// 화면에만 "응답 없음"이 뜨고 알림이 없던 것 — 같은 판정으로 장애 시작·복구를 알림
+					if agentSeen == nil || time.Since(seenAt) > 10*time.Minute {
+						if m, err := prom.SNMPAgentSeen(prometheusURL); err == nil {
+							agentSeen, seenAt = m, time.Now()
+						}
+					}
+					latest, err := prom.SNMPUpAll(prometheusURL)
+					switch {
+					case agentSeen == nil:
+						// 기동 후 한 번도 못 읽음 — 어느 장비가 에이전트 수집인지 몰라 판정하면 오경보가 쏟아짐
+						log.Printf("[SNMP] 응답 판정 건너뜀 — Prometheus에서 에이전트 수집 기록을 아직 못 읽음")
+					default:
+						if err != nil {
+							// 잠시 안 되면 서버 폴링 근거만으로 판정 — 에이전트 수집 장비는 근거 없음으로 보류
+							log.Printf("[SNMP] Prometheus 조회 실패 — 서버 폴링 결과로만 판정: %v", err)
+						}
+						samples := make(map[string]snmppkg.Sample, len(latest))
+						for name, x := range latest {
+							samples[name] = snmppkg.Sample{Up: x.Up, At: x.At}
+						}
+						notifySNMP(checker, appCtx.SNMPPoller.Observe(devices, samples, agentSeen, time.Now()))
 					}
 				}
 				select {
@@ -383,4 +407,32 @@ func buildHostContext(prometheusURL string, detector *anomaly.Detector, host str
 		}
 	}
 	return b.String()
+}
+
+func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
+	var downs, ups []alert.Alert
+	for _, ev := range events {
+		d := ev.Device
+		switch {
+		case ev.Removed:
+			// 장애 중에 지우거나 이름을 바꾼 장비 — 확인할 화면이 없어 옛 이름의 확인·단계 통보 대기만 정리
+			checker.ClearAck(d.Name, "snmp", "critical")
+		case ev.Down:
+			// 이번 장애가 시작되기 전에 눌린 확인만 풂 — 화면에 '응답 없음'이 뜬 뒤 알림 판정 전에 누른 확인은 살려 둠
+			if a, ok := checker.AckInfo(d.Name, "snmp", "critical"); ok && a.At.Before(ev.Since) {
+				checker.ClearAck(d.Name, "snmp", "critical")
+			}
+			downs = append(downs, alert.Alert{Host: d.Name, Category: "snmp",
+				Subject: fmt.Sprintf("[위험] %s 네트워크 장비 응답 없음", d.Name),
+				Body:    fmt.Sprintf("장비: %s\nIP: %s\n응답 없음 시작: %s\n\nSNMP 응답이 없습니다. 전원·케이블·장비 상태를 확인하세요.", d.Name, d.IP, ev.Since.Format("2006-01-02 15:04:05"))})
+		default:
+			checker.ClearAck(d.Name, "snmp", "critical")
+			ups = append(ups, alert.Alert{Host: d.Name, Category: "snmp",
+				Subject: fmt.Sprintf("[복구] %s 네트워크 장비 응답 복구", d.Name),
+				Body:    fmt.Sprintf("장비: %s\nIP: %s\n장애 시간: 약 %d분\n\nSNMP 응답이 다시 들어옵니다.", d.Name, d.IP, int(time.Since(ev.Since).Minutes()+0.5))})
+		}
+	}
+	// 상위 스위치 하나가 죽으면 아래 장비가 같은 주기에 모두 끊김 — 많으면 한 통으로
+	checker.SendGroup("critical", "[위험] 네트워크 장비 %d대 응답 없음", downs)
+	checker.SendGroup("info", "[복구] 네트워크 장비 %d대 응답 복구", ups)
 }
