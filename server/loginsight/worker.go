@@ -176,7 +176,8 @@ func (w *Worker) processGroups(ctx context.Context, groups []LogGroup) (int, err
 			break
 		}
 		cached, _ := w.store.ByTemplate(ctx, g.TemplateHash, g.HostName, w.cfg.CacheTTL)
-		if cached != nil {
+		// 해설이 바뀌었거나 꺼졌으면 옛 해설로 만든 분석을 재사용하지 않는다
+		if cached != nil && errCodeCacheOK(cached.ErrCodeSig) {
 			_ = w.store.TouchTemplate(ctx, g.TemplateHash)
 			continue
 		}

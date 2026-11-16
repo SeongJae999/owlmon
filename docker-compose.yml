@@ -92,6 +92,9 @@ services:
       - OWLMON_OLLAMA_URL=${OWLMON_OLLAMA_URL:-http://host.docker.internal:11434}
       - OWLMON_OLLAMA_MODEL=${OWLMON_OLLAMA_MODEL:-gemma4:12b}
       - OWLMON_LOGINSIGHT_ENABLED=${OWLMON_LOGINSIGHT_ENABLED:-false}
+      # 오류 코드 해설이 틀렸을 때 현장에서 끄는 스위치 (재시작만으로 적용)
+      - OWLMON_LOGINSIGHT_ERRCODE_DICT=${OWLMON_LOGINSIGHT_ERRCODE_DICT:-}
+      - OWLMON_LOGINSIGHT_ERRCODE_OFF=${OWLMON_LOGINSIGHT_ERRCODE_OFF:-}
     volumes:
       - ./data/owlmon-server:/app/data   # JWT secret 등 영속화
     depends_on:

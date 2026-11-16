@@ -26,10 +26,12 @@ var (
 	// "Failed password for root", "Accepted publickey for bob",
 	// "Failed password for invalid user oracle" (sshd)
 	reAuthFor = regexp.MustCompile(`(?i)\b((?:Failed|Accepted|Postponed) \S+ for (?:invalid user )?)([^\s,;:]+)`)
+	// sshd 계정명에는 공백도 들어간다 — 끝의 "from <IP> port <N>"까지를 통째로 계정명으로 본다
+	reSshdUser = regexp.MustCompile(`(?i)\b(Invalid user |(?:Failed|Accepted|Postponed) \S+ for (?:invalid user )?)(.+)( from \S+ port \d+)`)
 	// "Invalid user admin from ..." (sshd)
 	reInvalidUser = regexp.MustCompile(`(?i)\b(Invalid user )([^\s,;:]+)`)
 	// "session opened for user root by ..." (pam)
-	reForUser = regexp.MustCompile(`(?i)\b(for user )([^\s,;:]+)`)
+	reForUser = regexp.MustCompile(`(?i)\b(for user )('[^']*'[^\s,;:]*|"[^"]*"[^\s,;:]*|[^\s,;:]+)`)
 	// "authentication failure; ... user=root" (pam)
 	reUserEq = regexp.MustCompile(`(?i)\b(user=)([^\s,;:]+)`)
 )
@@ -70,7 +72,8 @@ func IncidentKey(line string) string {
 //
 // 같은 패턴의 로그가 같은 템플릿을 산출해야 클러스터링이 의미를 갖는다.
 func Templatize(line string) string {
-	s := strings.TrimSpace(line)
+	s := strings.ReplaceAll(strings.TrimSpace(line), codeMark, "") // 원문에 표식 문자가 있으면 restoreCodes가 숫자로 바꿔 코드를 만들어 낸다
+	s = reSshdUser.ReplaceAllString(s, "${1}<USER>${3}")
 	s = reAuthFor.ReplaceAllString(s, "${1}<USER>")
 	s = reInvalidUser.ReplaceAllString(s, "${1}<USER>")
 	s = reForUser.ReplaceAllString(s, "${1}<USER>")
@@ -82,10 +85,13 @@ func Templatize(line string) string {
 	s = reHex.ReplaceAllString(s, "<HEX>")
 	s = reBareHex.ReplaceAllStringFunc(s, bareHex)
 	s = reQuoted.ReplaceAllString(s, "<STR>")
+	// 따옴표·계정명·경로를 지운 뒤에 보존한다 — 요청 경로나 입력값에 넣은 코드로 묶음을 쪼개거나 해설을 끌어오지 못하게.
+	// ponytail: 축약형 홑따옴표(can't)와 뒤 따옴표 사이에 낀 진짜 코드나 JSON 줄의 코드는 <STR>에 먹혀 해설을 잃는다(사전 도입 전과 같은 상태)
+	s = protectCodes(s)
 	s = reNum.ReplaceAllString(s, "<N>")
 	// 공백 정규화 (다중 공백 → 단일 공백)
 	s = strings.Join(strings.Fields(s), " ")
-	return s
+	return restoreCodes(s)
 }
 
 // bareHex — 숫자와 a-f가 섞인 토큰만 <HEX>. 순수 숫자는 <N>으로, 영단어(deadbeef 등)는 그대로 둔다.

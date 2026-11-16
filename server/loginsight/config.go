@@ -16,6 +16,8 @@ import (
 //	OWLMON_LOGINSIGHT_PER_HOST_PER_MIN  호스트당 분당 그룹 한도 기본 10
 //	OWLMON_LOGINSIGHT_CACHE_TTL         템플릿 캐시 TTL 기본 24h
 //	OWLMON_LOGINSIGHT_MAX_LLM_PER_TICK  tick당 최대 LLM 호출 기본 20
+//	OWLMON_LOGINSIGHT_ERRCODE_DICT      off면 오류 코드 사전 전체를 끔 (기본 켬)
+//	OWLMON_LOGINSIGHT_ERRCODE_OFF       해설만 끌 코드 목록 (예: TBR-2131,MSSQL-9002)
 type Config struct {
 	Enabled            bool
 	Interval           time.Duration

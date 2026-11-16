@@ -102,6 +102,7 @@ type caseResult struct {
 type report struct {
 	Model      string       `json:"model"`
 	PromptHash string       `json:"prompt_hash"`
+	Cond       string       `json:"cond,omitempty"`
 	At         time.Time    `json:"at"`
 	Split      string       `json:"split"`
 	Repeat     int          `json:"repeat"`
@@ -116,6 +117,7 @@ func main() {
 	out := flag.String("out", "", "결과 JSON 저장 경로 (비우면 ../scripts/llm-eval/results/<시각>-<모델>.json)")
 	compare := flag.String("compare", "", "두 결과 비교: 이전.json,이후.json")
 	rescore := flag.String("rescore", "", "저장된 결과에 현재 정답지를 다시 적용 (모델 재호출 없음)")
+	cond := flag.String("cond", "1", "0 = 오류 코드 지시문·사전 없음 | 1a = 지시문만 | 1 = 지시문 + 사전 (운영과 같음)")
 	flag.Parse()
 
 	if *repeat < 1 {
@@ -147,9 +149,24 @@ func main() {
 		Model: *model,
 		JSON:  os.Getenv("LLMEVAL_PLAIN") == "", // 운영 워커와 같은 설정으로 평가
 	}
-	h := sha256.Sum256([]byte(loginsight.SystemPromptLogCluster))
-	rep := report{Model: provider.Name(), PromptHash: hex.EncodeToString(h[:4]), At: time.Now(), Split: *split, Repeat: *repeat}
-	fmt.Printf("모델 %s · 프롬프트 %s · 케이스 %d건 × %d회 (split=%s)\n\n", rep.Model, rep.PromptHash, len(cases), *repeat, *split)
+	sys := loginsight.SystemPromptLogCluster
+	hashIn := sys
+	switch *cond {
+	case "0":
+		sys = strings.Replace(sys, loginsight.ErrCodeRules, "", 1)
+		hashIn = sys
+		os.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "off")
+	case "1a":
+		os.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "off")
+	case "1":
+		// 사전만 바꾼 결과도 해시로 구분되게 한다
+		hashIn += loginsight.ErrCodeDigest()
+	default:
+		fail("-cond는 0, 1a, 1 중 하나입니다")
+	}
+	h := sha256.Sum256([]byte(hashIn))
+	rep := report{Model: provider.Name(), PromptHash: hex.EncodeToString(h[:4]), Cond: *cond, At: time.Now(), Split: *split, Repeat: *repeat}
+	fmt.Printf("모델 %s · 프롬프트 %s · 조건 %s · 케이스 %d건 × %d회 (split=%s)\n\n", rep.Model, rep.PromptHash, *cond, len(cases), *repeat, *split)
 
 	for _, c := range cases {
 		cr := caseResult{ID: c.ID, File: c.file, Tags: c.Tags, Split: c.Split, Label: c.Label, Consistent: true,
@@ -157,7 +174,7 @@ func main() {
 		msg := buildUserMsg(c)
 		passed := 0
 		for i := 0; i < *repeat; i++ {
-			r := runOnce(provider, msg, c)
+			r := runOnce(provider, sys, msg, c)
 			if r.Pass {
 				passed++
 			}
@@ -221,11 +238,11 @@ func buildUserMsg(c evalCase) string {
 	return msg
 }
 
-func runOnce(p *llm.OllamaProvider, msg string, c evalCase) runResult {
+func runOnce(p *llm.OllamaProvider, sys, msg string, c evalCase) runResult {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	start := time.Now()
-	raw, err := p.Complete(ctx, loginsight.SystemPromptLogCluster, msg)
+	raw, err := p.Complete(ctx, sys, msg)
 	r := runResult{LatencyMs: time.Since(start).Milliseconds()}
 	if err != nil {
 		r.Err = err.Error()

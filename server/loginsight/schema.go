@@ -38,6 +38,8 @@ type Insight struct {
 	IncidentKey  string  `json:"incident_key,omitempty"` // 화면에서 같은 원인 카드를 합치는 키
 	// logs는 30일 뒤 지워지고 호스트 상태·패턴 이력은 분석 시점 값이라, 학습 쌍의 입력은 보낸 그대로 남겨야 한다
 	InputText string `json:"-"`
+	// 분석에 붙인 오류 코드 해설의 해시 — 해설을 고치거나 끄면 캐시만 무효화하고 template_hash(이력·카드)는 유지
+	ErrCodeSig string `json:"-"`
 
 	// LLM이 JSON으로 채우는 필드
 	Severity    Severity `json:"severity"`

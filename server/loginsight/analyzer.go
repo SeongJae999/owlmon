@@ -108,6 +108,9 @@ func (a *Analyzer) Analyze(ctx context.Context, g LogGroup) (*Insight, error) {
 	ins.HostName = g.HostName
 	ins.IncidentKey = g.IncidentKey
 	ins.InputText = userMsg
+	if hasErrCodes(g.SampleLines) {
+		ins.ErrCodeSig = errCodeStateSig()
+	}
 	ins.SampleLogIDs = g.SampleLogIDs
 	ins.ModelName = a.provider.Name()
 	ins.LatencyMs = int(latency.Milliseconds())

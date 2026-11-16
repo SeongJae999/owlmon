@@ -140,6 +140,41 @@ func newTestWorker(ana analyzerIface, store storeIface, budget int) *Worker {
 	}
 }
 
+// 해설을 붙인 분석이 캐시로 재사용되고, 원인 묶음의 샘플 구성이 바뀌어도 유지되며, 해설을 끄면 다시 분석된다
+func TestProcessGroups_ErrCodeCacheRoundTrip(t *testing.T) {
+	prov := &stubProvider{name: "stub", response: validJSON()}
+	store := newStubStore()
+	w := newTestWorker(NewAnalyzer(prov), store, 10)
+	ctx := context.Background()
+	withCode := LogGroup{TemplateHash: "ik", HostName: "db1", SampleLines: []string{"TBR-2131: Generic I/O error."}}
+	noCode := LogGroup{TemplateHash: "ik", HostName: "db1", SampleLines: []string{"connect to 10.0.0.5 refused"}}
+
+	run := func(g LogGroup) int {
+		n, err := w.processGroups(ctx, []LogGroup{g})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n > 0 {
+			store.cached["ik"] = &store.saved[len(store.saved)-1]
+		}
+		return n
+	}
+	if run(withCode) != 1 || store.saved[0].ErrCodeSig == "" {
+		t.Fatalf("첫 분석은 해설 상태를 남겨야 함: %+v", store.saved)
+	}
+	if run(noCode) != 0 || run(withCode) != 0 {
+		t.Error("사전이 그대로면 샘플 구성이 바뀌어도 캐시를 재사용해야 함")
+	}
+	t.Setenv("OWLMON_LOGINSIGHT_ERRCODE_OFF", "TBR-2131")
+	if run(withCode) != 1 {
+		t.Error("해설을 끄면 해설로 만든 분석을 다시 해야 함")
+	}
+	t.Setenv("OWLMON_LOGINSIGHT_ERRCODE_OFF", "")
+	if run(withCode) != 1 {
+		t.Error("해설을 다시 켜면 끈 동안 만든 분석을 다시 해야 함")
+	}
+}
+
 func TestProcessGroups_CacheHitSkipsLLM(t *testing.T) {
 	ana := &stubAnalyzer{}
 	store := newStubStore()

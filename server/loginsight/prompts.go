@@ -83,6 +83,7 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
   아니라 애플리케이션/설정 문제일 가능성을 root_cause_ko에 반영하라.
 - 상태 블록이 없거나 "데이터 없음"이면 로그 내용만으로 판단하라. 수치가 없다는 이유로 심각도를 올리거나 낮추지 마라.
 
+` + ErrCodeRules + `
 패턴 이력 활용 (장기 미해결 감지):
 - 입력에 "[패턴 이력]"이 있으면 같은 문제가 그 기간 동안 해결되지 않고 반복된 것이다.
 - 실제 장애 신호(연결 실패, 저장소·백업 실패, 서비스 다운, 디스크/메모리/I/O 오류)가 3일 이상
@@ -114,6 +115,20 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
 [입력] nginx: connect() failed (<N>: Connection refused) while connecting to upstream (1회)
 [출력] {"severity":"medium","category":"network","summary_ko":"백엔드 연결 일시 실패(1회)","root_cause_ko":"백엔드 프로세스 재시작 등 일시적 원인 추정. 반복되면 심각","action_ko":"백엔드 서비스 상태 확인. 반복 발생 시 high로 대응","needs_human":false}`
 
+// ErrCodeRules — 평가 도구가 조건 0(지시문 없음)을 재려고 이 절만 떼어 낼 수 있게 따로 둔다
+const ErrCodeRules = `오류 코드 해설 활용 (제품 고유 오류 코드):
+- 입력에 "[오류 코드 해설]" 블록이 있으면 로그 속 제품 오류 코드(TBR-, MSSQL "Error: 번호" 등)의 뜻은 그 해설을 따른다.
+  영문 메시지의 낱말(I/O, disk, file 등)만 보고 해설과 다른 뜻으로 읽지 마라.
+- root_cause_ko와 action_ko는 해설의 뜻에 맞춰 써라. 해설과 관계없는 장비·조치(예: 통신 오류인데 디스크 점검)를 권하지 마라.
+  해설에 "넘길 곳"이 있으면 action_ko에 그 담당에게 넘기라고 적어라.
+- 해설은 코드의 일반적인 뜻일 뿐 이번 장애의 원인 확정이 아니다. 심각도는 위 심각도 기준(반복 횟수·[패턴 이력]·호스트 상태)으로 정하고,
+  해설 문구만으로 올리거나 내리지 마라.
+- [현재 호스트 상태]에 실측 이상(디스크 가득 참 등)이 있으면 해설과 별개로 root_cause_ko에 함께 적어라.
+- 해설 블록에 없는 제품 오류 코드는 뜻을 아는 것처럼 쓰지 마라. 코드 번호로 원인을 단정하지 말고 메시지 문구로만 판단해
+  root_cause_ko에 "추정"을 붙이고, action_ko에 "제조사 문서에서 오류 코드 확인"을 넣어라.
+  근거 없이 재시작·재설치·패치·디스크 점검 같은 큰 조치를 권하지 마라.
+`
+
 // BuildUserMsg — LogGroup을 LLM 유저 메시지로 변환.
 // 워커가 Provider.Complete(SystemPromptLogCluster, BuildUserMsg(group)) 호출에 사용.
 func BuildUserMsg(g LogGroup) string {
@@ -132,6 +147,9 @@ func BuildUserMsg(g LogGroup) string {
 		b.WriteString("] ")
 		b.WriteString(line)
 		b.WriteByte('\n')
+	}
+	if notes := errCodeNotes(g.SampleLines); notes != "" {
+		b.WriteString("\n" + notes)
 	}
 	if g.PriorAnalyses > 0 {
 		days := int(time.Since(g.FirstSeenAt).Hours() / 24)

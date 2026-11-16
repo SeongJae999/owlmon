@@ -84,6 +84,10 @@ func InitDB() *AppContext {
 			appCtx.LogRuleMatchStore = db.NewLogRuleMatchStore(pool)
 			appCtx.AuditStore = audit.NewStore(pool)
 			appCtx.LogInsightStore = loginsight.NewStore(pool)
+			// 조회 API·챗봇도 이 테이블의 열을 읽으므로 분석 워커가 꺼져 있어도 스키마를 맞춘다
+			if err := loginsight.EnsureTables(context.Background(), pool); err != nil {
+				log.Printf("로그 인사이트 테이블 준비 실패: %v", err)
+			}
 			// 룰 엔진 초기화 + 첫 로드
 			engine := rules.NewEngine(pool)
 			if err := engine.Reload(context.Background()); err != nil {
