@@ -51,6 +51,22 @@ CREATE TABLE IF NOT EXISTS racks (
     height INT  NOT NULL DEFAULT 42 CHECK (height BETWEEN 1 AND 60)
 );
 
+-- 장비 그룹 트리 (장비는 그룹 하나에만 속함). ref: 서버는 host_name, SSL은 domain, 나머지는 각 표의 id
+CREATE TABLE IF NOT EXISTS device_groups (
+    id        BIGSERIAL PRIMARY KEY,
+    parent_id BIGINT REFERENCES device_groups(id),
+    name      TEXT NOT NULL CHECK (name <> ''),
+    sort      INT  NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS device_groups_sibling_name ON device_groups (COALESCE(parent_id, 0), name);
+CREATE TABLE IF NOT EXISTS group_members (
+    kind     TEXT   NOT NULL,
+    ref      TEXT   NOT NULL,
+    group_id BIGINT NOT NULL REFERENCES device_groups(id) ON DELETE CASCADE,
+    PRIMARY KEY (kind, ref)
+);
+CREATE INDEX IF NOT EXISTS group_members_group ON group_members (group_id);
+
 -- SNMP 네트워크 장비
 CREATE TABLE IF NOT EXISTS snmp_devices (
     id          BIGSERIAL PRIMARY KEY,
