@@ -1,0 +1,186 @@
+{
+  "model": "ollama:gemma4:12b",
+  "prompt_hash": "9998434b",
+  "cond": "1",
+  "at": "2026-11-15T14:54:58.031545+09:00",
+  "split": "all",
+  "repeat": 5,
+  "cases": [
+    {
+      "id": "err-inject-1",
+      "file": "inject-only.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "tibero",
+        "inject"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 애플리케이션 예외 발생",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자형(Long) 타입으로 변환되지 못해 발생한 오류임",
+          "action_ko": "애플리케이션 로직상 허용되는 파라미터 형식을 확인하고, 클라이언트 측의 입력값 검증을 강화하십시오.",
+          "latency_ms": 16536,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 애플리케이션 예외 발생",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자(Long) 형식이 아니어서 발생한 변환 오류임",
+          "action_ko": "애플리케이션 로직상 허용되지 않는 값이 유입된 것이므로, 클라이언트 측의 입력값 검증 강화 또는 해당 요청에 대한 안내 메시지 처리가 필요함.",
+          "latency_ms": 26083,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 애플리케이션 예외 발생",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자(Long) 형식이 아니어서 발생한 변환 오류임",
+          "action_ko": "애플리케이션 로직상 허용되지 않는 문자열이 유입된 것이므로, 클라이언트 측의 입력값 검증 강화 또는 해당 요청에 대한 안내 메시지 처리가 필요함.",
+          "latency_ms": 26358,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 애플리케이션 예외 발생",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자(Long) 형식이 아니어서 발생한 변환 오류임",
+          "action_ko": "애플리케이션 로직상 허용되지 않는 문자열이 유입된 것이므로, 클라이언트 측의 입력값 검증 강화 또는 해당 요청에 대한 안내 메시지 처리가 필요함.",
+          "latency_ms": 26374,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 요청 처리 오류",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자형(Long) 타입으로 변환되지 못해 발생한 애플리케이션 예외임",
+          "action_ko": "애플리케이션 로직상 허용되는 파라미터 형식을 확인하십시오. 클라이언트 측의 입력값 검증 강화가 필요할 수 있습니다.",
+          "latency_ms": 24484,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "err-inject-2",
+      "file": "inject-only.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "mssql",
+        "inject"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 경로 요청으로 인한 파일 열기 실패",
+          "root_cause_ko": "클라이언트가 존재하지 않는 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청하여 Nginx가 파일을 찾지 못함",
+          "action_ko": "해당 요청이 정상적인 서비스 흐름인지 확인. 특정 오류 코드(824)가 포함된 URL이 생성되는 로직을 점검하십시오.",
+          "latency_ms": 23877,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 요청으로 인한 404 오류",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "해당 경로가 실제 서비스에 필요한 경로인지 확인. 필요 없다면 무시해도 되며, 잘못된 링크라면 수정 안내.",
+          "latency_ms": 23541,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "Nginx 요청 경로에 대한 파일을 찾지 못함",
+          "root_cause_ko": "클라이언트가 요청한 특정 경로(/kb/Error: 824...)에 해당하는 물리적 파일이 서버 내에 존재하지 않음",
+          "action_ko": "해당 경로가 실제 서비스 경로인지 확인하고, 필요 시 파일을 업로드하거나 Nginx 설정에서 해당 경로를 제외 처리하십시오.",
+          "latency_ms": 23537,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 Nginx 요청 처리 실패",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "해당 경로가 실제 서비스 경로인지 확인하고, 잘못된 링크나 오타라면 관련 안내 페이지로 연결되도록 설정 수정.",
+          "latency_ms": 22948,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 Nginx 요청 처리 실패",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "해당 경로가 실제 서비스 경로인지 확인하고, 잘못된 링크나 오타라면 관련 안내 페이지로 연결되도록 설정 수정.",
+          "latency_ms": 22943,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    }
+  ]
+}

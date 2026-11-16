@@ -1,0 +1,2320 @@
+{
+  "model": "ollama:gemma4:12b",
+  "prompt_hash": "299459ea",
+  "cond": "0",
+  "at": "2026-11-15T13:46:59.707299+09:00",
+  "split": "all",
+  "repeat": 5,
+  "cases": [
+    {
+      "id": "err-tbr-1063",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "로그 기록기(Log writer)의 아카이브 대기 발생",
+          "root_cause_ko": "시스템이 로그 파일을 압축/이동하는 과정에서 처리 속도가 지연되어 쓰기 작업이 대기 상태에 빠진 것으로 추정됨.",
+          "action_ko": "최근 5분간 25회 반복 발생했으나 시스템 중단은 아님. logrotate 설정이나 디스크 I/O 부하를 점검하고, 로그 파일 크기가 너무 커서 처리가 지연되는지 확인 필요.",
+          "latency_ms": 25626,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "로그 아카이브 대기 발생 (5분간 25회 반복)",
+          "root_cause_ko": "시스템이 로그 파일을 압축/이동(archive)하는 과정에서 지연이 발생하여 쓰기 작업이 대기 중인 상태로 추정",
+          "action_ko": "최근 생성된 로그 파일의 크기가 과도하게 큰지 확인하고, logrotate 설정 및 디스크 I/O 부하 여부를 점검하십시오.",
+          "latency_ms": 11535,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "로그 아카이브 대기 발생 (5분간 25회 반복)",
+          "root_cause_ko": "시스템이 로그 파일을 압축/이동(archive)하는 과정에서 지연이 발생하여 쓰기 작업이 대기 중인 상태로 추정",
+          "action_ko": "최근 생성된 로그 파일의 크기가 과도하게 큰지 확인하고, logrotate 설정 및 디스크 I/O 부하 여부를 점검하십시오.",
+          "latency_ms": 11531,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "로그 아카이브 대기 중인 로그 기록 프로세스 지연",
+          "root_cause_ko": "시스템이 로그 파일을 압축/이동(archive)하는 과정에서 완료를 기다리는 상태로 추정됨.",
+          "action_ko": "현재 시스템의 디스크 용량(df -h)과 I/O 부하를 확인하고, logrotate 등 관련 프로세스가 정상 작동 중인지 점검하십시오.",
+          "latency_ms": 10882,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "로그 아카이브 대기 상태 발생",
+          "root_cause_ko": "시스템이 로그 파일을 압축/이동(archive)하는 과정에서 완료를 기다리는 중임 (추정)",
+          "action_ko": "현재 서비스에 영향이 없다면 모니터링만 수행. 만약 특정 애플리케이션의 로그가 누적되거나 지연된다면 해당 앱의 로그 로테이션 설정 확인.",
+          "latency_ms": 10874,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-12001",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 연결 세션 종료로 인한 쿼리 실행 오류 발생",
+          "root_cause_ko": "애플리케이션이 이미 닫힌 DB 세션을 사용하려 시도함 (커넥션 풀 설정 또는 타임아웃 문제 추정)",
+          "action_ko": "DB 커넥션 풀(HikariCP 등)의 maxLifetime 및 idleTimeout 설정을 확인하고, 애플리케이션과 DB 간의 연결 유지 정책을 점검하십시오.",
+          "latency_ms": 12755,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 연결 세션 종료로 인한 쿼리 실행 오류 발생",
+          "root_cause_ko": "애플리케이션이 이미 닫힌 DB 세션을 사용하려 시도함 (커넥션 풀 설정 또는 타임아웃 문제 추정)",
+          "action_ko": "DB 커넥션 풀(HikariCP 등)의 maxLifetime 및 idleTimeout 설정을 확인하고, 애플리케이션과 DB 간의 연결 유지 정책을 점검하십시오.",
+          "latency_ms": 11756,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 연결 세션 종료로 인한 쿼리 실행 오류 발생",
+          "root_cause_ko": "애플리케이션이 이미 닫힌 DB 세션을 사용하려 시도함 (커넥션 풀 설정 또는 타임아웃 문제 추정)",
+          "action_ko": "DB 커넥션 풀(HikariCP 등)의 max-lifetime 및 idle-timeout 설정을 확인하고, 애플리케이션과 DB 간의 연결 유지 상태를 점검하십시오.",
+          "latency_ms": 11922,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 연결 세션 종료로 인한 쿼리 실행 오류 발생",
+          "root_cause_ko": "애플리케이션이 이미 닫힌 DB 세션을 사용하려 시도함 (커넥션 풀 설정 또는 타임아웃 문제 추정)",
+          "action_ko": "DB 커넥션 풀(HikariCP 등)의 maxLifetime 및 idleTimeout 설정을 확인하고, 애플리케이션과 DB 간의 연결 유지 정책을 점검하십시오.",
+          "latency_ms": 11762,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 연결 세션 종료로 인한 쿼리 실행 오류 발생",
+          "root_cause_ko": "애플리케이션이 이미 닫힌 DB 세션을 사용하려 시도함 (커넥션 풀 설정 또는 타임아웃 문제 추정)",
+          "action_ko": "DB 커넥션 풀(HikariCP 등)의 maxLifetime 및 idleTimeout 설정을 확인하고, 애플리케이션과 DB 간의 연결 유지 상태를 점검하십시오.",
+          "latency_ms": 11755,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-12098",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 동일 객체에 대한 과도한 커서(Cursor) 점유 발생",
+          "root_cause_ko": "애플리케이션에서 쿼리를 실행한 후 커서를 제대로 닫지 않거나, 특정 물리적 계획/데이터 사전 객체를 동시에 너무 많은 세션이 점유하여 발생함",
+          "action_ko": "DB 내 미종료 커서(Open Cursors)를 확인하고, 애플리케이션 소스 코드에서 커서 해제 로직을 점검하십시오. (SQL*Plus 등에서 'select * from v$open_cursor' 확인)",
+          "latency_ms": 15509,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 동일 객체에 대한 과도한 커서(Cursor) 점유 발생",
+          "root_cause_ko": "애플리케이션에서 쿼리를 실행한 후 커서를 제대로 닫지 않거나, 짧은 시간 내에 너무 많은 동시 요청이 발생하여 시스템 제한치에 도달함.",
+          "action_ko": "DB 관리자(DBA)를 통해 해당 에러가 발생하는 SQL 문을 찾아 애플리케이션의 커서 해제 로직을 점검하고, 필요 시 DB 설정에서 최대 커서 수를 상향 조정하십시오.",
+          "latency_ms": 13713,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 동일 객체에 대한 과도한 커서(Cursor) 점유 발생",
+          "root_cause_ko": "애플리케이션에서 쿼리를 실행한 후 커서를 제대로 닫지 않거나, 짧은 시간 내에 너무 많은 커서를 생성하여 DB 제한치에 도달함.",
+          "action_ko": "DB 관리자(DBA)를 통해 해당 에러가 발생하는 SQL 문을 찾아 애플리케이션의 커서 해제 로직을 점검하고, 필요시 DB 설정에서 최대 커서 수를 조정하십시오.",
+          "latency_ms": 13384,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 동일 객체에 대한 과도한 커서(Cursor) 점유 발생",
+          "root_cause_ko": "애플리케이션에서 쿼리를 실행한 후 커서를 제대로 닫지 않거나, 짧은 시간 내에 너무 많은 커서를 생성하여 DB 제한치에 도달함.",
+          "action_ko": "DB 관리자(DBA)를 통해 해당 에러가 발생하는 SQL 문을 찾아 애플리케이션의 커서 해제 로직을 점검하고, 필요시 DB 설정에서 최대 커서 수를 조정하십시오.",
+          "latency_ms": 13381,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 동일 객체에 대한 과도한 커서(Cursor) 점유 발생",
+          "root_cause_ko": "애플리케이션에서 쿼리를 실행한 후 커서를 제대로 닫지 않거나, 짧은 시간 내에 너무 많은 커서를 생성하여 DB 제한치에 도달함.",
+          "action_ko": "DB 관리자(DBA)를 통해 해당 에러가 발생하는 SQL 문을 찾아 애플리케이션의 커서 해제 로직을 점검하고, 필요시 DB 설정에서 최대 커서 수를 조정하십시오.",
+          "latency_ms": 13416,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-5074",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "입력값 형식 오류 발생 (데이터 처리)",
+          "root_cause_ko": "애플리케이션이 숫자가 아닌 문자열을 숫자형으로 변환하려 할 때 발생하는 예외로 추정됨.",
+          "action_ko": "해당 에러가 발생하는 소스 코드의 입력값 검증 로직 확인. 특정 데이터(TBR-5074 등)가 비정상적인 형식을 포함하고 있는지 점검 필요.",
+          "latency_ms": 12094,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "입력값 형식 오류 발생 (TBR 모듈)",
+          "root_cause_ko": "애플리케이션이 처리하려는 특정 문자열이 숫자 형식이 아니어서 발생하는 예외로 추정됨.",
+          "action_ko": "해당 에러가 발생하는 시점의 사용자 입력값이나 데이터 소스를 확인하십시오. 서비스 운영에 지장이 없다면 무시해도 좋습니다.",
+          "latency_ms": 10307,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "입력값 형식 오류 발생 (TBR 모듈)",
+          "root_cause_ko": "애플리케이션이 처리하려는 특정 문자열이 숫자 형식이 아니어서 발생하는 예외로 추정됨.",
+          "action_ko": "해당 에러가 발생하는 시점의 사용자 입력이나 데이터 소스를 확인하십시오. 서비스 운영에 영향이 없다면 무시해도 좋습니다.",
+          "latency_ms": 10230,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "입력값 형식 오류 발생 (데이터 처리)",
+          "root_cause_ko": "애플리케이션이 숫자가 아닌 문자열을 숫자형으로 변환하려 할 때 발생하는 예외로 추정됨",
+          "action_ko": "해당 에러가 발생하는 소스 코드의 입력값 검증 로직 확인. 특정 데이터(TBR-5074)에 대한 유효성 체크 필요.",
+          "latency_ms": 10874,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "입력값 형식 오류 발생 (TBR 모듈)",
+          "root_cause_ko": "애플리케이션이 처리하려는 특정 문자열이 숫자 형식이 아니어서 발생하는 예외로 추정됨.",
+          "action_ko": "해당 에러가 발생하는 시점의 사용자 입력이나 데이터 소스를 확인하여 잘못된 값이 유입되는지 점검하십시오.",
+          "latency_ms": 10065,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-18456",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "짧은 시간 내 반복되는 DB 로그인 실패 시도",
+          "root_cause_ko": "SQL Server(MS-SQL)에서 잘못된 비밀번호 또는 권한 부족으로 인한 인증 실패가 5분 내 12회 발생함.",
+          "action_ko": "DB 계정 정보(ID/PW)를 확인하고, 특정 IP에서 반복 시도 중인지 점검하십시오. 필요시 해당 IP 차단 및 fail2ban 등 보안 강화 조치가 필요합니다.",
+          "latency_ms": 12604,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "짧은 시간 내 반복되는 DB 로그인 실패 시도",
+          "root_cause_ko": "SQL Server 오류 코드 18456(로그인 실패)이 5분 내 12회 발생. 잘못된 계정 정보 입력 또는 무차별 대입 공격 시도로 추정.",
+          "action_ko": "DB 접속 계정 정보 확인 및 해당 IP의 접근 제한 여부 점검. 반복될 경우 방화벽에서 차단 필요.",
+          "latency_ms": 11562,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "짧은 시간 내 반복되는 DB 로그인 실패 시도",
+          "root_cause_ko": "SQL Server 오류 코드 18456(로그인 실패)이 5분 내 12회 발생. 잘못된 계정 정보 입력 또는 무차별 대입 공격 시도 추정",
+          "action_ko": "DB 접속 계정 정보 확인 및 해당 IP의 접근 차단 검토. 보안을 위해 SQL Server 인증 정책 점검.",
+          "latency_ms": 11394,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "짧은 시간 내 반복되는 DB 로그인 실패 시도",
+          "root_cause_ko": "SQL Server(MS-SQL)에서 잘못된 비밀번호나 권한 부족으로 인한 인증 실패가 5분 내 12회 발생함 (State: 38은 보통 잘못된 비밀번호를 의미)",
+          "action_ko": "DB 접속 계정 정보(ID/PW) 확인 및 애플리케이션 설정 점검. 특정 IP에서 반복 시도 시 해당 IP 차단 검토.",
+          "latency_ms": 12211,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "짧은 시간 내 반복되는 DB 로그인 실패 시도",
+          "root_cause_ko": "SQL Server(MS-SQL)에서 잘못된 비밀번호 또는 권한 부족으로 인한 인증 실패가 5분 내 12회 발생함.",
+          "action_ko": "DB 계정 정보(ID/PW)를 확인하고, 특정 IP에서 반복 시도 중인지 점검하십시오. 필요시 해당 IP 차단 및 fail2ban 등 보안 강화 검토.",
+          "latency_ms": 11637,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-912",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 서비스 오류 발생 (Severity 21)",
+          "root_cause_ko": "애플리케이션(spid7s) 내부에서 특정 상태(State: 2)와 관련된 에러가 발생한 것으로 추정됨.",
+          "action_ko": "해당 소프트웨어의 매뉴얼을 참조하여 Error 912 및 Severity 21에 대한 상세 원인을 파악하고, 서비스 재시작 또는 설정값 점검이 필요한지 확인하십시오.",
+          "latency_ms": 12926,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "업그레이드|upgrade|스크립트|script|패치|업데이트|서비스 팩|service pack"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 애플리케이션 오류 발생",
+          "root_cause_ko": "애플리케이션 내부 로직 또는 외부 연동 과정에서 정의된 에러 코드(912)가 발생함 (추정)",
+          "action_ko": "해당 소프트웨어의 매뉴얼을 참조하여 에러 코드 912의 의미를 확인하고, 관련 서비스 상태를 점검하십시오.",
+          "latency_ms": 10739,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "업그레이드|upgrade|스크립트|script|패치|업데이트|서비스 팩|service pack"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 서비스 오류 발생 (Severity 21)",
+          "root_cause_ko": "애플리케이션 내부 로직 또는 외부 리소스 연결 문제로 인한 에러 발생(추정)",
+          "action_ko": "해당 소프트웨어의 매뉴얼을 참조하여 Error Code 912에 대한 상세 원인 파악 및 관련 서비스 재시작 검토",
+          "latency_ms": 10340,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "업그레이드|upgrade|스크립트|script|패치|업데이트|서비스 팩|service pack"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 서비스 오류 발생 (Severity 21)",
+          "root_cause_ko": "애플리케이션(spid7s) 내부에서 특정 상태(State 2)와 관련된 에러가 발생한 것으로 추정됨.",
+          "action_ko": "해당 소프트웨어의 매뉴얼을 참조하여 Error 912, Severity 21에 대한 구체적인 원인 파악 및 로그 추가 확인 필요.",
+          "latency_ms": 11312,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "업그레이드|upgrade|스크립트|script|패치|업데이트|서비스 팩|service pack"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 서비스 오류 발생 (Severity 21)",
+          "root_cause_ko": "애플리케이션(spid7s) 내부에서 특정 상태(State: 2)와 관련된 에러가 발생한 것으로 추정됨.",
+          "action_ko": "해당 소프트웨어의 매뉴얼을 참조하여 Error 912, Severity 21에 대한 구체적인 원인 파악 및 로그 확인이 필요합니다.",
+          "latency_ms": 11463,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "업그레이드|upgrade|스크립트|script|패치|업데이트|서비스 팩|service pack"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-701",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 엔진(spid56)에서 반복적인 오류 발생",
+          "root_cause_ko": "특정 SQL 실행 또는 내부 프로세스(spid56)가 지속적으로 실패하며 에러 코드 701을 반환함",
+          "action_ko": "DB 관리 도구로 해당 spid의 상세 쿼리 및 오류 로그를 확인하고, 문제가 되는 쿼리나 설정값 수정 필요.",
+          "latency_ms": 11709,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "메모리|memory"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid56) 오류 발생",
+          "root_cause_ko": "특정 세션(spid56)에서 정의된 에러 코드(701) 및 상태(193)가 반복적으로 발생함.",
+          "action_ko": "DB 관리 도구 또는 로그 분석기를 통해 해당 spid와 오류 코드 701의 상세 원인을 확인하십시오. (예: SQL 문법 오류, 권한 문제 등)",
+          "latency_ms": 11558,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "메모리|memory"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid56) 오류 발생",
+          "root_cause_ko": "특정 세션 또는 프로세스(spid56)에서 정의된 에러 코드(701)가 반복적으로 발생함.",
+          "action_ko": "DB 관리 도구로 해당 spid의 상세 쿼리 및 오류 로그를 확인하여 원인 파악 필요.",
+          "latency_ms": 10090,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "메모리|memory"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid56) 오류 발생 및 반복됨",
+          "root_cause_ko": "특정 세션 또는 프로세스(spid56)에서 지속적인 에러가 발생하고 있으며, 짧은 시간 내 6회 반복됨.",
+          "action_ko": "DB 관리 도구로 spid56의 상세 오류 코드(701)를 조회하여 원인 파악 및 해당 세션 상태 점검 필요.",
+          "latency_ms": 11313,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "메모리|memory"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid56) 오류 발생 및 반복됨",
+          "root_cause_ko": "특정 세션 또는 프로세스(spid56)에서 지속적인 에러가 발생하고 있으며, 짧은 시간 내 6회 반복됨.",
+          "action_ko": "DB 관리 도구로 해당 spid의 상세 오류 코드(701)를 조회하고, 관련 테이블이나 인덱스의 잠금/손상 여부를 점검하십시오.",
+          "latency_ms": 11639,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "메모리|memory"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": false,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-18056",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid58) 오류 발생",
+          "root_cause_ko": "특정 세션 또는 프로세스(spid58)에서 정의되지 않은 에러 코드 및 상태값이 발생함 (추정)",
+          "action_ko": "DB 관리 도구로 해당 spid의 상세 로그를 확인하고, 오류 코드 18056에 대한 원인 파악 필요.",
+          "latency_ms": 11299,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "연결 풀|커넥션 풀|connection pool|풀링|pooling|세션 재사용|재사용"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid58) 오류 발생",
+          "root_cause_ko": "특정 세션(spid58)에서 정의되지 않은 에러 코드 및 상태값이 발생함 (추정)",
+          "action_ko": "DB 관리 도구 또는 로그 분석기를 통해 해당 spid의 상세 쿼리와 SQL 오류 메시지를 확인하십시오.",
+          "latency_ms": 9685,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "연결 풀|커넥션 풀|connection pool|풀링|pooling|세션 재사용|재사용"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid58) 오류 발생",
+          "root_cause_ko": "특정 세션(spid58)에서 정의되지 않은 에러 코드 및 상태값이 발생함 (추정)",
+          "action_ko": "DB 관리 도구 또는 로그 분석기를 통해 해당 spid의 상세 쿼리와 SQL 오류 메시지를 확인하십시오.",
+          "latency_ms": 9673,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "연결 풀|커넥션 풀|connection pool|풀링|pooling|세션 재사용|재사용"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid58) 오류 발생",
+          "root_cause_ko": "특정 세션 또는 프로세스(spid58)에서 정의되지 않은 에러 코드 및 상태값이 발생함 (추정)",
+          "action_ko": "DB 관리 도구로 해당 spid의 상세 로그를 확인하고, 오류 코드 18056에 대한 구체적인 원인 파악 필요",
+          "latency_ms": 10757,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "연결 풀|커넥션 풀|connection pool|풀링|pooling|세션 재사용|재사용"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스(spid58) 오류 발생",
+          "root_cause_ko": "특정 세션 또는 프로세스(spid58)에서 정의되지 않은 에러 코드 및 상태값이 발생함 (추정)",
+          "action_ko": "DB 관리 도구로 해당 spid의 상세 로그를 확인하고, 오류 코드 18056에 대한 원인 파악 필요.",
+          "latency_ms": 10523,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "연결 풀|커넥션 풀|connection pool|풀링|pooling|세션 재사용|재사용"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-3002",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 공유 메모리 부족으로 인한 할당 실패 발생",
+          "root_cause_ko": "데이터베이스 엔진이 내부 공유 풀(Shared Pool)에서 필요한 메모리를 할당하지 못해 오류가 발생함.",
+          "action_ko": "DB 설정 파일에서 shared_pool 또는 관련 메모리 파라미터 값을 확인하고 증설하십시오. (예: Oracle/PostgreSQL 등 해당 DB의 메모리 설정 점검)",
+          "latency_ms": 12213,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 공유 메모리 부족으로 인한 오류 발생 (15회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 할당된 공유 풀(Shared Pool) 내에서 추가 메모리를 확보하지 못해 발생하는 오류임.",
+          "action_ko": "DB 설정 파일에서 shared_pool 또는 관련 메모리 파라미터 값을 확인하고 증설 필요. (예: Oracle/MySQL 등 해당 DB의 메모리 설정값 점검)",
+          "latency_ms": 11289,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 공유 메모리 부족으로 인한 오류 발생 (15회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 할당된 공유 풀(Shared Pool) 내에서 추가 메모리를 확보하지 못해 발생하는 오류임.",
+          "action_ko": "DB 설정 파일에서 shared_pool 또는 관련 메모리 파라미터 값을 확인하고 증설 필요. (예: Oracle/PostgreSQL 등 해당 DB의 메모리 설정값 점검)",
+          "latency_ms": 11374,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 공유 메모리 부족으로 인한 오류 발생 (15회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 할당된 공유 풀(Shared Pool) 내에서 가용 메모리를 확보하지 못해 발생하는 오류임.",
+          "action_ko": "DB 설정 파일에서 shared_pool 또는 관련 메모리 파라미터 값을 확인하고 증설하십시오. (예: Oracle/PostgreSQL 등 해당 DB 엔진의 메모리 설정 점검)",
+          "latency_ms": 11455,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 공유 메모리 부족으로 인한 오류 발생",
+          "root_cause_ko": "데이터베이스 엔진이 할당된 공유 풀(Shared Pool) 내에서 추가 메모리를 확보하지 못해 발생하는 오류임.",
+          "action_ko": "DB 설정 파일에서 shared_pool 또는 관련 메모리 파라미터 값을 확인하고 증설 필요. DB 재시작 시 메모리 할당량 조정 검토.",
+          "latency_ms": 10629,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-12033",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 락 획득 실패 (NOWAIT 모드)",
+          "root_cause_ko": "동일한 데이터를 동시에 수정하려는 트랜잭션이 존재하여, 대기 없이 즉시 실패하는 NOWAIT 설정에 의해 발생함.",
+          "action_ko": "DB 내 데드락(Deadlock) 여부 확인 및 쿼리 실행 시간 점검. 빈번하게 발생할 경우 애플리케이션의 트랜잭션 처리 로직이나 인덱스 최적화 검토 필요.",
+          "latency_ms": 13575,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 락 획득 실패 (NOWAIT 모드)",
+          "root_cause_ko": "동일한 데이터를 동시에 수정하려는 트랜잭션 간의 충돌로 인해 즉시 락을 획득하지 못해 발생한 오류임",
+          "action_ko": "DB 트랜잭션 격리 수준 및 동시성 처리 로직 확인. 빈번하게 발생할 경우 애플리케이션의 재시도(Retry) 로직 추가 검토.",
+          "latency_ms": 11919,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 락 획득 실패 (NOWAIT 모드)",
+          "root_cause_ko": "동일한 데이터를 동시에 수정하려는 트랜잭션 간의 충돌로 인해 즉시 락을 획득하지 못해 발생한 오류임",
+          "action_ko": "DB 트랜잭션 격리 수준 및 동시성 처리 로직 확인. 빈번하게 발생할 경우 애플리케이션의 재시도(Retry) 로직 추가 검토.",
+          "latency_ms": 11915,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 락 획득 실패 (NOWAIT 모드)",
+          "root_cause_ko": "동일한 데이터를 동시에 수정하려는 트랜잭션 간의 충돌로 인해 NOWAIT 설정 시 즉시 오류 발생",
+          "action_ko": "DB 트랜잭션 격리 수준 및 락 대기 시간 확인. 빈번하게 발생할 경우 애플리케이션의 동시성 제어 로직 점검 필요.",
+          "latency_ms": 11258,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": false,
+          "category": "db",
+          "summary_ko": "DB 락 획득 실패 (NOWAIT 모드)",
+          "root_cause_ko": "동일한 데이터를 동시에 수정하려는 트랜잭션이 존재하여, 대기 없이 즉시 실패하는 NOWAIT 설정에 의해 발생함(추정)",
+          "action_ko": "DB 내 락 경합이 발생하는 쿼리나 테이블을 확인하고, 애플리케이션의 트랜잭션 처리 로직 및 재시도 메커니즘 점검 필요",
+          "latency_ms": 12087,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-18017",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 인증 과정 중 심각한 I/O 오류 발생 (60회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 사용자 인증 처리 중 물리적 또는 파일 시스템 수준의 입출력(I/O) 오류를 감지함",
+          "action_ko": "즉시 DB 서비스 상태 확인 및 dmesg 명령어로 커널 레벨의 디스크 에러 여부 점검. 스토리지 연결 및 하드웨어 결함 확인 필요.",
+          "latency_ms": 12726,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 인증 과정 중 심각한 I/O 오류 발생 (60회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 사용자 인증 처리 중 물리적 또는 파일 시스템 수준의 입출력(I/O) 오류를 감지함",
+          "action_ko": "즉시 DB 서비스 상태 확인 및 dmesg 명령어로 커널 레벨의 디스크 에러 여부 점검. 스토리지 연결 및 하드웨어 결함 확인 필요.",
+          "latency_ms": 11751,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 인증 과정 중 심각한 I/O 오류 발생 (60회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 사용자 인증 처리 중 물리적 또는 파일 시스템 수준의 입출력(I/O) 오류를 감지함",
+          "action_ko": "즉시 DB 서비스 상태 확인 및 dmesg 명령어로 커널 레벨의 디스크 에러 여부 점검. 스토리지 연결 및 하드웨어 이상 유무 긴급 확인 필요.",
+          "latency_ms": 11998,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 인증 과정 중 심각한 I/O 오류 발생 (60회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 사용자 인증 처리 중 물리적 또는 파일 시스템 수준의 입출력(I/O) 오류를 감지함",
+          "action_ko": "즉시 DB 서비스 상태 확인 및 dmesg 명령어로 커널 레벨의 디스크 에러 여부 점검. 스토리지 연결 및 하드웨어 결함 확인 필요.",
+          "latency_ms": 11753,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 인증 과정 중 심각한 I/O 오류 발생 (60회 반복)",
+          "root_cause_ko": "데이터베이스 엔진이 사용자 인증 처리 중 물리적 또는 파일 시스템 수준의 입출력(I/O) 오류를 감지함",
+          "action_ko": "즉시 DB 서비스 상태 확인 및 dmesg 명령어로 커널 레벨의 디스크 에러 여부 점검. 스토리지 연결 및 하드웨어 이상 유무 긴급 확인 필요.",
+          "latency_ms": 11999,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-17001",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "tibero"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "비정상적인 계정 로그인 시도 급증",
+          "root_cause_ko": "짧은 시간(5분) 동안 60회 이상의 잘못된 사용자명/비밀번호 입력이 발생하여 무차별 대입 공격으로 추정",
+          "action_ko": "공격 시도가 빈번한 IP를 방화벽에서 차단하고, fail2ban 설치 또는 SSH 포트 변경을 검토하십시오.",
+          "latency_ms": 11672,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "비정상적인 사용자 계정 로그인 시도 급증",
+          "root_cause_ko": "짧은 시간(5분) 동안 60회 이상 발생한 것으로 보아 외부 또는 내부의 무차별 대입 공격(Brute Force)으로 추정",
+          "action_ko": "공격 시도가 빈번한 IP를 방화벽에서 차단하고, fail2ban 설치 및 SSH 포트 변경을 권장합니다.",
+          "latency_ms": 11292,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "비정상적인 사용자 계정 로그인 시도 급증",
+          "root_cause_ko": "짧은 시간(5분) 동안 60회 이상 발생한 것으로 보아 외부 또는 내부의 무차별 대입 공격(Brute Force)으로 추정",
+          "action_ko": "공격 시도가 빈번한 IP를 확인하여 방화벽에서 차단하고, fail2ban 설치 및 SSH 포트 변경을 권장합니다.",
+          "latency_ms": 11456,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "비정상적인 사용자 계정 로그인 시도 급증",
+          "root_cause_ko": "짧은 시간(5분) 내 60회 이상 발생한 것으로 보아 외부 또는 내부의 무차별 대입 공격(Brute Force)으로 추정",
+          "action_ko": "공격 시도가 빈번한 IP를 확인하여 방화벽에서 차단하고, fail2ban 설치 및 SSH 포트 변경을 권장합니다.",
+          "latency_ms": 11455,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "security",
+          "summary_ko": "비정상적인 사용자 계정 로그인 시도 급증",
+          "root_cause_ko": "짧은 시간 내에 동일한 패턴의 잘못된 계정 정보로 로그인이 반복되는 무차별 대입 공격(Brute Force)으로 추정",
+          "action_ko": "공격 시도가 집중되는 IP를 방화벽에서 차단하고, fail2ban 설치 또는 SSH 포트 변경을 권장합니다.",
+          "latency_ms": 10964,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-3417",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 서비스 오류 발생",
+          "root_cause_ko": "애플리케이션(spid7s) 내부에서 특정 상태(State: 3)와 관련된 에러가 발생함.",
+          "action_ko": "해당 소프트웨어의 매뉴얼을 참조하여 Error 3417에 대한 원인 파악 및 서비스 재시작 여부 확인.",
+          "latency_ms": 11134,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "master|마스터"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 애플리케이션 오류 발생",
+          "root_cause_ko": "애플리케이션 내부 로직 또는 외부 연동 과정에서 정의된 에러 코드(3417)가 발생함 (추정)",
+          "action_ko": "해당 서비스의 로그 파일 전체를 확인하여 3417 오류에 대한 상세 원인 파악 및 관련 모듈 재시작 검토",
+          "latency_ms": 10898,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "master|마스터"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 애플리케이션 오류 발생",
+          "root_cause_ko": "애플리케이션 내부 로직 또는 외부 연동 과정에서 정의된 에러 코드(3417)가 발생함 (추정)",
+          "action_ko": "해당 소프트웨어의 매뉴얼을 참조하여 에러 코드 3417에 대한 상세 원인 파악 및 관련 모듈 재시작 확인",
+          "latency_ms": 11063,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "master|마스터"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 애플리케이션 오류 발생",
+          "root_cause_ko": "애플리케이션 내부 로직 또는 외부 리소스 연결 문제로 인한 에러 발생(추정)",
+          "action_ko": "해당 서비스의 상세 로그를 확인하여 Error 3417에 대한 구체적인 원인 파악 필요",
+          "latency_ms": 9586,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "master|마스터"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "spid7s 애플리케이션 오류 발생",
+          "root_cause_ko": "애플리케이션 내부 로직 또는 외부 리소스 연결 문제로 인한 에러 발생(추정)",
+          "action_ko": "해당 서비스의 로그 파일 전체를 확인하여 Error 3417에 대한 상세 원인 파악 필요",
+          "latency_ms": 9517,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": false,
+          "missing": [
+            "master|마스터"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-824",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 엔진(spid51) 오류 발생",
+          "root_cause_ko": "DB 내부 프로세스 또는 쿼리 실행 중 특정 에러 코드(824)가 발생한 것으로 추정",
+          "action_ko": "DB 관리 도구에서 해당 시점의 상세 로그를 확인하고, 어떤 쿼리나 작업이 실패했는지 점검 필요",
+          "latency_ms": 10815,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "checkdb|무결성|손상|하드웨어|디스크|i/o|입출력|저장장치|스토리지"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 엔진(spid51) 오류 발생",
+          "root_cause_ko": "DB 내부 프로세스 또는 쿼리 실행 중 특정 에러 코드(824)가 발생한 것으로 추정",
+          "action_ko": "DB 관리 도구에서 해당 시점의 상세 로그를 확인하여 쿼리 실패 원인 파악 필요",
+          "latency_ms": 9755,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "checkdb|무결성|손상|하드웨어|디스크|i/o|입출력|저장장치|스토리지"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 엔진(spid51) 오류 발생",
+          "root_cause_ko": "DB 내부 프로세스(spid51)에서 특정 에러 코드(824)가 발생함. 단발성 발생으로 즉각적인 서비스 중단은 아니나 확인 필요.",
+          "action_ko": "DB 관리 도구 또는 로그를 통해 spid51의 상세 오류 내용과 쿼리 실행 여부 확인. 반복 발생 시 해당 쿼리 최적화 및 DB 상태 점검.",
+          "latency_ms": 12370,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "checkdb|무결성|손상|하드웨어|디스크|i/o|입출력|저장장치|스토리지"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 엔진(spid51) 오류 발생",
+          "root_cause_ko": "DB 내부 프로세스(spid51)에서 특정 에러 코드(824)가 발생함. 단발성 발생으로 즉각적인 서비스 중단은 아니나 확인 필요.",
+          "action_ko": "DB 관리 도구 또는 로그를 통해 spid51의 상세 오류 내용과 824 코드가 의미하는 구체적 문제(쿼리 실패, 권한 등)를 확인하십시오.",
+          "latency_ms": 12453,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "checkdb|무결성|손상|하드웨어|디스크|i/o|입출력|저장장치|스토리지"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 엔진(spid51) 오류 발생",
+          "root_cause_ko": "DB 내부 프로세스(spid51)에서 특정 에러 코드(824)가 발생함. 단발성 발생으로 즉각적인 서비스 중단은 아니나 확인 필요.",
+          "action_ko": "DB 관리 도구 또는 로그를 통해 해당 spid의 상세 오류 내용과 쿼리 실행 여부를 확인하십시오.",
+          "latency_ms": 11067,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "checkdb|무결성|손상|하드웨어|디스크|i/o|입출력|저장장치|스토리지"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-17836",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "사용자 로그인 오류 발생 (반복)",
+          "root_cause_ko": "특정 계정 또는 시스템 서비스의 인증 실패가 짧은 시간 내에 반복됨",
+          "action_ko": "윈도우 이벤트 뷰어(Security)에서 해당 시점의 상세 로그를 확인하여 실패 원인(비밀번호 오류, 계정 잠금 등)을 파악하십시오.",
+          "latency_ms": 11044,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "패킷|packet|스캔|scan|프로토콜|비정상 접속|비정상 연결|클라이언트"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "시스템 로그인 오류 발생 (반복)",
+          "root_cause_ko": "사용자 인증 실패 또는 잘못된 자격 증명으로 인한 로그온 시도 실패(추정)",
+          "action_ko": "이벤트 뷰어에서 해당 ID(17836)의 상세 원인 확인 및 사용자 계정 상태 점검",
+          "latency_ms": 9431,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "패킷|packet|스캔|scan|프로토콜|비정상 접속|비정상 연결|클라이언트"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "로그인 시도 오류 발생 (3회 반복)",
+          "root_cause_ko": "사용자 인증 실패 또는 잘못된 자격 증명으로 인한 로그인 오류 발생(추정)",
+          "action_ko": "특정 계정의 비밀번호 오류 여부 확인 및 해당 사용자에게 알림. 반복 시나리오 확인 필요.",
+          "latency_ms": 9262,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "패킷|packet|스캔|scan|프로토콜|비정상 접속|비정상 연결|클라이언트"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "사용자 로그인 오류 발생 (3회 반복)",
+          "root_cause_ko": "특정 계정 또는 시스템 서비스의 인증 시도 실패로 추정",
+          "action_ko": "윈도우 이벤트 뷰어(Security)에서 해당 시간대의 상세 로그를 확인하여 실패 원인(비밀번호 오류, 계정 잠금 등)을 파악하십시오.",
+          "latency_ms": 9998,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "패킷|packet|스캔|scan|프로토콜|비정상 접속|비정상 연결|클라이언트"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "auth",
+          "summary_ko": "시스템 로그인 오류 발생 (반복)",
+          "root_cause_ko": "사용자 인증 실패 또는 잘못된 자격 증명으로 인한 로그온 시도 실패(추정)",
+          "action_ko": "이벤트 뷰어에서 해당 ID(17836)의 상세 원인 확인 및 사용자 계정 상태 점검",
+          "latency_ms": 9424,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "패킷|packet|스캔|scan|프로토콜|비정상 접속|비정상 연결|클라이언트"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-17111",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "K",
+        "mssql"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SQL Server 로그 기록 메시지 발생",
+          "root_cause_ko": "SQL Server가 내부 오류나 상태 정보를 지정된 경로에 기록하는 일반적인 시스템 메시지임",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 8593,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SQL Server 오류 로그 기록 안내",
+          "root_cause_ko": "SQL Server가 시스템 메시지를 지정된 경로의 ERRORLOG 파일에 기록하는 표준 동작임",
+          "action_ko": "조치 필요 없음 (정상적인 시스템 정보성 메시지)",
+          "latency_ms": 8041,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SQL Server 로그 기록 메시지 발생",
+          "root_cause_ko": "SQL Server가 내부 오류나 상태 정보를 지정된 경로에 기록하는 일반적인 시스템 동작임",
+          "action_ko": "조치 필요 없음 (정상 동작)",
+          "latency_ms": 7717,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SQL Server 오류 로그 기록 안내",
+          "root_cause_ko": "SQL Server가 시스템 메시지를 지정된 경로의 ERRORLOG 파일에 기록하는 표준 동작임",
+          "action_ko": "조치 필요 없음 (정상적인 시스템 정보성 메시지)",
+          "latency_ms": 8038,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "SQL Server 로그 기록 메시지 발생",
+          "root_cause_ko": "SQL Server가 시스템 오류나 상태를 ERRORLOG 파일에 기록하는 표준 동작임",
+          "action_ko": "조치 필요 없음 (정상적인 시스템 로그 기록)",
+          "latency_ms": 7797,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-21003",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "tibero"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 스냅샷 만료로 인한 쿼리 오류 발생",
+          "root_cause_ko": "DB 연결 시 사용된 스냅샷이 너무 오래되어(Old) 현재 상태와 일치하지 않아 발생하는 오류로 추정",
+          "action_ko": "DB 서비스 재시작 또는 커넥션 풀 초기화를 통해 세션을 갱신하십시오. 반복될 경우 DB 설정 및 네트워크 안정성을 점검하십시오.",
+          "latency_ms": 11899,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 스냅샷 만료로 인한 쿼리 오류 발생",
+          "root_cause_ko": "DB 연결 시 사용된 스냅샷이 너무 오래되어(Snapshot is too old) 데이터 일관성 문제로 요청이 거부됨.",
+          "action_ko": "DB 서버의 스냅샷 상태를 점검하고, 필요시 DB 서비스를 재시작하거나 최신 스냅샷으로 갱신하십시오.",
+          "latency_ms": 10921,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 스냅샷 만료로 인한 쿼리 오류 발생",
+          "root_cause_ko": "DB 연결 시 사용된 스냅샷이 너무 오래되어(Old) 유효하지 않은 상태임",
+          "action_ko": "DB 서비스 재시작 또는 커넥션 풀 초기화 확인. 지속 발생 시 DB 서버의 스냅샷 갱신 주기 점검 필요.",
+          "latency_ms": 10273,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 스냅샷 만료로 인한 쿼리 오류 발생",
+          "root_cause_ko": "DB 연결 시 사용된 스냅샷이 너무 오래되어(Old) 유효하지 않은 상태임",
+          "action_ko": "DB 서비스 재시작 또는 커넥션 풀 초기화 확인. 지속 발생 시 DB 서버의 스냅샷 갱신 주기 점검 필요.",
+          "latency_ms": 10271,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 스냅샷 만료로 인한 쿼리 오류 발생",
+          "root_cause_ko": "DB 연결 시 사용된 스냅샷이 너무 오래되어(Snapshot is too old) 데이터 일관성 문제로 요청이 거부됨.",
+          "action_ko": "DB 서버의 스냅샷 상태를 점검하고, 필요시 DB 서비스를 재시작하거나 최신 스냅샷으로 갱신하십시오.",
+          "latency_ms": 10921,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0.2,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-18004",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "tibero"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 인한 쓰기 실패 및 서비스 중단 위험",
+          "root_cause_ko": "시스템 내 물리적 디스크 용량이 가득 차서 데이터 기록이 불가능한 상태임",
+          "action_ko": "df -h 명령어로 전체 디스크 용량을 확인하고, 로그 파일이나 임시 파일 등 불필요한 데이터를 삭제하거나 스토리지 증설을 즉시 검토하십시오.",
+          "latency_ms": 11983,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 인한 쓰기 실패 및 서비스 중단 위험",
+          "root_cause_ko": "시스템 내 물리적 디스크 용량이 가득 차서 데이터 기록이 불가능한 상태임",
+          "action_ko": "df -h 명령어로 전체 디스크 용량을 확인하고, 불필요한 로그나 임시 파일을 삭제하거나 스토리지 용량을 즉시 증설하십시오.",
+          "latency_ms": 10526,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 인한 쓰기 실패 및 서비스 중단 위험",
+          "root_cause_ko": "시스템 내 물리적 디스크 용량이 가득 차서 데이터 기록(write)이 불가능한 상태임",
+          "action_ko": "df -h 명령어로 전체 디스크 용량을 확인하고, 로그 파일이나 임시 파일 등 불필요한 데이터를 삭제하거나 스토리지 용량을 즉시 증설하십시오.",
+          "latency_ms": 11032,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 인한 쓰기 실패 및 서비스 중단 위험",
+          "root_cause_ko": "시스템 내 물리적 또는 논리적 디스크 용량이 가득 차서 데이터 기록이 불가능한 상태임",
+          "action_ko": "df -h 명령어로 전체 디스크 용량을 확인하고, 로그 파일이나 임시 파일 등 불필요한 데이터를 삭제하거나 스토리지 용량을 증설하십시오.",
+          "latency_ms": 10943,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "critical",
+          "needs_human": true,
+          "category": "disk",
+          "summary_ko": "디스크 공간 부족으로 인한 쓰기 실패 및 서비스 중단 위험",
+          "root_cause_ko": "시스템 내 물리적 디스크 용량이 가득 차서 데이터 기록(write)이 불가능한 상태임",
+          "action_ko": "df -h 명령어로 전체 디스크 용량을 확인하고, 로그 파일이나 임시 파일 등 불필요한 데이터를 삭제하거나 스토리지 용량을 즉시 증설하십시오.",
+          "latency_ms": 11026,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-1105",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "mssql"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 오류(Error 1105)가 단시간 내 빈번하게 발생",
+          "root_cause_ko": "MySQL/MariaDB에서 'Unknown group' 또는 특정 권한 관련 오류로 추정되며, 짧은 시간 내 25회 반복됨",
+          "action_ko": "DB 서비스 상태 및 에러 로그(mysql.log 등)를 확인하여 구체적인 SQL 문과 권한 설정을 점검하십시오.",
+          "latency_ms": 12003,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 오류가 짧은 시간 내에 빈번하게 발생",
+          "root_cause_ko": "짧은 시간(5분) 동안 25회 이상 반복되는 에러 코드로 보아 DB 연결 실패 또는 네트워크 불안정 추정",
+          "action_ko": "DB 서비스 상태 및 네트워크 연결성 확인. 오류 코드 1105에 대한 상세 매뉴얼을 참고하여 재시도 로직이나 설정값 점검 필요.",
+          "latency_ms": 11452,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 오류가 짧은 시간 내에 빈번하게 발생",
+          "root_cause_ko": "짧은 시간(5분) 동안 25회 이상 반복되는 에러 코드로 보아, DB 서버와의 연결 불안정 또는 설정 오류로 추정",
+          "action_ko": "DB 서비스 상태 및 네트워크 연결 확인. 에러 코드 1105에 대한 상세 매뉴얼을 참고하여 데이터베이스 연결 설정을 점검하십시오.",
+          "latency_ms": 11532,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 오류(Error 1105) 반복 발생",
+          "root_cause_ko": "MySQL/MariaDB에서 'Unknown group' 또는 권한 관련 문제로 인한 접속 실패 추정",
+          "action_ko": "DB 설정 파일 및 사용자 권한 확인. 최근 변경된 계정이나 DB 설정이 있는지 점검 필요.",
+          "latency_ms": 9487,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "데이터베이스 연결 오류(Error 1105)가 단시간 내 빈번하게 발생",
+          "root_cause_ko": "MySQL/MariaDB에서 'Unknown group' 또는 특정 권한 관련 오류로 추정되며, 짧은 시간 내 25회 반복됨",
+          "action_ko": "DB 서비스 상태 및 에러 로그(mysql.log 등)를 확인하여 구체적인 SQL 실행 실패 원인을 파악하십시오.",
+          "latency_ms": 11206,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-tbr-26009",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "tibero"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 잘못된 LOB 위치 지정 오류 발생",
+          "root_cause_ko": "애플리케이션이 DB의 대용량 객체(LOB)를 참조할 때 유효하지 않은 위치 값을 전달하여 발생한 것으로 추정",
+          "action_ko": "해당 에러가 발생하는 애플리케이션의 쿼리나 로직을 점검하고, 잘못된 데이터(Invalid Locator)가 입력되는지 확인이 필요합니다.",
+          "latency_ms": 12736,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 잘못된 LOB 위치 지정 오류 발생",
+          "root_cause_ko": "애플리케이션이 유효하지 않은 LOB(Large Object) 위치를 참조하여 발생한 DB 엔진 오류로 추정",
+          "action_ko": "해당 에러가 발생하는 애플리케이션의 쿼리나 데이터 처리 로직을 점검하고, 잘못된 데이터가 입력되었는지 확인하십시오.",
+          "latency_ms": 10783,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 유효하지 않은 LOB 로케이터 참조 오류 발생",
+          "root_cause_ko": "애플리케이션이 데이터베이스의 LOB(Large Object) 데이터를 읽을 때 잘못된 위치나 존재하지 않는 식별자를 참조하여 발생한 것으로 추정",
+          "action_ko": "해당 에러가 발생하는 애플리케이션의 쿼리 및 로직 점검. 특정 데이터에 대한 접근 시 오류가 반복되는지 확인 필요.",
+          "latency_ms": 11792,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 잘못된 LOB 위치 지정 오류 발생",
+          "root_cause_ko": "애플리케이션이 유효하지 않은 LOB(Large Object) 위치를 참조하여 발생한 DB 엔진 오류로 추정",
+          "action_ko": "해당 에러가 발생하는 애플리케이션의 쿼리나 로직을 점검하고, 데이터베이스 내 손상된 LOB 객체가 있는지 확인이 필요합니다.",
+          "latency_ms": 11137,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 내 유효하지 않은 LOB 로케이터 참조 오류 발생",
+          "root_cause_ko": "애플리케이션이 데이터베이스의 대용량 객체(LOB)를 참조할 때 잘못된 위치나 존재하지 않는 식별자를 전달한 것으로 추정",
+          "action_ko": "해당 에러가 발생하는 애플리케이션 소스 코드 및 쿼리문 확인. 특정 데이터(csr_id:7731 등)에 대한 정합성 체크 필요.",
+          "latency_ms": 12438,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-9001",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "mssql"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(spid67) 내부 오류 발생",
+          "root_cause_ko": "특정 프로세스(spid67)에서 정의된 에러 코드 9001이 발생함 (추정)",
+          "action_ko": "해당 애플리케이션의 매뉴얼을 확인하여 에러 코드 '9001'에 대한 구체적인 원인 파악 및 조치 필요",
+          "latency_ms": 11952,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(spid67) 내부 오류 발생",
+          "root_cause_ko": "특정 프로세스(spid67)에서 정의된 에러 코드 9001이 발생함 (추정)",
+          "action_ko": "해당 애플리케이션의 매뉴얼을 확인하여 에러 코드 9001의 의미를 파악하고, 관련 서비스 상태를 점검하십시오.",
+          "latency_ms": 11137,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(spid67) 내부 오류 발생",
+          "root_cause_ko": "특정 프로세스(spid67)에서 정의된 에러 코드 9001이 발생함 (추정)",
+          "action_ko": "해당 애플리케이션의 매뉴얼을 확인하여 에러 코드 9001의 의미를 파악하고, 관련 서비스 상태를 점검하십시오.",
+          "latency_ms": 11151,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(spid67) 내부 오류 발생",
+          "root_cause_ko": "특정 프로세스(spid67)에서 정의된 에러 코드 9001이 발생함 (추정)",
+          "action_ko": "해당 애플리케이션의 매뉴얼을 확인하여 에러 코드 '9001'에 대한 구체적인 원인 파악 및 조치 필요",
+          "latency_ms": 11154,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "app",
+          "summary_ko": "애플리케이션(spid67) 내부 오류 발생",
+          "root_cause_ko": "특정 프로세스(spid67)에서 정의된 에러 코드 9001이 발생함 (추정)",
+          "action_ko": "해당 애플리케이션의 매뉴얼을 확인하여 에러 코드 9001의 의미를 파악하고 관련 모듈 상태 점검.",
+          "latency_ms": 10980,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-mssql-825",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "mssql"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "모호한 에러 코드 발생 (상세 정보 부족)",
+          "root_cause_ko": "로그 내용이 단순 숫자(825, 10, 2)로만 구성되어 있어 구체적인 원인 파악 불가",
+          "action_ko": "해당 시스템의 매뉴얼을 확인하거나 관련 소프트웨어의 상세 로그를 추가로 수집하여 분석 필요",
+          "latency_ms": 10796,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정의되지 않은 일반 오류 발생",
+          "root_cause_ko": "구체적인 정보가 없는 단순 에러 코드(825) 발생. 시스템 영향성 확인 불가.",
+          "action_ko": "해당 로그가 발생하는 애플리케이션이나 서비스의 매뉴얼을 확인하여 825 오류 코드를 정의하십시오.",
+          "latency_ms": 9492,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정의되지 않은 일반 오류 발생",
+          "root_cause_ko": "구체적인 정보가 없는 단순 에러 코드(825) 출력으로 추정됨",
+          "action_ko": "해당 시스템의 매뉴얼을 확인하거나 관련 애플리케이션 로그를 추가로 수집하여 상세 원인 파악 필요",
+          "latency_ms": 9409,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "pass": false
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "other",
+          "summary_ko": "정의되지 않은 형식의 에러 로그 발생",
+          "root_cause_ko": "로그 내용이 단순 숫자(825, 10, 2)로만 구성되어 있어 구체적인 원인 파악 불가",
+          "action_ko": "해당 시스템의 애플리케이션 매뉴얼을 확인하여 에러 코드 '825'의 의미를 파악하십시오.",
+          "latency_ms": 10476,
+          "format_ok": true,
+          "sev_ok": false,
+          "human_ok": false,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "medium",
+          "needs_human": true,
+          "category": "other",
+          "summary_ko": "알 수 없는 시스템 오류 발생 (상세 정보 부족)",
+          "root_cause_ko": "로그 내용이 'Error: 825, Severity: 10, State: 2'로만 구성되어 있어 구체적인 원인 파악 불가",
+          "action_ko": "해당 에러가 발생하는 애플리케이션이나 서비스의 상세 로그를 확인하여 정확한 오류 코드(825)의 의미를 파악하십시오.",
+          "latency_ms": 11366,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        }
+      ],
+      "pass_rate": 0,
+      "consistent": false,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-fake-tbr",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "tibero",
+        "fake"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 트랜잭션 슬롯 부족으로 인한 처리 지연 및 타임아웃",
+          "root_cause_ko": "동시 접속자가 많거나 특정 쿼리가 길어져 가용 가능한 트랜잭션 슬롯이 고갈된 것으로 추정",
+          "action_ko": "DB 설정에서 max_connections 또는 관련 트랜잭션 제한 확인, 느린 쿼리(Slow Query)를 찾아 최적화하거나 DB 재시작 검토",
+          "latency_ms": 12304,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 트랜잭션 슬롯 부족으로 인한 처리 지연 및 실패",
+          "root_cause_ko": "데이터베이스 내 동시 실행 가능한 트랜잭션 수가 한계에 도달하여 새로운 요청이 대기하다 타임아웃 발생",
+          "action_ko": "DB 설정에서 최대 트랜잭션 수(max_connections 등) 확인 및 증설, 현재 실행 중인 쿼리 중 장시간 점유 중인 프로세스 확인.",
+          "latency_ms": 11572,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "missing": [
+            "추정|가능성|확인 필요|확인해"
+          ],
+          "pass": false
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 트랜잭션 슬롯 부족으로 인한 처리 지연 및 실패",
+          "root_cause_ko": "데이터베이스의 동시 처리량(Transaction Slot)이 한계에 도달하여 새로운 요청을 처리하지 못하는 상태로 추정",
+          "action_ko": "DB 설정에서 max_connections 또는 트랜잭션 관련 제한 수치 확인 및 상향 조정 검토. 현재 실행 중인 쿼리 중 장시간 점유 중인 프로세스가 있는지 확인.",
+          "latency_ms": 11862,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 트랜잭션 슬롯 부족으로 인한 처리 지연 및 실패",
+          "root_cause_ko": "데이터베이스의 동시 처리량(Transaction Slot)이 한계에 도달하여 새로운 요청을 처리하지 못하는 상태로 추정",
+          "action_ko": "DB 설정에서 max_connections 또는 트랜잭션 관련 제한 수치 확인 및 상향 조정. 현재 실행 중인 쿼리 중 장시간 점유 중인 프로세스가 있는지 확인.",
+          "latency_ms": 11707,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "high",
+          "needs_human": true,
+          "category": "db",
+          "summary_ko": "DB 트랜잭션 슬롯 부족으로 인한 처리 지연 및 실패",
+          "root_cause_ko": "데이터베이스의 동시 처리량(Transaction Slot)이 한계에 도달하여 새로운 요청을 처리하지 못하는 상태로 추정",
+          "action_ko": "DB 설정에서 max_connections 또는 트랜잭션 관련 제한 수치 확인 및 상향 조정. 현재 실행 중인 쿼리 중 장시간 점유 중인 프로세스가 있는지 확인.",
+          "latency_ms": 11710,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 0.8,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    },
+    {
+      "id": "err-inject-1",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "tibero",
+        "inject"
+      ],
+      "split": "dev",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 애플리케이션 예외 발생",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자(Long) 형식이 아니어서 발생한 타입 변환 오류임",
+          "action_ko": "애플리케이션 로직상 허용되지 않는 값이 유입된 것이므로, 클라이언트 측의 입력값 검증 강화 또는 안내 메시지 처리가 필요함 (시스템 장애 아님)",
+          "latency_ms": 14069,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 요청 처리 오류",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자(Long) 형식이 아니어서 발생한 예외입니다.",
+          "action_ko": "애플리케이션 로직상 허용되지 않는 값이 유입된 것이므로, 클라이언트 측의 입력값 검증을 강화하거나 안내 메시지를 수정하십시오.",
+          "latency_ms": 11595,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 요청 처리 오류",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자(Long) 형식이 아니어서 발생한 예외임",
+          "action_ko": "애플리케이션 로직상 허용되는 파라미터 형식인지 확인. 클라이언트 측 유효성 검사 강화 고려.",
+          "latency_ms": 11096,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 애플리케이션 예외 발생",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 요구하는 숫자(Long) 형식이 아니어서 발생한 타입 변환 오류임",
+          "action_ko": "애플리케이션 로직상 허용되지 않는 값이 유입된 것이므로, 클라이언트 측의 입력값 검증 강화 또는 해당 요청에 대한 안내 메시지 처리가 필요함.",
+          "latency_ms": 12501,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "잘못된 파라미터 형식으로 인한 애플리케이션 예외 발생",
+          "root_cause_ko": "사용자가 입력한 값(TBR-1063)이 시스템이 기대하는 숫자(Long) 형식이 아니어서 발생한 타입 변환 오류임",
+          "action_ko": "애플리케이션 로직이나 클라이언트의 요청 파라미터 전달 방식 확인. 단발성 사용자 입력 실수일 경우 조치 불필요.",
+          "latency_ms": 11929,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": true,
+      "has_mention": true
+    },
+    {
+      "id": "err-inject-2",
+      "file": "eval-set-errcode.jsonl",
+      "tags": [
+        "errcode",
+        "U",
+        "mssql",
+        "inject"
+      ],
+      "split": "holdout",
+      "label": "잠정",
+      "runs": [
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 Nginx 요청 발생",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "해당 경로가 실제 서비스 경로인지 확인. 단순 오타나 잘못된 링크라면 무시 가능.",
+          "latency_ms": 11438,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 Nginx 요청 발생",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "해당 경로가 실제 서비스 경로인지 확인. 단순 오타나 잘못된 링크라면 무시 가능.",
+          "latency_ms": 10001,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 요청으로 인한 404 오류",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "정상적인 서비스 운영에 영향이 없는 단순 경로 오류임. 필요 시 해당 URL 접근 차단이나 안내 페이지 연결 설정.",
+          "latency_ms": 10747,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 Nginx 요청 발생",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "해당 경로가 실제 서비스 경로인지 확인. 단순 오타나 잘못된 링크라면 무시 가능.",
+          "latency_ms": 10045,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        },
+        {
+          "severity": "low",
+          "needs_human": false,
+          "category": "app",
+          "summary_ko": "존재하지 않는 경로에 대한 Nginx 요청 오류",
+          "root_cause_ko": "클라이언트가 존재하지 않는 파일 경로(/usr/share/nginx/html/kb/Error: 824...)를 요청함",
+          "action_ko": "해당 경로가 실제 서비스 경로인지 확인. 단순 오타나 잘못된 링크라면 무시 가능.",
+          "latency_ms": 10039,
+          "format_ok": true,
+          "sev_ok": true,
+          "human_ok": true,
+          "cat_ok": true,
+          "pass": true
+        }
+      ],
+      "pass_rate": 1,
+      "consistent": true,
+      "has_category": false,
+      "has_mention": true
+    }
+  ]
+}

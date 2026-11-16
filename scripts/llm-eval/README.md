@@ -10,6 +10,9 @@ OWLMON_OLLAMA_URL=http://localhost:11434 go run ./cmd/llmeval -repeat 3
 # 최종 판정은 holdout만 / 다른 모델
 go run ./cmd/llmeval -split holdout -repeat 3 -model gemma4:26b-a4b
 
+# 오류 코드 사전 효과 측정 — 0: 지시문·사전 없음, 1a: 지시문만, 1: 지시문 + 사전(기본, 운영과 같음)
+go run ./cmd/llmeval -cond 0 -repeat 3
+
 # 두 결과 비교 (개선·회귀 케이스 목록)
 go run ./cmd/llmeval -compare ../scripts/llm-eval/results/baseline-gemma4-12b.json,../scripts/llm-eval/results/<새 결과>.json
 ```
@@ -24,6 +27,7 @@ go run ./cmd/llmeval -compare ../scripts/llm-eval/results/baseline-gemma4-12b.js
 | `eval-set-multiline.jsonl` | 원인 묶기로 여러 종류 줄이 한 그룹 |
 | `eval-set-hostctx.jsonl` | 호스트 상태(CPU·메모리·디스크·이상탐지)와 연결 |
 | `eval-set-customer.jsonl` | 고객 환경 공개 로그 (JEUS·WebtoB·Tibero·Windows Apache·MSSQL·Tomcat·robocopy) — 에이전트 레벨 판정을 통과하는 줄만 |
+| `eval-set-errcode.jsonl` | 제품 오류 코드(Tibero·MSSQL) — `K` 사전에 있는 코드, `U` 사전 밖·가짜 코드, `inject` 입력값 속 코드. 정답은 사전을 보지 않은 작성자가 제조사 문서로 씀 |
 | `pending-customer.jsonl` | 지금 수집 단계에서 걸러지는 고객 환경 로그 — 기본 실행에서 빠짐, 수집이 고쳐지면 옮긴다 |
 
 반복 횟수는 `count`에만 적는다. 로그 본문에 `(38회 반복)`처럼 쓰면 운영 입력과 달라지고, `count`가 없으면 "1 times"와 충돌한다.
