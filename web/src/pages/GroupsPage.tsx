@@ -7,7 +7,7 @@ import { useFleet, LABEL, DOT } from '../hooks/useFleet'
 import { getMe } from '../api/auth'
 import { errorText } from '../api/users'
 import {
-  assignGroup, createGroup, deleteGroup, fetchGroups, indexGroups, memberKey, memberOf, updateGroup, UNGROUPED,
+  assignGroup, createGroup, deleteGroup, fetchGroups, indexGroups, memberKey, memberOf, tileGroup, updateGroup, UNGROUPED,
   type DeviceGroup,
 } from '../api/groups'
 import { cn } from '../utils/cn'
@@ -73,11 +73,11 @@ export default function GroupsPage() {
     return tiles.flatMap(t => {
       const m = memberOf(t.key, t.name)
       if (!m) return []
-      const gid = idx.groupOf.get(memberKey(m))
-      const g = gid != null && idx.byId.has(gid) ? gid : undefined
+      const tg = tileGroup(idx, t)
+      const g = tg?.id
       if (scope === UNGROUPED ? g != null : scopeSet ? g == null || !scopeSet.has(g) : false) return []
-      if (s && ![t.name, t.sub, t.purpose, t.location].some(v => v?.toLowerCase().includes(s))) return []
-      return [{ t, m, mk: memberKey(m), path: g != null ? idx.path(g).join(' › ') : '' }]
+      if (s && ![t.name, t.sub, t.ip, t.purpose, t.location].some(v => v?.toLowerCase().includes(s))) return []
+      return [{ t, m, mk: memberKey(m), path: g != null ? idx.path(g).join(' › ') : '', auto: !!tg?.auto }]
     }).sort((a, b) => a.t.name.localeCompare(b.t.name))
   }, [tiles, idx, scope, search])
   const pages = Math.max(1, Math.ceil(rows.length / PAGE))
@@ -100,7 +100,10 @@ export default function GroupsPage() {
   })
   const assign = async (to: number | null) => {
     if (!pickedItems.length) return
-    const label = to == null ? '그룹에서 뺐습니다' : `${idx.path(to).join(' › ')}(으)로 옮겼습니다`
+    // 빼도 IP 대역에 드는 장비는 그 대역의 그룹에 계속 보임 — 성공만 알리면 왜 그대로인지 모름
+    const inRange = to == null ? tiles.filter(t => { const m = memberOf(t.key, t.name); return m && picked.has(memberKey(m)) && idx.byIP(t.ip) != null }).length : 0
+    const label = to != null ? `${idx.path(to).join(' › ')}(으)로 옮겼습니다`
+      : `그룹에서 뺐습니다${inRange ? ` — 그중 ${inRange}대는 IP가 그룹의 대역에 들어 있어 그 그룹에 계속 보입니다. 대역을 고치거나 다른 그룹으로 옮기세요` : ''}`
     if (await run(() => assignGroup(to, pickedItems), `${pickedItems.length}대를 ${label}`, '장비를 옮기지 못했습니다')) setPicked(new Set())
   }
 
@@ -110,7 +113,7 @@ export default function GroupsPage() {
 
   return (
     <div className="space-y-4">
-      <PageToolbar icon={FolderTree} title="그룹 관리" description="장비를 위치(본사·지사·층)나 업무 기준으로 묶습니다. 장비는 그룹 하나에만 속합니다." />
+      <PageToolbar icon={FolderTree} title="그룹 관리" description="장비를 위치(본사·지사·층)나 업무 기준으로 묶습니다. 장비는 그룹 하나에만 속합니다. 그룹에 IP 대역을 넣으면 그 대역의 장비가 자동으로 들어가고, 직접 옮긴 장비는 직접 지정이 우선합니다." />
 
       {(error || notice) && (
         <p role={error ? 'alert' : 'status'} className={cn('rounded-lg border px-3 py-2 text-sm',
@@ -141,12 +144,15 @@ export default function GroupsPage() {
               const depth = idx.path(o.id).length - 1
               return (
                 <li key={g.id} className="group flex items-center gap-1 rounded-md py-1 pr-1 text-sm text-base-200 hover:bg-base-800/60" style={{ paddingLeft: 8 + depth * 14 }}>
-                  <span className="min-w-0 flex-1 truncate">{g.name}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {g.name}
+                    {g.ip_ranges?.length > 0 && <span className="ml-2 text-xs text-base-500" title={g.ip_ranges.join('\n')}>{g.ip_ranges[0]}{g.ip_ranges.length > 1 && ` 외 ${g.ip_ranges.length - 1}`}</span>}
+                  </span>
                   <button type="button" className="rounded p-1 text-base-500 hover:bg-base-800 hover:text-base-200" aria-label={`${g.name} 아래에 그룹 추가`} title="하위 그룹 추가"
                     onClick={() => { setNewParent(g.id); document.querySelector<HTMLInputElement>('input[aria-label="새 그룹 이름"]')?.focus() }}>
                     <Plus size={13} />
                   </button>
-                  <button type="button" className="rounded p-1 text-base-500 hover:bg-base-800 hover:text-base-200" aria-label={`${g.name} 이름·위치 바꾸기`} title="이름·위치 바꾸기" onClick={() => setEditing(g)}>
+                  <button type="button" className="rounded p-1 text-base-500 hover:bg-base-800 hover:text-base-200" aria-label={`${g.name} 이름·위치·IP 대역 바꾸기`} title="이름·위치·IP 대역 바꾸기" onClick={() => setEditing(g)}>
                     <Pencil size={13} />
                   </button>
                   <button type="button" className="rounded p-1 text-base-500 hover:bg-rose-500/10 hover:text-rose-300" aria-label={`${g.name} 삭제`} title="삭제" onClick={() => setRemoving(g)}>
@@ -206,7 +212,7 @@ export default function GroupsPage() {
                 </tr>
               </thead>
               <tbody>
-                {shown.map(({ t, mk, path }) => (
+                {shown.map(({ t, mk, path, auto }) => (
                   <tr key={mk} className="border-b border-base-800/60 hover:bg-base-800/40">
                     <td className="px-4 py-1.5"><input type="checkbox" aria-label={`${t.name} 선택`} checked={picked.has(mk)} onChange={() => togglePick(mk)} /></td>
                     <td className="px-2 py-1.5">
@@ -217,7 +223,10 @@ export default function GroupsPage() {
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-base-400">{t.kind}</td>
-                    <td className="px-2 py-1.5 text-base-400">{path || <span className="text-base-600">미지정</span>}</td>
+                    <td className="px-2 py-1.5 text-base-400">
+                      {path || <span className="text-base-600">미지정</span>}
+                      {auto && <span className="ml-2 text-xs text-base-500" title="직접 지정하지 않았고 IP가 그룹의 대역에 들어 있음">IP 대역</span>}
+                    </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
@@ -238,12 +247,12 @@ export default function GroupsPage() {
 
       {editing && (
         <EditDialog g={editing} options={parentOptions(editing.id)} onCancel={() => setEditing(null)}
-          onSave={async (name, parent) => {
-            if (await run(() => updateGroup({ ...editing, name, parent_id: parent }), '그룹을 바꿨습니다', '그룹을 바꾸지 못했습니다')) setEditing(null)
+          onSave={async (name, parent, ranges) => {
+            if (await run(() => updateGroup({ ...editing, name, parent_id: parent, ip_ranges: ranges }), '그룹을 바꿨습니다', '그룹을 바꾸지 못했습니다')) setEditing(null)
           }} />
       )}
       <ConfirmDialog open={!!removing} title="그룹 삭제" variant="danger" confirmLabel="삭제"
-        message={removing ? `'${removing.name}' 그룹을 지웁니다. 하위 그룹과 장비는 한 단계 위로 올라갑니다${removing.parent_id == null ? '(맨 위 그룹이라 장비는 미지정이 됨)' : ''}.` : ''}
+        message={removing ? `'${removing.name}' 그룹을 지웁니다. 하위 그룹과 장비, IP 대역은 한 단계 위로 올라갑니다${removing.parent_id == null ? '(맨 위 그룹이라 장비는 미지정이 됨)' : ''}.` : ''}
         onCancel={() => setRemoving(null)}
         onConfirm={async () => {
           const g = removing!
@@ -254,14 +263,15 @@ export default function GroupsPage() {
   )
 }
 
-function EditDialog({ g, options, onSave, onCancel }: { g: DeviceGroup; options: { id: number; label: string }[]; onSave: (name: string, parent: number | null) => void; onCancel: () => void }) {
+function EditDialog({ g, options, onSave, onCancel }: { g: DeviceGroup; options: { id: number; label: string }[]; onSave: (name: string, parent: number | null, ranges: string[]) => void; onCancel: () => void }) {
   const [name, setName] = useState(g.name)
   const [parent, setParent] = useState<number | null>(g.parent_id)
+  const [ranges, setRanges] = useState((g.ip_ranges ?? []).join('\n'))
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="edit-title" className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
       onKeyDown={e => e.key === 'Escape' && onCancel()}>
       <form className="w-full max-w-sm space-y-3 rounded-xl border border-base-700 bg-base-900 p-4"
-        onSubmit={e => { e.preventDefault(); if (name.trim()) onSave(name.trim(), parent) }}>
+        onSubmit={e => { e.preventDefault(); if (name.trim()) onSave(name.trim(), parent, ranges.split(/[\n,]+/).map(x => x.trim()).filter(Boolean)) }}>
         <h3 id="edit-title" className="text-sm font-semibold text-base-100">그룹 바꾸기</h3>
         <label className="block space-y-1 text-xs text-base-400">이름
           <input autoFocus className={inputCls} value={name} maxLength={60} onChange={e => setName(e.target.value)} />
@@ -271,6 +281,11 @@ function EditDialog({ g, options, onSave, onCancel }: { g: DeviceGroup; options:
             <option value="">맨 위</option>
             {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
+        </label>
+        <label className="block space-y-1 text-xs text-base-400">IP 대역 (한 줄에 하나)
+          <textarea className={cn(inputCls, 'h-24 font-mono')} value={ranges} onChange={e => setRanges(e.target.value)}
+            placeholder={'192.168.10.0/24\n10.1.0.10-10.1.0.50'} spellCheck={false} />
+          <span className="block text-base-500">직접 옮기지 않은 장비 중 IP가 이 대역에 드는 장비가 이 그룹에 들어갑니다. 대역이 겹치면 더 좁은 대역의 그룹이 우선합니다.</span>
         </label>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" className={btn} onClick={onCancel}>취소</button>

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -13,10 +14,11 @@ import (
 var GroupKinds = map[string]bool{"server": true, "snmp": true, "synthetic": true, "ssl": true, "dpm": true}
 
 type Group struct {
-	ID       int64  `json:"id"`
-	ParentID *int64 `json:"parent_id"`
-	Name     string `json:"name"`
-	Sort     int    `json:"sort"`
+	ID       int64    `json:"id"`
+	ParentID *int64   `json:"parent_id"`
+	Name     string   `json:"name"`
+	Sort     int      `json:"sort"`
+	IPRanges []string `json:"ip_ranges"` // 이 대역의 장비는 직접 지정하지 않아도 이 그룹으로 보임 (화면이 매칭)
 }
 
 type GroupMember struct {
@@ -29,6 +31,8 @@ type GroupTree struct {
 	Groups  []Group       `json:"groups"`
 	Members []GroupMember `json:"members"`
 }
+
+const MaxIPRanges = 100
 
 // GroupError는 사용자에게 그대로 보여 줄 수 있는 거부 사유
 type GroupError struct{ Msg string }
@@ -60,19 +64,20 @@ func (s *GroupStore) EnsureTable(ctx context.Context) error {
 			group_id BIGINT NOT NULL REFERENCES device_groups(id) ON DELETE CASCADE,
 			PRIMARY KEY (kind, ref)
 		);
-		CREATE INDEX IF NOT EXISTS group_members_group ON group_members (group_id)`)
+		CREATE INDEX IF NOT EXISTS group_members_group ON group_members (group_id);
+		ALTER TABLE device_groups ADD COLUMN IF NOT EXISTS ip_ranges TEXT[] NOT NULL DEFAULT '{}'`)
 	return err
 }
 
 func (s *GroupStore) Tree(ctx context.Context) (GroupTree, error) {
 	t := GroupTree{Groups: []Group{}, Members: []GroupMember{}}
-	rows, err := s.pool.Query(ctx, `SELECT id, parent_id, name, sort FROM device_groups ORDER BY sort, name`)
+	rows, err := s.pool.Query(ctx, `SELECT id, parent_id, name, sort, ip_ranges FROM device_groups ORDER BY sort, name`)
 	if err != nil {
 		return t, err
 	}
 	for rows.Next() {
 		var g Group
-		if err := rows.Scan(&g.ID, &g.ParentID, &g.Name, &g.Sort); err != nil {
+		if err := rows.Scan(&g.ID, &g.ParentID, &g.Name, &g.Sort, &g.IPRanges); err != nil {
 			rows.Close()
 			return t, err
 		}
@@ -97,10 +102,18 @@ func (s *GroupStore) Tree(ctx context.Context) (GroupTree, error) {
 	return t, rows.Err()
 }
 
+// nil 슬라이스는 NULL로 들어가 NOT NULL 제약에 걸림
+func ranges(g Group) []string {
+	if g.IPRanges == nil {
+		return []string{}
+	}
+	return g.IPRanges
+}
+
 func (s *GroupStore) Create(ctx context.Context, g Group) (int64, error) {
 	var id int64
-	err := s.pool.QueryRow(ctx, `INSERT INTO device_groups (parent_id, name, sort) VALUES ($1, $2, $3) RETURNING id`,
-		g.ParentID, g.Name, g.Sort).Scan(&id)
+	err := s.pool.QueryRow(ctx, `INSERT INTO device_groups (parent_id, name, sort, ip_ranges) VALUES ($1, $2, $3, $4) RETURNING id`,
+		g.ParentID, g.Name, g.Sort, ranges(g)).Scan(&id)
 	return id, groupErr(err)
 }
 
@@ -131,7 +144,7 @@ func (s *GroupStore) Update(ctx context.Context, g Group) error {
 			return &GroupError{"그룹을 자기 자신이나 하위 그룹 아래로 옮길 수 없습니다"}
 		}
 	}
-	tag, err := tx.Exec(ctx, `UPDATE device_groups SET parent_id = $2, name = $3, sort = $4 WHERE id = $1`, g.ID, g.ParentID, g.Name, g.Sort)
+	tag, err := tx.Exec(ctx, `UPDATE device_groups SET parent_id = $2, name = $3, sort = $4, ip_ranges = $5 WHERE id = $1`, g.ID, g.ParentID, g.Name, g.Sort, ranges(g))
 	if err != nil {
 		return groupErr(err)
 	}
@@ -141,7 +154,7 @@ func (s *GroupStore) Update(ctx context.Context, g Group) error {
 	return tx.Commit(ctx)
 }
 
-// Delete는 그룹을 지우고 하위 그룹과 장비를 한 단계 위로 올림 — 그룹 하나를 지웠다고 아래 장비들이 트리에서 사라지지 않게.
+// Delete는 그룹을 지우고 하위 그룹·장비·IP 대역을 한 단계 위로 올림 — 그룹 하나를 지웠다고 아래 장비들이 트리에서 사라지지 않게.
 // 맨 위 그룹이면 장비는 '미지정'이 됨
 func (s *GroupStore) Delete(ctx context.Context, id int64) error {
 	tx, err := s.pool.Begin(ctx)
@@ -167,6 +180,17 @@ func (s *GroupStore) Delete(ctx context.Context, id int64) error {
 	if parent != nil {
 		if _, err := tx.Exec(ctx, `UPDATE group_members SET group_id = $2 WHERE group_id = $1`, id, *parent); err != nil {
 			return err
+		}
+		// IP 대역으로 들어온 장비도 직접 지정한 장비처럼 위 그룹에 남게 대역을 올림
+		var n int
+		if err := tx.QueryRow(ctx, `UPDATE device_groups SET ip_ranges = ARRAY(
+				SELECT DISTINCT unnest(ip_ranges || (SELECT ip_ranges FROM device_groups WHERE id = $1)))
+			WHERE id = $2 RETURNING cardinality(ip_ranges)`, id, *parent).Scan(&n); err != nil {
+			return err
+		}
+		// 넘긴 채 저장하면 위 그룹을 고칠 때마다 개수 제한에 걸려 아무것도 바꿀 수 없음
+		if n > MaxIPRanges {
+			return &GroupError{fmt.Sprintf("위 그룹의 IP 대역이 %d개를 넘게 되어 지울 수 없습니다. 대역을 먼저 줄이세요", MaxIPRanges)}
 		}
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM device_groups WHERE id = $1`, id); err != nil {

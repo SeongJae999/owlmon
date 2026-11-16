@@ -7,6 +7,7 @@ export interface DeviceGroup {
   parent_id: number | null
   name: string
   sort: number
+  ip_ranges: string[] // 서버가 1.2.3.4 / 1.2.3.0/24 / 1.2.3.4-1.2.3.9 꼴로 정리해 둠
 }
 
 export interface GroupMember {
@@ -25,8 +26,8 @@ export async function fetchGroups(): Promise<GroupTree> {
   return { groups: res.data?.groups ?? [], members: res.data?.members ?? [] }
 }
 
-export async function createGroup(g: { name: string; parent_id: number | null }): Promise<DeviceGroup> {
-  const res = await axios.post<DeviceGroup>('/api/groups', { ...g, sort: 0 })
+export async function createGroup(g: { name: string; parent_id: number | null; ip_ranges?: string[] }): Promise<DeviceGroup> {
+  const res = await axios.post<DeviceGroup>('/api/groups', { ip_ranges: [], ...g, sort: 0 })
   return res.data
 }
 
@@ -66,6 +67,36 @@ export interface GroupIndex {
   // id와 그 아래 모든 그룹 — 상위 그룹을 고르면 하위 장비까지 보여야 함
   subtree: (id: number) => Set<number>
   path: (id: number) => string[]
+  byIP: (ip: string | undefined) => number | undefined
+}
+
+const ip4 = (s: string): number | null => {
+  const p = s.split('.')
+  if (p.length !== 4 || p.some(x => !/^\d{1,3}$/.test(x) || +x > 255)) return null
+  return ((+p[0] << 24) >>> 0) + (+p[1] << 16) + (+p[2] << 8) + +p[3]
+}
+
+export function parseRange(r: string): [number, number] | null {
+  const [a, b] = r.split('-')
+  if (b !== undefined) { const lo = ip4(a), hi = ip4(b); return lo != null && hi != null && lo <= hi ? [lo, hi] : null }
+  const [addr, bits] = r.split('/')
+  const lo = ip4(addr)
+  if (lo == null) return null
+  if (bits === undefined) return [lo, lo]
+  const n = Number(bits)
+  if (!Number.isInteger(n) || n < 0 || n > 32) return null
+  const size = 2 ** (32 - n)
+  const base = lo - (lo % size)
+  return [base, base + size - 1]
+}
+
+// 직접 지정한 소속이 우선, 없으면 IP 대역 — 여러 대역에 걸리면 가장 좁은 대역(본사 /16보다 3층 /24)
+export function tileGroup(idx: GroupIndex, t: { key: string; name: string; ip?: string }): { id: number; auto: boolean } | undefined {
+  const m = memberOf(t.key, t.name)
+  const g = m ? idx.groupOf.get(memberKey(m)) : undefined
+  if (g != null && idx.byId.has(g)) return { id: g, auto: false }
+  const a = idx.byIP(t.ip)
+  return a != null ? { id: a, auto: true } : undefined
 }
 
 export function indexGroups(t: GroupTree | undefined): GroupIndex {
@@ -94,5 +125,15 @@ export function indexGroups(t: GroupTree | undefined): GroupIndex {
     for (let g = byId.get(id), hops = 0; g && hops < 100; g = g.parent_id == null ? undefined : byId.get(g.parent_id), hops++) out.unshift(g.name)
     return out
   }
-  return { byId, children, groupOf, subtree, path }
+  const rules = (t?.groups ?? []).flatMap(g => (g.ip_ranges ?? []).flatMap(r => {
+    const x = parseRange(r)
+    return x ? [{ lo: x[0], hi: x[1], id: g.id }] : []
+  })).sort((a, b) => a.hi - a.lo - (b.hi - b.lo) || a.id - b.id)
+  // ponytail: 장비마다 대역 전체를 훑음 (장비 수천 × 대역 수백까지 충분) — 더 크면 구간 트리로
+  const byIP = (ip: string | undefined) => {
+    const n = ip ? ip4(ip) : null
+    if (n == null) return undefined
+    return rules.find(r => r.lo <= n && n <= r.hi)?.id
+  }
+  return { byId, children, groupOf, subtree, path, byIP }
 }

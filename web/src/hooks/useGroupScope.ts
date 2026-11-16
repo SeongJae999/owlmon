@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { fetchGroups, indexGroups, memberOf, memberKey, UNGROUPED, type GroupIndex } from '../api/groups'
+import { fetchGroups, indexGroups, tileGroup, UNGROUPED, type GroupIndex } from '../api/groups'
 
-interface ScopeTile { key: string; name: string; state: string; acked?: unknown; causedBy?: string }
+interface ScopeTile { key: string; name: string; ip?: string; state: string; acked?: unknown; causedBy?: string }
 export interface GroupCount { total: number; crit: number; warn: number }
 
 // 선택한 그룹(주소 ?g=)으로 장비·문제를 거르고, 트리에 보일 그룹별 수(하위 그룹 합산)를 셈.
@@ -17,15 +17,8 @@ export function useGroupScope<T extends ScopeTile>(tiles: T[], open: T[], lookup
   const groupsPending = q.isPending
 
   return useMemo(() => {
-    const groupOfTile = (t: ScopeTile) => {
-      const m = memberOf(t.key, t.name)
-      return m ? idx.groupOf.get(memberKey(m)) : undefined
-    }
-    // 지워진 그룹을 가리키는 소속은 미지정으로 — 화면에서 장비가 사라지지 않게
-    const gid = (t: ScopeTile) => {
-      const g = groupOfTile(t)
-      return g != null && idx.byId.has(g) ? g : undefined
-    }
+    // 지워진 그룹을 가리키는 소속은 미지정(또는 IP 대역)으로 — 화면에서 장비가 사라지지 않게
+    const gid = (t: ScopeTile) => tileGroup(idx, t)?.id
     const chain = (g: number | undefined): (number | typeof UNGROUPED)[] => {
       if (g == null) return [UNGROUPED]
       const out: number[] = []

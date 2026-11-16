@@ -47,6 +47,20 @@ func TestGroupStore(t *testing.T) {
 		t.Fatalf("다른 위치면 같은 이름 허용: %v", err)
 	}
 
+	// IP 대역은 저장·수정·조회가 그대로
+	if err := s.Update(ctx, Group{ID: floor, ParentID: &hq, Name: "3층", IPRanges: []string{"10.3.0.0/24"}}); err != nil {
+		t.Fatal(err)
+	}
+	if tr, err := s.Tree(ctx); err != nil {
+		t.Fatal(err)
+	} else {
+		for _, g := range tr.Groups {
+			if (g.ID == floor) != (len(g.IPRanges) == 1) {
+				t.Fatalf("IP 대역: %+v", g)
+			}
+		}
+	}
+
 	// 자기 하위로 옮기면 고리 — 거부
 	if err := s.Update(ctx, Group{ID: hq, ParentID: &room, Name: "본사"}); !errors.As(err, &gErr) {
 		t.Fatalf("고리: %v", err)
@@ -76,6 +90,11 @@ func TestGroupStore(t *testing.T) {
 	}
 	if p := parent[room]; p == nil || *p != hq {
 		t.Fatalf("전산실이 본사 아래로 올라가야 함: %v", p)
+	}
+	for _, g := range tr.Groups {
+		if g.ID == hq && (len(g.IPRanges) != 1 || g.IPRanges[0] != "10.3.0.0/24") {
+			t.Fatalf("지운 그룹의 IP 대역이 위로 올라가야 함: %v", g.IPRanges)
+		}
 	}
 	where := map[string]int64{}
 	for _, m := range tr.Members {
