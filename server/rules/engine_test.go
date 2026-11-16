@@ -104,3 +104,20 @@ func TestTryAlert_PerHostCooldown(t *testing.T) {
 		t.Fatal("cooldown 0이면 항상 통과")
 	}
 }
+
+// host만 바꾼 알림은 룰마다 창당 상한까지만 개별로 나가고, 넘치면 요약 1건만 허용
+func TestTakeRuleBudget(t *testing.T) {
+	e := testEngine()
+	if n, s := e.TakeRuleBudget(1, 3); n != 3 || s {
+		t.Fatalf("첫 3건: n=%d summary=%v", n, s)
+	}
+	if n, s := e.TakeRuleBudget(1, 1000); n != RuleAlertLimit-3 || !s {
+		t.Fatalf("넘침: n=%d summary=%v", n, s)
+	}
+	if n, s := e.TakeRuleBudget(1, 1000); n != 0 || s {
+		t.Fatalf("같은 창 재요청은 요약도 없어야: n=%d summary=%v", n, s)
+	}
+	if n, _ := e.TakeRuleBudget(2, 1); n != 1 {
+		t.Fatalf("다른 룰은 따로 셈: n=%d", n)
+	}
+}

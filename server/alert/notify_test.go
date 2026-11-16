@@ -405,3 +405,24 @@ func TestWebhookLanesPerTarget(t *testing.T) {
 		}
 	}
 }
+
+// 로그 룰 알림(에이전트 입력)이 넘쳐도 먼저 대기 중이던 실제 위험 알림은 남아야 함
+func TestLaneDropsLowBeforeCritical(t *testing.T) {
+	l := &lane{name: "t", limit: 3, wake: make(chan struct{}, 1)}
+	l.push(Notice{Severity: "critical", Subject: "real"})
+	for i := 0; i < 100; i++ {
+		l.push(Notice{Severity: "critical", Subject: "rule", Low: true})
+	}
+	l.push(Notice{Severity: "critical", Subject: "real2"})
+	var got []string
+	for {
+		m, ok := l.pop()
+		if !ok {
+			break
+		}
+		got = append(got, m.Subject)
+	}
+	if strings.Join(got, ",") != "real,rule,real2" {
+		t.Fatalf("got %v", got)
+	}
+}

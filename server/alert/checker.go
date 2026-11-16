@@ -560,7 +560,9 @@ func (c *Checker) sendAlert(host, category, severity, subject, body string) {
 func (c *Checker) send(host, category, target, severity, subject, body string) {
 	cfg := c.config()
 	if body, ok := c.admit(cfg, host, category, target, severity, subject, body); ok {
-		c.notifier.Enqueue(routeNotice(cfg, c.defaultTo(), severity, subject, body))
+		m := routeNotice(cfg, c.defaultTo(), severity, subject, body)
+		m.Low = category == "log_rule"
+		c.notifier.Enqueue(m)
 	}
 }
 

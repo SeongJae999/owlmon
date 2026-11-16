@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -162,6 +164,8 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 	if h.sendAlert == nil {
 		return
 	}
+	hostsByRule := make(map[int64][]string)
+	matchOf := make(map[int64]rules.Match)
 	for key, m := range triggers {
 		// threshold (옵션) — 트랜잭션 안 COUNT라 신규 매칭 포함 보장
 		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 && counts[key] < m.ThresholdCount {
@@ -171,16 +175,43 @@ func (h *LogHandler) evaluateRulesAsync(records []db.LogRecord, ids []int64) {
 		if !h.rules.TryAlert(key.RuleID, key.Host, m.CooldownSeconds) {
 			continue
 		}
-		subject := fmt.Sprintf("[%s] %s — %s", severityKo(m.Severity), key.Host, m.Name)
+		hostsByRule[key.RuleID] = append(hostsByRule[key.RuleID], key.Host)
+		matchOf[key.RuleID] = m
+	}
+	for ruleID, hosts := range hostsByRule {
+		m := matchOf[ruleID]
+		sort.Strings(hosts)
 		var detail string
 		if m.ThresholdCount > 0 && m.ThresholdWindow > 0 {
 			detail = fmt.Sprintf(" (%d초 이내 %d회 이상 매칭)", m.ThresholdWindow, m.ThresholdCount)
 		}
+		n, summary := h.rules.TakeRuleBudget(ruleID, len(hosts))
+		for _, host := range hosts[:n] {
+			subject := fmt.Sprintf("[%s] %s — %s", severityKo(m.Severity), host, m.Name)
+			body := fmt.Sprintf(
+				"호스트: %s\n규칙: %s%s\n등급: %s\n자세히: 웹 대시보드의 '로그' 메뉴에서 원본 로그를, '설정 → 로그 감지 규칙'에서 규칙을 확인.",
+				host, m.Name, detail, severityKo(m.Severity))
+			h.sendAlert(host, "log_rule", m.Severity, subject, body)
+		}
+		if !summary {
+			continue
+		}
+		rest := hosts[n:]
+		shown := rest[:min(len(rest), 20)]
+		subject := fmt.Sprintf("[%s] %s — 서버 %d대 더", severityKo(m.Severity), m.Name, len(rest))
 		body := fmt.Sprintf(
-			"호스트: %s\n규칙: %s%s\n등급: %s\n자세히: 웹 대시보드의 '로그' 메뉴에서 원본 로그를, '설정 → 로그 감지 규칙'에서 규칙을 확인.",
-			key.Host, m.Name, detail, severityKo(m.Severity))
-		h.sendAlert(key.Host, "log_rule", m.Severity, subject, body)
+			"규칙: %s%s\n등급: %s\n호스트: %s\n같은 규칙 알림이 %d분 안에 %d건을 넘어, 이후 %d분 동안 이 규칙의 추가 서버 알림은 보내지 않습니다.\n자세히: 웹 대시보드의 '로그' 메뉴에서 이 규칙으로 걸러 확인.",
+			m.Name, detail, severityKo(m.Severity), strings.Join(shown, ", ")+moreHosts(len(rest)-len(shown)),
+			int(rules.RuleAlertWindow.Minutes()), rules.RuleAlertLimit, int(rules.RuleAlertWindow.Minutes()))
+		h.sendAlert("owlmon", "log_rule", m.Severity, subject, body)
 	}
+}
+
+func moreHosts(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return fmt.Sprintf(" 외 %d대", n)
 }
 
 // Search GET /api/logs — 로그 검색

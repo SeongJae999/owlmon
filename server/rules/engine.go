@@ -50,7 +50,20 @@ type Engine struct {
 
 	cooldownMu sync.Mutex
 	lastAlert  map[string]time.Time // "ruleID|host" → 마지막 발송
+	ruleBudget map[int64]*ruleWindow
 }
+
+type ruleWindow struct {
+	start      time.Time
+	sent       int
+	summarized bool
+}
+
+// 룰 하나가 호스트별로 낼 수 있는 알림 수 — host 값은 에이전트가 보내는 문자열이라 host만 바꿔 cooldown을 피할 수 있음
+const (
+	RuleAlertLimit  = 10
+	RuleAlertWindow = 10 * time.Minute
+)
 
 func NewEngine(pool *pgxpool.Pool) *Engine {
 	return &Engine{pool: pool, lastAlert: make(map[string]time.Time)}
@@ -141,8 +154,38 @@ func (e *Engine) TryAlert(ruleID int64, host string, cooldownSec int) bool {
 	if last, ok := e.lastAlert[key]; ok && time.Since(last) < time.Duration(cooldownSec)*time.Second {
 		return false
 	}
+	// ponytail: 커지면 하루 지난 기록만 정리 — cooldown을 하루보다 길게 잡은 룰은 정리 직후 1회 중복 가능
+	if len(e.lastAlert) >= 10000 {
+		for k, t := range e.lastAlert {
+			if time.Since(t) > 24*time.Hour {
+				delete(e.lastAlert, k)
+			}
+		}
+	}
 	e.lastAlert[key] = time.Now()
 	return true
+}
+
+// TakeRuleBudget은 cooldown을 통과한 host want개 중 개별 알림으로 보낼 수를 돌려준다.
+// 넘친 host가 있으면 창마다 한 번만 summary=true로 요약 알림을 허용한다.
+func (e *Engine) TakeRuleBudget(ruleID int64, want int) (allowed int, summary bool) {
+	e.cooldownMu.Lock()
+	defer e.cooldownMu.Unlock()
+	if e.ruleBudget == nil {
+		e.ruleBudget = make(map[int64]*ruleWindow)
+	}
+	w := e.ruleBudget[ruleID]
+	if w == nil || time.Since(w.start) >= RuleAlertWindow {
+		w = &ruleWindow{start: time.Now()}
+		e.ruleBudget[ruleID] = w
+	}
+	allowed = min(want, RuleAlertLimit-w.sent)
+	w.sent += allowed
+	if allowed < want && !w.summarized {
+		w.summarized = true
+		summary = true
+	}
+	return allowed, summary
 }
 
 // RuleCount는 현재 메모리에 로드된 enabled 룰 수.

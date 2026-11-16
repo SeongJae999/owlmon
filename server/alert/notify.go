@@ -38,6 +38,7 @@ type Notice struct {
 	Webhooks []Webhook
 	SMS      SMSGateway
 	Escalate bool // 2차 통보 — 다시 보내는 경로가 없는 한 번짜리
+	Low      bool // 에이전트가 보낸 내용으로 만든 알림(로그 룰) — 대기열이 넘치면 실제 장애 알림보다 먼저 버림
 }
 
 // 경로마다 대기열과 작업자를 따로 둠 — 메일 서버가 막혀도 문자·웹훅은 나가야 함 (대체 경로가 같이 멈추면 의미가 없음).
@@ -125,18 +126,18 @@ func (l *lane) pop() (Notice, bool) {
 	return m, true
 }
 
-// push는 가득 차도 감지 루프를 막지 않음. 넘치면 주의부터 버림 — 주의가 없으면 가장 오래된 것을 버리고 지금 것을 넣음
+// push는 가득 차도 감지 루프를 막지 않음. 넘치면 주의·로그 룰 알림부터 버림 — 없으면 가장 오래된 것을 버리고 지금 것을 넣음
 func (l *lane) push(m Notice) {
 	l.mu.Lock()
 	if len(l.q) >= l.limit {
 		drop := -1
-		if m.Severity == "warning" {
+		if m.expendable() {
 			l.mu.Unlock()
-			log.Printf("%s 대기열이 가득 차 주의 알림 생략: %s", l.name, m.Subject)
+			log.Printf("%s 대기열이 가득 차 알림 생략: %s", l.name, m.Subject)
 			return
 		}
 		for i, x := range l.q {
-			if x.Severity == "warning" {
+			if x.expendable() {
 				drop = i
 				break
 			}
@@ -154,6 +155,8 @@ func (l *lane) push(m Notice) {
 	default:
 	}
 }
+
+func (m Notice) expendable() bool { return m.Severity == "warning" || m.Low }
 
 // Enqueue는 경로별 대기열에 나눠 넣음 (알림 이력은 이미 저장됨)
 func (n *Notifier) Enqueue(m Notice) {
