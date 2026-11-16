@@ -10,7 +10,7 @@ OWLMON_OLLAMA_URL=http://localhost:11434 go run ./cmd/llmeval -repeat 3
 # 최종 판정은 holdout만 / 다른 모델
 go run ./cmd/llmeval -split holdout -repeat 3 -model gemma4:26b-a4b
 
-# 오류 코드 사전 효과 측정 — 0: 지시문·사전 없음, 1a: 지시문만, 1: 지시문 + 사전(기본, 운영과 같음)
+# 오류 코드 사전 효과 측정 — 0: 사전 끔(해설·지시문 없음), 1: 사전 켬(기본, 운영과 같음 — 해설이 붙는 케이스에만 지시문)
 go run ./cmd/llmeval -cond 0 -repeat 3
 
 # 두 결과 비교 (개선·회귀 케이스 목록)

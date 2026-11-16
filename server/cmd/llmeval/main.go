@@ -117,7 +117,7 @@ func main() {
 	out := flag.String("out", "", "결과 JSON 저장 경로 (비우면 ../scripts/llm-eval/results/<시각>-<모델>.json)")
 	compare := flag.String("compare", "", "두 결과 비교: 이전.json,이후.json")
 	rescore := flag.String("rescore", "", "저장된 결과에 현재 정답지를 다시 적용 (모델 재호출 없음)")
-	cond := flag.String("cond", "1", "0 = 오류 코드 지시문·사전 없음 | 1a = 지시문만 | 1 = 지시문 + 사전 (운영과 같음)")
+	cond := flag.String("cond", "1", "0 = 오류 코드 사전 끔 (해설·지시문 없음) | 1 = 사전 켬 (운영과 같음 — 해설이 붙는 케이스에만 지시문)")
 	flag.Parse()
 
 	if *repeat < 1 {
@@ -149,20 +149,15 @@ func main() {
 		Model: *model,
 		JSON:  os.Getenv("LLMEVAL_PLAIN") == "", // 운영 워커와 같은 설정으로 평가
 	}
-	sys := loginsight.SystemPromptLogCluster
-	hashIn := sys
+	hashIn := loginsight.SystemPrompt(nil)
 	switch *cond {
 	case "0":
-		sys = strings.Replace(sys, loginsight.ErrCodeRules, "", 1)
-		hashIn = sys
-		os.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "off")
-	case "1a":
 		os.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "off")
 	case "1":
-		// 사전만 바꾼 결과도 해시로 구분되게 한다
-		hashIn += loginsight.ErrCodeDigest()
+		// 지시문이 든 프롬프트도, 사전만 바꾼 결과도 해시로 구분되게 한다
+		hashIn += loginsight.SystemPromptLogCluster + loginsight.ErrCodeDigest()
 	default:
-		fail("-cond는 0, 1a, 1 중 하나입니다")
+		fail("-cond는 0, 1 중 하나입니다")
 	}
 	h := sha256.Sum256([]byte(hashIn))
 	rep := report{Model: provider.Name(), PromptHash: hex.EncodeToString(h[:4]), Cond: *cond, At: time.Now(), Split: *split, Repeat: *repeat}
@@ -171,7 +166,7 @@ func main() {
 	for _, c := range cases {
 		cr := caseResult{ID: c.ID, File: c.file, Tags: c.Tags, Split: c.Split, Label: c.Label, Consistent: true,
 			HasCat: c.WantCategory != "", HasMention: len(c.MustMention) > 0}
-		msg := buildUserMsg(c)
+		sys, msg := buildUserMsg(c)
 		passed := 0
 		for i := 0; i < *repeat; i++ {
 			r := runOnce(provider, sys, msg, c)
@@ -202,8 +197,8 @@ func main() {
 	}
 }
 
-// buildUserMsg — 운영 analyzer와 같은 순서: BuildUserMsg → 마스킹 → 호스트 상태 블록
-func buildUserMsg(c evalCase) string {
+// buildUserMsg — 운영 analyzer와 같은 순서: BuildUserMsg → 마스킹 → 호스트 상태 블록, 시스템 프롬프트도 같은 기준으로 고른다
+func buildUserMsg(c evalCase) (string, string) {
 	lines := c.Lines
 	if len(lines) == 0 {
 		lines = []string{c.Log}
@@ -235,7 +230,7 @@ func buildUserMsg(c evalCase) string {
 	if c.Context != "" {
 		msg += "\n" + c.Context
 	}
-	return msg
+	return loginsight.SystemPrompt(lines), msg
 }
 
 func runOnce(p *llm.OllamaProvider, sys, msg string, c evalCase) runResult {

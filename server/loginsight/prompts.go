@@ -115,7 +115,7 @@ const SystemPromptLogCluster = `당신은 학교/공공기관 IT 시스템 모�
 [입력] nginx: connect() failed (<N>: Connection refused) while connecting to upstream (1회)
 [출력] {"severity":"medium","category":"network","summary_ko":"백엔드 연결 일시 실패(1회)","root_cause_ko":"백엔드 프로세스 재시작 등 일시적 원인 추정. 반복되면 심각","action_ko":"백엔드 서비스 상태 확인. 반복 발생 시 high로 대응","needs_human":false}`
 
-// ErrCodeRules — 평가 도구가 조건 0(지시문 없음)을 재려고 이 절만 떼어 낼 수 있게 따로 둔다
+// ErrCodeRules — 해설 블록이 없는 분석에서는 이 절을 떼어 낸다 (SystemPrompt)
 const ErrCodeRules = `오류 코드 해설 활용 (제품 고유 오류 코드):
 - 입력에 "[오류 코드 해설]" 블록이 있으면 로그 속 제품 오류 코드(TBR-, MSSQL "Error: 번호" 등)의 뜻은 그 해설을 따른다.
   영문 메시지의 낱말(I/O, disk, file 등)만 보고 해설과 다른 뜻으로 읽지 마라.
@@ -126,8 +126,18 @@ const ErrCodeRules = `오류 코드 해설 활용 (제품 고유 오류 코드):
 - [현재 호스트 상태]에 실측 이상(디스크 가득 참 등)이 있으면 해설과 별개로 root_cause_ko에 함께 적어라.
 `
 
+var systemPromptNoCodes = strings.Replace(SystemPromptLogCluster, ErrCodeRules, "", 1)
+
+// 지시문을 모든 분석에 넣었더니 코드 없는 줄(DB 데드락)의 대응 필요 판단까지 바뀌었다
+func SystemPrompt(lines []string) string {
+	if errCodeNotes(lines) == "" {
+		return systemPromptNoCodes
+	}
+	return SystemPromptLogCluster
+}
+
 // BuildUserMsg — LogGroup을 LLM 유저 메시지로 변환.
-// 워커가 Provider.Complete(SystemPromptLogCluster, BuildUserMsg(group)) 호출에 사용.
+// 워커가 Provider.Complete(SystemPrompt(group.SampleLines), BuildUserMsg(group)) 호출에 사용.
 func BuildUserMsg(g LogGroup) string {
 	var b strings.Builder
 	b.WriteString("Host: ")

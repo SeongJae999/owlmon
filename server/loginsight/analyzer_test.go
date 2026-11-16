@@ -291,3 +291,32 @@ func TestAnalyzer_KeepsInputText(t *testing.T) {
 		t.Fatalf("보낸 메시지와 같아야 함:\nsaved=%q\nsent=%q", ins.InputText, stub.lastUser)
 	}
 }
+
+func TestAnalyzer_ErrCodeRulesOnlyWithNotes(t *testing.T) {
+	stub := &stubProvider{name: "s", response: `{"severity":"medium","category":"db","summary_ko":"x","root_cause_ko":"x","action_ko":"x","needs_human":true}`}
+	a := NewAnalyzer(stub)
+	sent := func(line string) string {
+		if _, err := a.Analyze(context.Background(), LogGroup{HostName: "db1", Count: 1, TemplateExample: line, SampleLines: []string{line}}); err != nil {
+			t.Fatal(err)
+		}
+		return stub.lastSys
+	}
+	if strings.Contains(sent("postgres: ERROR: deadlock detected"), ErrCodeRules) {
+		t.Error("코드 없는 줄에 지시문이 들어감")
+	}
+	if strings.Contains(sent("TBR-99999: unknown"), ErrCodeRules) {
+		t.Error("사전 밖 코드만 있으면 해설이 없으니 지시문도 없어야 함")
+	}
+	if sent("TBR-2131: Generic I/O error.") != SystemPromptLogCluster {
+		t.Error("해설이 붙는 줄은 지시문이 든 프롬프트 그대로")
+	}
+	t.Setenv("OWLMON_LOGINSIGHT_ERRCODE_OFF", "TBR-2131")
+	if strings.Contains(sent("TBR-2131: Generic I/O error."), ErrCodeRules) {
+		t.Error("코드별로 해설을 끄면 지시문도 빠져야 함")
+	}
+	t.Setenv("OWLMON_LOGINSIGHT_ERRCODE_OFF", "")
+	t.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "off")
+	if strings.Contains(sent("TBR-2131: Generic I/O error."), ErrCodeRules) {
+		t.Error("사전을 끄면 지시문도 빠져야 함")
+	}
+}

@@ -21,7 +21,7 @@ func TestSevSetAndMention(t *testing.T) {
 
 // 운영 analyzer와 같은 입력: 마스킹 → 호스트 상태 블록(없으면 '데이터 없음') → 추가 맥락
 func TestBuildUserMsg_MatchesProdShape(t *testing.T) {
-	msg := buildUserMsg(evalCase{Log: "a@b.com login failed", Context: "[자산 정보] x"})
+	_, msg := buildUserMsg(evalCase{Log: "a@b.com login failed", Context: "[자산 정보] x"})
 	for _, want := range []string{"[현재 호스트 상태]\n- 사용률: 데이터 없음", "[자산 정보] x", "Host: evalhost"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("누락 %q:\n%s", want, msg)

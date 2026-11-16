@@ -82,7 +82,7 @@ func (a *Analyzer) Analyze(ctx context.Context, g LogGroup) (*Insight, error) {
 	}
 
 	start := time.Now()
-	raw, err := a.provider.Complete(ctx, SystemPromptLogCluster, userMsg)
+	raw, err := a.provider.Complete(ctx, SystemPrompt(g.SampleLines), userMsg)
 	if err != nil {
 		return nil, fmt.Errorf("LLM 호출 실패: %w", err)
 	}

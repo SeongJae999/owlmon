@@ -56,7 +56,7 @@ func TestErrCodeEntries(t *testing.T) {
 		}
 	}
 	if strings.Count(SystemPromptLogCluster, ErrCodeRules) != 1 {
-		t.Fatal("평가 조건 0은 시스템 프롬프트에서 ErrCodeRules를 한 번 떼어 낸다")
+		t.Fatal("해설 없는 분석은 시스템 프롬프트에서 ErrCodeRules를 한 번 떼어 낸다")
 	}
 }
 
