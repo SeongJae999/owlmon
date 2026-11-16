@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -123,14 +124,31 @@ func InitDB() *AppContext {
 func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker, emailCfg *alert.EmailConfig, prometheusURL string) {
 	// 체커 고루틴이 locate를 읽기 전에 설정 (잠금 없는 필드)
 	if appCtx.AssetStore != nil {
+		// 장비 대장 전체를 1분에 한 번만 읽음 — 수천 대가 한꺼번에 끊기면 호스트마다 조회하던 것이 알림 발송을 붙잡음
+		var locMu sync.Mutex
+		var locMap map[string]string
+		var locAt time.Time
 		checker.SetLocator(func(host string) string {
-			c, cancel := context.WithTimeout(ctx, 2*time.Second)
-			defer cancel()
-			loc, err := appCtx.AssetStore.LocationOf(c, host)
-			if err != nil {
-				log.Printf("자산 위치 조회 실패 (%s): %v", host, err) // 위치 없이 메일은 그대로 보냄
+			locMu.Lock()
+			defer locMu.Unlock()
+			if locMap == nil || time.Since(locAt) > time.Minute {
+				c, cancel := context.WithTimeout(ctx, 3*time.Second)
+				list, err := appCtx.AssetStore.List(c)
+				cancel()
+				if err != nil {
+					log.Printf("자산 위치 조회 실패: %v", err) // 위치 없이 메일은 그대로 보냄
+					if locMap == nil {
+						locMap = map[string]string{} // 실패해도 1분은 다시 묻지 않음 — 장애 폭주 때 알림마다 전체 조회하지 않게
+					}
+				} else {
+					locMap = make(map[string]string, len(list))
+					for _, a := range list {
+						locMap[a.HostName] = db.LocationText(a.Location, a.Rack, a.RackUnit, a.RackSize)
+					}
+				}
+				locAt = time.Now()
 			}
-			return loc
+			return locMap[host]
 		})
 	}
 
@@ -333,6 +351,19 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 					log.Printf("오래된 로그 정리 실패: %v", err)
 				} else if deleted > 0 {
 					log.Printf("오래된 로그 %d건 삭제 (%s)", deleted, time.Since(start).Round(time.Millisecond))
+				}
+				// 웹 감시·DB 성능 결과도 같은 보존 기간 — 정리하는 곳이 없어 1,000곳이면 하루 144만 행씩 쌓였음
+				if appCtx.SyntheticStore != nil {
+					if n, err := appCtx.SyntheticStore.Cleanup(ctx, 30); err != nil {
+						log.Printf("오래된 웹 감시 결과 정리 실패: %v", err)
+					} else if n > 0 {
+						log.Printf("오래된 웹 감시 결과 %d건 삭제", n)
+					}
+				}
+				if appCtx.DPMStore != nil {
+					if err := appCtx.DPMStore.Cleanup(ctx, 30); err != nil {
+						log.Printf("오래된 DB 성능 기록 정리 실패: %v", err)
+					}
 				}
 				select {
 				case <-ctx.Done():

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -22,6 +23,7 @@ type SNMPHandler struct {
 	store         *db.SNMPDeviceStore
 	poller        *snmp.Poller
 	prometheusURL string
+	promCache     cached[snmpProm]
 }
 
 func NewSNMPHandler(store *db.SNMPDeviceStore, poller *snmp.Poller, prometheusURL string) *SNMPHandler {
@@ -153,6 +155,23 @@ func (h *SNMPHandler) DeleteDevice(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// 장비 목록·서버 직접 폴링 결과는 캐시하지 않음 — 등록·삭제와 폴링이 바로 보이게
+type snmpProm struct {
+	snaps  map[string]*prom.SNMPSnapshot
+	latest map[string]prom.SNMPSample
+	upErr  error
+}
+
+func (h *SNMPHandler) fetchProm() (snmpProm, error) {
+	snaps, err := prom.SNMPStatusAll(h.prometheusURL)
+	if err != nil {
+		log.Printf("[snmp] prometheus 스냅샷 조회 실패: %v", err)
+	}
+	// 응답 여부는 알림과 같은 조회(수집기별 최신 샘플) — 스냅샷 값은 끊긴 수집기의 남은 시계열을 걸러 내지 않아 복구 뒤 몇 분간 틀림
+	latest, upErr := prom.SNMPUpAll(h.prometheusURL)
+	return snmpProm{snaps: snaps, latest: latest, upErr: upErr}, nil
+}
+
 // GetStatus GET /api/snmp/status — Prometheus 기반 통합 스냅샷
 //
 // 데이터 소스 — server 직접 폴링이든 agent SNMP 프록시든 모두 Prometheus(snmp_*)에 적재.
@@ -187,10 +206,10 @@ func (h *SNMPHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]devStat, 0, len(devices))
 	nowStr := time.Now().Format(time.RFC3339)
-	// 응답 여부는 알림과 같은 조회(수집기별 최신 샘플) — 장비별 스냅샷은 첫 시계열을 써서 복구 뒤 몇 분간 '응답 없음'이 남음
-	latest, upErr := prom.SNMPUpAll(h.prometheusURL)
+	pr, _ := h.promCache.get(statusCacheTTL, h.fetchProm)
+	latest, upErr := pr.latest, pr.upErr
 	for _, d := range devices {
-		snap, _ := prom.SNMPStatusForDevice(h.prometheusURL, d.Name)
+		snap := pr.snaps[d.Name]
 		ds := devStat{
 			Device:      d,
 			CollectedAt: nowStr,

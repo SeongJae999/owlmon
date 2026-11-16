@@ -47,7 +47,23 @@ type Checker struct {
 	unacked         map[string]*pendingAlert // 단계 통보 대기 중인 위험 알림 (key: 호스트/항목/대상)
 	watched         map[string]func(context.Context) (map[string]bool, error)
 	downHosts       map[string]time.Time // 끊긴 시각, escMu로 보호
+	cfgMu           sync.Mutex
+	cfgVal          AlertConfig
+	cfgAt           time.Time
+	locMu           sync.Mutex
+	locCache        map[string]cachedLoc
 }
+
+type cachedLoc struct {
+	loc string
+	at  time.Time
+}
+
+// 장애 폭주 때 알림 1건마다 설정·위치를 DB에서 다시 읽지 않게 짧게 기억함. 설정은 저장 즉시 InvalidateConfig로 풂
+const (
+	configTTL   = 5 * time.Second
+	locationTTL = time.Minute
+)
 
 type pendingAlert struct {
 	host, category, target, subject, body string
@@ -70,6 +86,7 @@ func NewChecker(prometheusURL string, email *EmailConfig, configStore ConfigStor
 		unacked:       make(map[string]*pendingAlert),
 		watched:       make(map[string]func(context.Context) (map[string]bool, error)),
 		downHosts:     make(map[string]time.Time),
+		locCache:      make(map[string]cachedLoc),
 	}
 }
 
@@ -84,6 +101,36 @@ func (c *Checker) Notifier() *Notifier { return c.notifier }
 
 // IT 전담이 없는 기관은 메일 받은 사람이 장비 위치를 모름 — 자산 관리에 적은 위치를 본문에 붙인다
 func (c *Checker) SetLocator(f func(host string) string) { c.locate = f }
+
+func (c *Checker) location(host string) string {
+	if c.locate == nil {
+		return ""
+	}
+	c.locMu.Lock()
+	defer c.locMu.Unlock()
+	if e, ok := c.locCache[host]; ok && time.Since(e.at) < locationTTL {
+		return e.loc
+	}
+	loc := c.locate(host)
+	c.locCache[host] = cachedLoc{loc: loc, at: time.Now()}
+	return loc
+}
+
+func (c *Checker) config() AlertConfig {
+	c.cfgMu.Lock()
+	defer c.cfgMu.Unlock()
+	if c.cfgAt.IsZero() || time.Since(c.cfgAt) >= configTTL {
+		c.cfgVal, c.cfgAt = c.configStore.Get(), time.Now()
+	}
+	return c.cfgVal
+}
+
+// InvalidateConfig는 설정 저장 직후 불러 다음 알림부터 새 설정을 쓰게 함
+func (c *Checker) InvalidateConfig() {
+	c.cfgMu.Lock()
+	c.cfgAt = time.Time{}
+	c.cfgMu.Unlock()
+}
 
 // 본문 첫 줄(호스트·도메인·모니터 등 대상)을 바로 뒤에 위치를 끼움
 func withLocation(body, loc string) string {
@@ -174,7 +221,7 @@ func (c *Checker) checkSSLCerts() {
 		}
 	}
 
-	if !c.configStore.Get().Enabled {
+	if !c.config().Enabled {
 		return
 	}
 
@@ -263,7 +310,7 @@ func (c *Checker) Start(ctx context.Context, interval time.Duration) {
 }
 
 func (c *Checker) check() {
-	cfg := c.configStore.Get()
+	cfg := c.config()
 	if !cfg.Enabled {
 		// 꺼 둔 동안의 장애가 다시 켤 때 한꺼번에 2차 통보되지 않게
 		c.dropUnacked(func(*pendingAlert) bool { return true })
@@ -274,14 +321,18 @@ func (c *Checker) check() {
 		return
 	}
 
-	c.checkMetric("CPU", "cpu", "max(system_cpu_usage_percent) by (host_name)", cfg.CPUThreshold, 0)
-	c.checkMetric("메모리", "memory", "max(system_memory_usage_percent) by (host_name)", cfg.MemThreshold, 0)
-	c.checkDisk(cfg.DiskWarn, cfg.DiskCrit)
+	// 임계 판정과 이상탐지·예측이 같은 조회 결과를 씀 — 실패하면 nil이라 양쪽 모두 이번 주기를 건너뜀
+	cpu, _ := c.query("max(system_cpu_usage_percent) by (host_name)")
+	mem, _ := c.query("max(system_memory_usage_percent) by (host_name)")
+	disk, _ := c.query("max(system_disk_usage_percent) by (host_name, mountpoint)")
+	c.checkMetric("CPU", "cpu", cpu, cfg.CPUThreshold, 0)
+	c.checkMetric("메모리", "memory", mem, cfg.MemThreshold, 0)
+	c.checkDisk(disk, cfg.DiskWarn, cfg.DiskCrit)
 	c.checkRapidGrowth()
 	c.checkServerDown()
 	c.checkServiceFailures()
-	c.feedAnomalyDetector()
-	c.feedDiskPredictor()
+	c.feedAnomalyDetector(cpu, mem)
+	c.feedDiskPredictor(disk)
 }
 
 // promHealthy는 Prometheus 응답 여부를 확인합니다.
@@ -309,11 +360,7 @@ func (c *Checker) promHealthy() bool {
 
 // checkMetric은 단일 메트릭 임계값을 체크합니다.
 // category는 /api/alert/status·ack와 같은 키여야 화면의 [확인]이 메일 억제에 반영됨
-func (c *Checker) checkMetric(name, category, promql string, critical, warning float64) {
-	results, err := c.query(promql)
-	if err != nil {
-		return
-	}
+func (c *Checker) checkMetric(name, category string, results []metricResult, critical, warning float64) {
 	for _, r := range results {
 		host := r.metric["host_name"]
 		val := r.value
@@ -336,11 +383,7 @@ func (c *Checker) checkMetric(name, category, promql string, critical, warning f
 }
 
 // checkDisk는 디스크를 경고/위험 두 단계로 체크합니다.
-func (c *Checker) checkDisk(warn, crit float64) {
-	results, err := c.query("max(system_disk_usage_percent) by (host_name, mountpoint)")
-	if err != nil {
-		return
-	}
+func (c *Checker) checkDisk(results []metricResult, warn, crit float64) {
 	for _, r := range results {
 		host := r.metric["host_name"]
 		mount := r.metric["mountpoint"]
@@ -424,8 +467,9 @@ func (c *Checker) checkRapidGrowth() {
 		category string
 	}
 	checks := []growthCheck{
-		{"디스크", `delta(system_disk_usage_percent[1h])`, 5, 15, "rapid_disk"},
-		{"메모리", `delta(system_memory_usage_percent[1h])`, 10, 25, "rapid_memory"},
+		// 판정 키가 호스트 단위라 마운트·시리즈별 결과 대신 호스트별 최댓값만 받음
+		{"디스크", `max by (host_name)(delta(system_disk_usage_percent[1h]))`, 5, 15, "rapid_disk"},
+		{"메모리", `max by (host_name)(delta(system_memory_usage_percent[1h]))`, 10, 25, "rapid_memory"},
 	}
 	for _, ck := range checks {
 		results, err := c.query(ck.promql)
@@ -499,7 +543,7 @@ func (c *Checker) sendAlert(host, category, severity, subject, body string) {
 
 // target은 같은 호스트·항목 안의 대상(디스크 마운트) — 한 마운트의 복구가 다른 마운트의 단계 통보 대기를 지우지 않게
 func (c *Checker) send(host, category, target, severity, subject, body string) {
-	cfg := c.configStore.Get()
+	cfg := c.config()
 	if body, ok := c.admit(cfg, host, category, target, severity, subject, body); ok {
 		c.notifier.Enqueue(routeNotice(cfg, c.defaultTo(), severity, subject, body))
 	}
@@ -515,9 +559,7 @@ func (c *Checker) admit(cfg AlertConfig, host, category, target, severity, subje
 		}
 		return "", false
 	}
-	if c.locate != nil {
-		body = withLocation(body, c.locate(host))
-	}
+	body = withLocation(body, c.location(host))
 	switch {
 	case !cfg.Enabled:
 		// Synthetic·DPM·네트워크 장비·로그 분석은 check()의 스위치를 거치지 않고 들어옴
@@ -566,15 +608,13 @@ func (c *Checker) SendGroup(severity, subjectFmt string, alerts []Alert) {
 		}
 		return
 	}
-	cfg := c.configStore.Get()
+	cfg := c.config()
 	var lines []string
 	for _, a := range alerts {
 		if _, ok := c.admit(cfg, a.Host, a.Category, "", severity, a.Subject, a.Body); ok {
 			line := "- " + a.Subject
-			if c.locate != nil {
-				if loc := c.locate(a.Host); loc != "" {
-					line += " (" + loc + ")"
-				}
+			if loc := c.location(a.Host); loc != "" {
+				line += " (" + loc + ")"
 			}
 			lines = append(lines, line)
 		}
@@ -799,45 +839,33 @@ func (c *Checker) query(promql string) ([]metricResult, error) {
 }
 
 // feedAnomalyDetector는 CPU/메모리 메트릭을 이상탐지 엔진에 주입합니다.
-func (c *Checker) feedAnomalyDetector() {
+func (c *Checker) feedAnomalyDetector(cpu, mem []metricResult) {
 	now := time.Now()
-
-	// CPU
-	if results, err := c.query("max(system_cpu_usage_percent) by (host_name)"); err == nil {
-		for _, r := range results {
-			host := r.metric["host_name"]
-			if a := c.Detector.Feed(host, "cpu", r.value, now); a != nil {
-				key := fmt.Sprintf("anomaly:cpu:%s", host)
-				if a.Severity == "critical" && c.state.ShouldAlert(key) {
-					subject := fmt.Sprintf("[위험] %s CPU 이상 감지 (Z=%.1f)", host, a.ZScore)
-					c.sendAlert(host, "anomaly_cpu", a.Severity, subject, a.Message)
-				}
+	for _, r := range cpu {
+		host := r.metric["host_name"]
+		if a := c.Detector.Feed(host, "cpu", r.value, now); a != nil {
+			key := fmt.Sprintf("anomaly:cpu:%s", host)
+			if a.Severity == "critical" && c.state.ShouldAlert(key) {
+				subject := fmt.Sprintf("[위험] %s CPU 이상 감지 (Z=%.1f)", host, a.ZScore)
+				c.sendAlert(host, "anomaly_cpu", a.Severity, subject, a.Message)
 			}
 		}
 	}
-
-	// 메모리
-	if results, err := c.query("max(system_memory_usage_percent) by (host_name)"); err == nil {
-		for _, r := range results {
-			host := r.metric["host_name"]
-			if a := c.Detector.Feed(host, "memory", r.value, now); a != nil {
-				key := fmt.Sprintf("anomaly:memory:%s", host)
-				if a.Severity == "critical" && c.state.ShouldAlert(key) {
-					subject := fmt.Sprintf("[위험] %s 메모리 이상 감지 (Z=%.1f)", host, a.ZScore)
-					c.sendAlert(host, "anomaly_memory", a.Severity, subject, a.Message)
-				}
+	for _, r := range mem {
+		host := r.metric["host_name"]
+		if a := c.Detector.Feed(host, "memory", r.value, now); a != nil {
+			key := fmt.Sprintf("anomaly:memory:%s", host)
+			if a.Severity == "critical" && c.state.ShouldAlert(key) {
+				subject := fmt.Sprintf("[위험] %s 메모리 이상 감지 (Z=%.1f)", host, a.ZScore)
+				c.sendAlert(host, "anomaly_memory", a.Severity, subject, a.Message)
 			}
 		}
 	}
 }
 
 // feedDiskPredictor는 디스크 사용률을 예측 엔진에 주입합니다.
-func (c *Checker) feedDiskPredictor() {
+func (c *Checker) feedDiskPredictor(results []metricResult) {
 	now := time.Now()
-	results, err := c.query("max(system_disk_usage_percent) by (host_name, mountpoint)")
-	if err != nil {
-		return
-	}
 	for _, r := range results {
 		host := r.metric["host_name"]
 		mount := r.metric["mountpoint"]

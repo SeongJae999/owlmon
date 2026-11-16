@@ -3,8 +3,10 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"os"
 	"runtime"
@@ -29,7 +31,7 @@ type ActiveAlert struct {
 	AckedBy       string     `json:"acked_by,omitempty"`
 	AckedAt       *time.Time `json:"acked_at,omitempty"`
 	Since         *time.Time `json:"since,omitempty"` // 이 문제가 처음 보인 시각
-	InMaintenance bool       `json:"in_maintenance"` // 유지보수 모드 여부
+	InMaintenance bool       `json:"in_maintenance"`  // 유지보수 모드 여부
 }
 
 type StatusHandler struct {
@@ -40,6 +42,70 @@ type StatusHandler struct {
 
 	sinceMu sync.Mutex
 	since   map[string]time.Time // 임계치 초과가 처음 보인 시각. 서버를 다시 켜면 그때부터 다시 잰다
+
+	promCache   cached[promStatus]
+	uptimeCache cached[map[string]float64]
+
+	// fetchProm에서만 읽고 쓴다 — 캐시가 조회를 한 번에 하나만 돌린다
+	lastSeen   map[string]time.Time
+	seenFullAt time.Time // 7일 조회로 lastSeen을 새로 만든 시각
+	seenAt     time.Time // 최신 시각 조회로 lastSeen을 갱신한 시각
+
+	// fetchUptime에서만 읽고 쓴다. 지난 날의 호스트별 샘플 수 — 끝난 날은 바뀌지 않으므로 한 번만 셈
+	dayCounts map[string]map[string]float64 // "2006-01-02" → host → 샘플 수
+}
+
+const (
+	statusCacheTTL = 10 * time.Second
+	uptimeCacheTTL = 5 * time.Minute
+	seenFullEvery  = 10 * time.Minute
+	// Prometheus lookback(5분)보다 오래 갱신이 끊기면 그사이 꺼진 서버의 마지막 시각을 놓치므로 7일 조회로 다시 맞춘다
+	seenGap = 4 * time.Minute
+)
+
+var errFetchAborted = errors.New("조회가 중단됨")
+
+// 화면 수만큼 같은 조회가 겹치지 않게 — 만료 전엔 저장값, 만료 뒤 동시 요청은 진행 중인 한 번의 결과를 같이 받는다.
+// 실패는 저장하지 않아 다음 요청이 바로 다시 조회한다
+type cached[T any] struct {
+	mu   sync.Mutex
+	at   time.Time
+	val  T
+	call *cacheCall[T]
+}
+
+type cacheCall[T any] struct {
+	done chan struct{}
+	val  T
+	err  error
+}
+
+func (c *cached[T]) get(ttl time.Duration, fetch func() (T, error)) (T, error) {
+	c.mu.Lock()
+	if !c.at.IsZero() && time.Since(c.at) < ttl {
+		v := c.val
+		c.mu.Unlock()
+		return v, nil
+	}
+	if call := c.call; call != nil {
+		c.mu.Unlock()
+		<-call.done
+		return call.val, call.err
+	}
+	call := &cacheCall[T]{done: make(chan struct{}), err: errFetchAborted} // fetch가 패닉해도 기다리던 요청이 풀리게
+	c.call = call
+	c.mu.Unlock()
+	defer func() {
+		c.mu.Lock()
+		c.call = nil
+		if call.err == nil {
+			c.val, c.at = call.val, time.Now()
+		}
+		c.mu.Unlock()
+		close(call.done)
+	}()
+	call.val, call.err = fetch()
+	return call.val, call.err
 }
 
 func NewStatusHandler(prometheusURL string, configStore alert.ConfigStorer, checker *alert.Checker, dbPool *pgxpool.Pool) *StatusHandler {
@@ -128,14 +194,25 @@ func (s fleetSnapshot) hosts() []string {
 	return out
 }
 
-func (h *StatusHandler) snapshot() fleetSnapshot {
+// Prometheus 결과만 캐시한다 — 임계치·확인·점검은 요청마다 최신으로 합쳐야 확인 버튼이 바로 반영된다
+type promStatus struct {
+	cpu, mem, disk []promResult
+	seen           map[string]time.Time // nil이면 마지막 수신 시각을 몰라 끊김 판정을 건너뛴다
+	failed         bool
+}
+
+func (h *StatusHandler) fetchProm() (promStatus, error) {
+	now := time.Now()
 	queries := []string{
 		"max(system_cpu_usage_percent) by (host_name)",
 		"max(system_memory_usage_percent) by (host_name)",
 		"max(system_disk_usage_percent) by (host_name, mountpoint)",
 		"max by (host_name) (timestamp(system_cpu_usage_percent))",
-		// 꺼진 지 5분이 넘으면 lookback에서 빠져 위 쿼리에 안 나온다. 7일 이력으로 찾아 계속 표시한다
-		"max by (host_name) (max_over_time(timestamp(system_cpu_usage_percent)[7d:5m]))",
+	}
+	// 꺼진 지 5분이 넘으면 lookback에서 빠져 최신 시각 쿼리에 안 나온다. 7일 이력은 무거워 가끔만 보고 그사이엔 메모리에 이어 붙인다
+	full := now.Sub(h.seenFullAt) >= seenFullEvery || now.Sub(h.seenAt) >= seenGap
+	if full {
+		queries = append(queries, "max by (host_name) (max_over_time(timestamp(system_cpu_usage_percent)[7d:5m]))")
 	}
 	results := make([][]promResult, len(queries))
 	errs := make([]error, len(queries))
@@ -149,6 +226,44 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 	}
 	wg.Wait()
 
+	st := promStatus{cpu: results[0], mem: results[1], disk: results[2]}
+	for _, err := range errs {
+		if err != nil {
+			log.Printf("[status] prometheus 조회 실패: %v", err)
+			st.failed = true
+		}
+	}
+
+	// 7일 쿼리는 5분 간격이라 살아 있는 서버도 늦게 보인다. 최신 시각 쿼리가 실패하면 오탐을 내지 않도록 판정을 건너뛴다
+	if errs[3] != nil || (full && errs[4] != nil) {
+		return st, nil
+	}
+	if full {
+		h.lastSeen = map[string]time.Time{}
+		for _, r := range results[4] {
+			h.lastSeen[r.metric["host_name"]] = time.Unix(int64(r.value), 0)
+		}
+		h.seenFullAt = now
+	}
+	for _, r := range results[3] {
+		t := time.Unix(int64(r.value), 0)
+		host := r.metric["host_name"]
+		if t.After(h.lastSeen[host]) {
+			h.lastSeen[host] = t
+		}
+	}
+	for host, t := range h.lastSeen {
+		if now.Sub(t) > 7*24*time.Hour {
+			delete(h.lastSeen, host)
+		}
+	}
+	h.seenAt = now
+	st.seen = maps.Clone(h.lastSeen)
+	return st, nil
+}
+
+func (h *StatusHandler) snapshot() fleetSnapshot {
+	st, _ := h.promCache.get(statusCacheTTL, h.fetchProm)
 	snap := fleetSnapshot{
 		CPU:    map[string]float64{},
 		Mem:    map[string]float64{},
@@ -156,34 +271,19 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 		Seen:   map[string]time.Time{},
 		Down:   map[string]bool{},
 		Alerts: []ActiveAlert{},
-	}
-	for _, err := range errs {
-		if err != nil {
-			log.Printf("[status] prometheus 조회 실패: %v", err)
-			snap.Failed = true
-		}
+		Failed: st.failed,
 	}
 
-	// 7일 쿼리는 5분 간격이라 살아 있는 서버도 늦게 보인다. 최신 시각 쿼리가 실패하면 오탐을 내지 않도록 판정을 건너뛴다
 	now := time.Now()
-	if errs[3] == nil && errs[4] == nil {
-		for _, rs := range results[3:5] {
-			for _, r := range rs {
-				t := time.Unix(int64(r.value), 0)
-				if host := r.metric["host_name"]; t.After(snap.Seen[host]) {
-					snap.Seen[host] = t
-				}
-			}
-		}
-		for host, t := range snap.Seen {
-			if now.Sub(t) > 2*time.Minute {
-				snap.Down[host] = true
-			}
+	for host, t := range st.seen {
+		snap.Seen[host] = t
+		if now.Sub(t) > 2*time.Minute {
+			snap.Down[host] = true
 		}
 	}
 
 	cfg := h.configStore.Get()
-	for _, r := range results[0] {
+	for _, r := range st.cpu {
 		host := r.metric["host_name"]
 		snap.CPU[host] = r.value
 		if r.value >= cfg.CPUThreshold && !snap.Down[host] {
@@ -196,7 +296,7 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 			})
 		}
 	}
-	for _, r := range results[1] {
+	for _, r := range st.mem {
 		host := r.metric["host_name"]
 		snap.Mem[host] = r.value
 		if r.value >= cfg.MemThreshold && !snap.Down[host] {
@@ -209,7 +309,7 @@ func (h *StatusHandler) snapshot() fleetSnapshot {
 			})
 		}
 	}
-	for _, r := range results[2] {
+	for _, r := range st.disk {
 		host, mount := r.metric["host_name"], r.metric["mountpoint"]
 		if snap.Disk[host] == nil {
 			snap.Disk[host] = map[string]float64{}
@@ -302,9 +402,17 @@ func (h *StatusHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 // GetUptime은 이번 달 호스트별 가동률(%)을 반환합니다.
 // GET /api/uptime
 func (h *StatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	daysElapsed := now.Day() // 이번 달 경과 일수 (1~31)
-	durationStr := fmt.Sprintf("%dd", daysElapsed)
+	result, err := h.uptimeCache.get(uptimeCacheTTL, h.fetchUptime)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *StatusHandler) fetchUptime() (map[string]float64, error) {
+	daysElapsed := time.Now().Day() // 이번 달 경과 일수 (1~31)
 	// 수집 주기 (env: OWLMON_COLLECT_INTERVAL_SEC, 기본 15초 — 에이전트 기본값과 일치)
 	intervalSec := 15
 	if v := os.Getenv("OWLMON_COLLECT_INTERVAL_SEC"); v != "" {
@@ -312,34 +420,67 @@ func (h *StatusHandler) GetUptime(w http.ResponseWriter, r *http.Request) {
 			intervalSec = n
 		}
 	}
-	samplesPerHour := 3600 / intervalSec
-	expectedSamples := float64(daysElapsed * 24 * samplesPerHour)
+	expectedSamples := float64(daysElapsed * 24 * (3600 / intervalSec))
 
-	hosts, err := h.labelValues("host_name")
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)
-		return
+	// 한 달치를 한 번에 세면 수천 대에서 수억 샘플을 읽어 조회 시간 제한을 넘음 — 끝난 날은 하루씩 세어 기억하고 오늘만 다시 셈
+	now := time.Now()
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	if h.dayCounts == nil {
+		h.dayCounts = map[string]map[string]float64{}
+	}
+	sum := map[string]float64{}
+	add := func(rs []promResult) {
+		for _, r := range rs {
+			sum[r.metric["host_name"]] += r.value
+		}
+	}
+	keep := map[string]bool{}
+	for d := 1; d < daysElapsed; d++ {
+		end := dayStart.AddDate(0, 0, d-daysElapsed+1) // d일의 다음 날 0시
+		key := end.AddDate(0, 0, -1).Format("2006-01-02")
+		keep[key] = true
+		counts, ok := h.dayCounts[key]
+		if !ok {
+			rs, err := h.queryAt(`sum by (host_name) (count_over_time(system_cpu_usage_percent[1d]))`, end)
+			if err != nil {
+				return nil, err
+			}
+			counts = map[string]float64{}
+			for _, r := range rs {
+				counts[r.metric["host_name"]] = r.value
+			}
+			h.dayCounts[key] = counts
+		}
+		for host, n := range counts {
+			sum[host] += n
+		}
+	}
+	for key := range h.dayCounts {
+		if !keep[key] {
+			delete(h.dayCounts, key) // 지난달 기록
+		}
+	}
+	if secs := int(now.Sub(dayStart).Seconds()); secs > 0 {
+		rs, err := h.query(fmt.Sprintf(`sum by (host_name) (count_over_time(system_cpu_usage_percent[%ds]))`, secs))
+		if err != nil {
+			return nil, err
+		}
+		add(rs)
 	}
 
-	result := make(map[string]float64)
-	for _, host := range hosts {
-		results, err := h.query(fmt.Sprintf(
-			`count_over_time(system_cpu_usage_percent{host_name=%q}[%s])`,
-			host, durationStr,
-		))
-		if err != nil || len(results) == 0 {
-			result[host] = 0
-			continue
-		}
-		pct := results[0].value / expectedSamples * 100
-		if pct > 100 {
-			pct = 100
-		}
-		result[host] = pct
+	result := map[string]float64{}
+	// 화면 목록(7일 안에 본 서버)에 있는데 이번 달 샘플이 없으면 0%. 목록을 못 받으면 꺼진 서버가 빠진 결과를 5분 동안 기억하게 되므로 실패로 돌림
+	st, err := h.promCache.get(statusCacheTTL, h.fetchProm)
+	if err != nil || st.seen == nil {
+		return nil, fmt.Errorf("서버 목록 조회 실패: %v", err)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	for host := range st.seen {
+		result[host] = 0
+	}
+	for host, n := range sum {
+		result[host] = min(n/expectedSamples*100, 100)
+	}
+	return result, nil
 }
 
 type promResult struct {
@@ -348,8 +489,12 @@ type promResult struct {
 }
 
 func (h *StatusHandler) query(promql string) ([]promResult, error) {
+	return h.queryAt(promql, time.Time{})
+}
+
+func (h *StatusHandler) queryAt(promql string, at time.Time) ([]promResult, error) {
 	// HTTP 호출/파싱은 prom 패키지 공용 클라이언트로 (타임아웃 포함)
-	rs, err := prom.Query(h.prometheusURL, promql)
+	rs, err := prom.QueryAt(h.prometheusURL, promql, at)
 	if err != nil {
 		return nil, err
 	}

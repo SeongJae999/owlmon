@@ -120,36 +120,59 @@ type SyntheticStats struct {
 	FailedChecks int     `json:"failed_checks"`
 }
 
-// Stats는 최근 N시간 통계를 반환합니다.
-func (s *SyntheticStore) Stats(ctx context.Context, monitorID int64, hours int) (SyntheticStats, error) {
+// StatsAll은 모든 모니터의 최근 N시간 통계를 한 번에 반환합니다. 결과가 없는 모니터는 빠집니다.
+func (s *SyntheticStore) StatsAll(ctx context.Context, hours int) (map[int64]SyntheticStats, error) {
 	since := time.Now().Add(-time.Duration(hours) * time.Hour)
-	stats := SyntheticStats{MonitorID: monitorID}
-
-	row := s.pool.QueryRow(ctx, `
-		SELECT
-			COUNT(*),
-			COUNT(*) FILTER (WHERE NOT success),
-			COALESCE(AVG(response_time_ms) FILTER (WHERE success), 0),
-			COALESCE(percentile_disc(0.95) WITHIN GROUP (ORDER BY response_time_ms) FILTER (WHERE success), 0)
-		  FROM synthetic_results
-		 WHERE monitor_id=$1 AND checked_at >= $2`,
-		monitorID, since)
-
-	if err := row.Scan(&stats.TotalChecks, &stats.FailedChecks, &stats.AvgLatencyMs, &stats.P95LatencyMs); err != nil {
-		return stats, err
+	// 모니터마다 (monitor_id, checked_at) 인덱스로 최근 범위만 읽음 — checked_at만으로 거르면 이력 전체를 훑음
+	rows, err := s.pool.Query(ctx, `
+		SELECT m.id, x.total, x.failed, x.avg, x.p95
+		  FROM synthetic_monitors m
+		 CROSS JOIN LATERAL (
+			SELECT COUNT(*) AS total,
+			       COUNT(*) FILTER (WHERE NOT success) AS failed,
+			       COALESCE(AVG(response_time_ms) FILTER (WHERE success), 0) AS avg,
+			       COALESCE(percentile_disc(0.95) WITHIN GROUP (ORDER BY response_time_ms) FILTER (WHERE success), 0) AS p95
+			  FROM synthetic_results r
+			 WHERE r.monitor_id = m.id AND r.checked_at >= $1
+		 ) x
+		 WHERE x.total > 0`,
+		since)
+	if err != nil {
+		return nil, err
 	}
-	if stats.TotalChecks > 0 {
-		stats.UptimePct = float64(stats.TotalChecks-stats.FailedChecks) / float64(stats.TotalChecks) * 100
+	defer rows.Close()
+
+	out := map[int64]SyntheticStats{}
+	for rows.Next() {
+		var st SyntheticStats
+		if err := rows.Scan(&st.MonitorID, &st.TotalChecks, &st.FailedChecks, &st.AvgLatencyMs, &st.P95LatencyMs); err != nil {
+			return nil, err
+		}
+		if st.TotalChecks > 0 {
+			st.UptimePct = float64(st.TotalChecks-st.FailedChecks) / float64(st.TotalChecks) * 100
+		}
+		out[st.MonitorID] = st
 	}
-	return stats, nil
+	return out, rows.Err()
 }
 
 // Cleanup은 N일 이전 결과를 삭제합니다.
 func (s *SyntheticStore) Cleanup(ctx context.Context, days int) (int64, error) {
 	cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
-	tag, err := s.pool.Exec(ctx, `DELETE FROM synthetic_results WHERE checked_at < $1`, cutoff)
-	if err != nil {
-		return 0, err
+	return deleteBatched(ctx, s.pool, `DELETE FROM synthetic_results WHERE ctid IN (SELECT ctid FROM synthetic_results WHERE checked_at < $1 LIMIT 10000)`, cutoff)
+}
+
+// 정리 없이 쌓인 이력을 한 문장으로 지우면 긴 트랜잭션·WAL 폭증이 생김 — 작게 나눠 지움
+func deleteBatched(ctx context.Context, pool *pgxpool.Pool, sql string, args ...any) (int64, error) {
+	var total int64
+	for {
+		tag, err := pool.Exec(ctx, sql, args...)
+		if err != nil {
+			return total, err
+		}
+		total += tag.RowsAffected()
+		if tag.RowsAffected() == 0 {
+			return total, nil
+		}
 	}
-	return tag.RowsAffected(), nil
 }

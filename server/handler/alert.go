@@ -96,7 +96,11 @@ func (h *AlertHandler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	if !hasChannels && canKeep {
 		save = keeper.SetKeepChannels
 	}
-	if err := save(cfg); err != nil {
+	err = save(cfg)
+	if h.checker != nil {
+		h.checker.InvalidateConfig() // 일부만 저장된 경우도 있어 실패해도 다시 읽게
+	}
+	if err != nil {
 		msg := "설정 저장 실패"
 		if errors.Is(err, alert.ErrChannelsNotSaved) {
 			msg = "임계값·수신자는 저장했지만 웹훅·문자 설정은 저장하지 못했습니다 — DB에 설정 칸이 없습니다(서버 기동 로그 확인)"

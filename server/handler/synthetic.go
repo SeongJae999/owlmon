@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/seongJae/owlmon/server/db"
@@ -16,9 +18,12 @@ import (
 
 // SyntheticHandler는 Synthetic 모니터링 API를 처리합니다.
 type SyntheticHandler struct {
-	store   *db.SyntheticStore
-	checker *synthetic.Checker
+	store      *db.SyntheticStore
+	checker    *synthetic.Checker
+	statsCache cached[map[int64]db.SyntheticStats]
 }
+
+const syntheticStatsTTL = 60 * time.Second
 
 func NewSyntheticHandler(store *db.SyntheticStore, checker *synthetic.Checker) *SyntheticHandler {
 	return &SyntheticHandler{store: store, checker: checker}
@@ -115,9 +120,9 @@ func (h *SyntheticHandler) DeleteMonitor(w http.ResponseWriter, r *http.Request)
 
 // SyntheticStatusItem은 모니터 + 최근 결과 + 통계를 합친 응답입니다.
 type SyntheticStatusItem struct {
-	Monitor synthetic.Monitor   `json:"monitor"`
-	Latest  *synthetic.Result   `json:"latest,omitempty"`
-	Stats   db.SyntheticStats   `json:"stats"`
+	Monitor synthetic.Monitor `json:"monitor"`
+	Latest  *synthetic.Result `json:"latest,omitempty"`
+	Stats   db.SyntheticStats `json:"stats"`
 }
 
 // GetStatus GET /api/synthetic/status — 모든 모니터의 최근 상태 + 24h 통계
@@ -129,10 +134,22 @@ func (h *SyntheticHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	latest := h.checker.GetLatest()
+	all, err := h.statsCache.get(syntheticStatsTTL, func() (map[int64]db.SyntheticStats, error) {
+		// 여러 요청이 같이 기다리는 조회라 먼저 온 요청이 끊겨도 취소되지 않게
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		return h.store.StatsAll(ctx, 24)
+	})
+	if err != nil {
+		log.Printf("[synthetic] 통계 조회 실패: %v", err)
+	}
 
 	items := make([]SyntheticStatusItem, 0, len(monitors))
 	for _, m := range monitors {
-		stats, _ := h.store.Stats(ctx, m.ID, 24)
+		stats, ok := all[m.ID]
+		if !ok {
+			stats = db.SyntheticStats{MonitorID: m.ID}
+		}
 		item := SyntheticStatusItem{Monitor: m, Stats: stats}
 		if r, ok := latest[m.ID]; ok {
 			rc := r
