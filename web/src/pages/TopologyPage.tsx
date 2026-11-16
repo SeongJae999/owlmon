@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, CornerLeftUp, FileUp, Plus, RotateCcw, Save, Trash2, Workflow, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CornerLeftUp, FileUp, Plus, RotateCcw, Save, Search, Trash2, Workflow, X } from 'lucide-react'
 import PageToolbar from '../components/PageToolbar'
 import TopologyMap from '../components/TopologyMap'
 import BulkImport from '../components/BulkImport'
+import Pager from '../components/Pager'
+import { paged } from '../utils/paged'
 import { useHosts } from '../hooks/useMonitoring'
 import { getSNMPStatus } from '../api/snmp'
 import { getMe } from '../api/auth'
@@ -21,6 +23,9 @@ const inputCls = 'w-full h-9 px-2.5 rounded-lg bg-base-800 border border-base-70
 interface Row extends TopologyDevice {
   monitored: boolean
 }
+type Link = 'parent' | 'pair'
+// 목록에 없는 이름을 친 칸 — base는 그때의 확정값, 확정값이 바뀌면(구성도에서 연결 등) 오류는 무효
+type LinkError = { field: Link; name: string; value: string; msg: string; base: string }
 
 export default function TopologyPage() {
   const { data: hosts, isSuccess: hostsReady } = useHosts()
@@ -87,6 +92,7 @@ function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty
   const [saving, setSaving] = useState(false)
   // 구성도에서 고른 장비 — 다음에 누르는 장비 아래로 연결된다
   const [picked, setPicked] = useState<string | null>(null)
+  const [linkErrors, setLinkErrors] = useState<Record<string, LinkError>>({})
   useEffect(() => {
     if (!picked) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPicked(null) }
@@ -112,14 +118,54 @@ function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty
     return r
   }))
 
+  const { byName, children, mateOf } = useMemo(() => {
+    const byName = new Map(rows.map(r => [r.name, r]))
+    const children = new Map<string, string[]>()
+    const mateOf = new Map<string, string>()
+    for (const r of rows) {
+      if (r.parent) { const c = children.get(r.parent); if (c) c.push(r.name); else children.set(r.parent, [r.name]) }
+      // 짝은 한쪽에만 적혀 있어도 양쪽 행에 보이게 — 자기 행에 적힌 짝이 우선
+      if (r.pair) { mateOf.set(r.name, r.pair); if (!mateOf.has(r.pair)) mateOf.set(r.pair, r.name) }
+    }
+    return { byName, children, mateOf }
+  }, [rows])
+
   const descendants = (name: string) => {
     const out = new Set<string>([name])
-    for (let grew = true; grew;) {
-      grew = false
-      for (const r of rows) if (r.parent && out.has(r.parent) && !out.has(r.name)) { out.add(r.name); grew = true }
-    }
+    for (const n of out) for (const c of children.get(n) ?? []) out.add(c)
     return out
   }
+
+  const linked = (field: Link, name: string) => (field === 'parent' ? byName.get(name)?.parent : mateOf.get(name)) ?? ''
+  const linkError = (field: Link, name: string, v: string) => {
+    const target = byName.get(v)
+    if (!target?.zone) return '구성도에 없는 장비'
+    if (v === name) return '자기 자신은 고를 수 없음'
+    if (field === 'parent') return descendants(name).has(v) ? '아래쪽 장비라 고를 수 없음' : ''
+    return target.zone !== byName.get(name)?.zone ? '같은 구역 장비만 고를 수 있음' : ''
+  }
+  const errorOf = (field: Link, name: string) => {
+    const e = linkErrors[`${field}:${name}`]
+    return e && byName.get(name)?.zone && e.base === linked(field, name) ? e : undefined
+  }
+  const commitLink = (field: Link, name: string, raw: string) => {
+    const v = raw.trim()
+    const base = linked(field, name)
+    const msg = v && v !== base ? linkError(field, name, v) : ''
+    const key = `${field}:${name}`
+    if (msg || linkErrors[key]) setLinkErrors(es => {
+      const next = { ...es }
+      if (msg) next[key] = { field, name, value: raw, msg, base }
+      else delete next[key]
+      return next
+    })
+    if (msg || v === base) return
+    if (field === 'parent') update(name, { parent: v || undefined })
+    else setPair(name, v)
+  }
+  const badLinks = [...new Set(Object.values(linkErrors).filter(e => errorOf(e.field, e.name)).map(e => e.name))]
+  // 저장을 눌렀을 때만 띄우고, 고치면 바로 사라지게 지금 값에서 만듦
+  const [triedSave, setTriedSave] = useState(false)
 
   const addZone = (e: React.FormEvent) => {
     e.preventDefault()
@@ -199,10 +245,15 @@ function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty
             <RotateCcw size={16} /> 자동 배치로 되돌리기
           </button>
         )}
+        {/* disabled 대신 aria-disabled — 연결 칸은 칸을 벗어날 때 확정되므로, 확정과 동시에 켜지는 버튼의 첫 클릭이 버려지지 않게 */}
         <button
-          type="button" disabled={saving || !dirty}
-          onClick={() => save(draft, '구성도를 저장했습니다. 상황판에 바로 반영됩니다')}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold disabled:opacity-50"
+          type="button" aria-disabled={saving || !dirty}
+          onClick={() => {
+            if (saving || !dirty) return
+            if (badLinks.length) setTriedSave(true)
+            else save(draft, '구성도를 저장했습니다. 상황판에 바로 반영됩니다')
+          }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
         >
           <Save size={16} /> {saving ? '저장 중' : '저장'}
         </button>
@@ -210,6 +261,11 @@ function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty
 
       {notice && <div role="status" className="border-y border-base-800 px-4 py-2.5 text-sm text-emerald-300">{notice}</div>}
       {error && <div role="alert" className="border-y border-base-800 px-4 py-2.5 text-sm text-rose-300 shadow-[inset_4px_0_0_var(--color-rose-500)]">{error}</div>}
+      {triedSave && badLinks.length > 0 && (
+        <div role="alert" className="border-y border-base-800 px-4 py-2.5 text-sm text-rose-300 shadow-[inset_4px_0_0_var(--color-rose-500)]">
+          연결 장비를 확인하세요: {badLinks.slice(0, 3).join(', ')}{badLinks.length > 3 && ` 외 ${badLinks.length - 3}대`}
+        </div>
+      )}
 
       <section className="border-y border-base-800 p-4 space-y-3" aria-label="구성도 편집">
         <div className="flex flex-wrap items-center gap-3 min-h-9">
@@ -286,6 +342,46 @@ function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty
             <button type="submit" className="flex items-center gap-1 h-9 px-3 rounded-lg border border-base-700 text-sm text-base-200 hover:bg-base-800"><Plus size={14} /> 추가</button>
           </form>
         </div>
+        <DeviceRows
+          rows={rows} zones={zones} mateOf={mateOf} errorOf={errorOf} commitLink={commitLink}
+          update={update} remove={name => setRows(rs => rs.filter(x => x.name !== name))}
+        />
+      </section>
+
+    </div>
+  )
+}
+
+function DeviceRows({ rows, zones, mateOf, errorOf, commitLink, update, remove }: {
+  rows: Row[]; zones: string[]; mateOf: Map<string, string>
+  errorOf: (field: Link, name: string) => LinkError | undefined
+  commitLink: (field: Link, name: string, raw: string) => void
+  update: (name: string, patch: Partial<Row>) => void; remove: (name: string) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(0)
+  const placedNames = useMemo(() => rows.filter(r => r.zone).map(r => r.name), [rows])
+  const q = query.trim().toLowerCase()
+  const found = useMemo(() => q ? rows.filter(r => r.name.toLowerCase().includes(q) || r.zone.toLowerCase().includes(q)) : rows, [rows, q])
+  const view = paged(found, page)
+
+  return (
+    <>
+      <div className="flex items-center gap-2 px-4 pt-3">
+        <Search size={14} className="shrink-0 text-base-500" />
+        <input
+          type="search" value={query} placeholder="장비·구역 이름" aria-label="장비 검색"
+          onChange={e => { setQuery(e.target.value); setPage(0) }}
+          onKeyDown={e => { if (e.key === 'Escape') { setQuery(''); setPage(0) } }}
+          className={cn(inputCls, 'h-8 max-w-xs placeholder:text-base-500')}
+        />
+      </div>
+      <datalist id="topology-device-names">
+        {placedNames.map(n => <option key={n} value={n} />)}
+      </datalist>
+      {found.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-base-500">'{query.trim()}'에 해당하는 장비가 없습니다</p>
+      ) : (
         <div className="overflow-x-auto p-4">
           <table className="w-full min-w-[860px] text-sm">
             <thead>
@@ -299,54 +395,66 @@ function Editor({ saved, servers, networks, notice, setNotice, onImport, onDirty
               </tr>
             </thead>
             <tbody className="divide-y divide-base-800">
-              {rows.map(r => {
-                const blocked = descendants(r.name)
-                // 짝은 한쪽에만 적혀 있어도 양쪽 행에 보이게
-                const mate = r.pair ?? rows.find(x => x.pair === r.name)?.name ?? ''
-                return (
-                  <tr key={r.name} className={cn(!r.zone && 'opacity-60')}>
-                    <td className="py-2 pr-3">
-                      <div className="font-semibold text-base-100">{r.name}</div>
-                      <div className="text-xs text-base-500">{r.monitored ? '감시 중' : '표시만'}</div>
-                    </td>
-                    <td className="py-2 pr-2">
-                      <select aria-label={`${r.name} 종류`} value={r.kind} onChange={e => update(r.name, { kind: e.target.value as DeviceKind })} className={inputCls}>
-                        {(Object.keys(KIND_LABEL) as DeviceKind[]).map(k => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-                      </select>
-                    </td>
-                    <td className="py-2 pr-2">
-                      <select aria-label={`${r.name} 구역`} value={r.zone} onChange={e => update(r.name, { zone: e.target.value })} className={inputCls}>
-                        <option value="">구성도에서 빼기</option>
-                        {zones.map(z => <option key={z} value={z}>{z}</option>)}
-                      </select>
-                    </td>
-                    <td className="py-2 pr-2">
-                      <select aria-label={`${r.name} 위에 연결된 장비`} value={r.parent ?? ''} disabled={!r.zone} onChange={e => update(r.name, { parent: e.target.value || undefined })} className={inputCls}>
-                        <option value="">없음 (맨 위)</option>
-                        {placed.filter(p => !blocked.has(p.name)).map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="py-2 pr-2">
-                      <select aria-label={`${r.name} 이중화 짝`} value={mate} disabled={!r.zone} onChange={e => setPair(r.name, e.target.value)} className={inputCls}>
-                        <option value="">없음</option>
-                        {placed.filter(p => p.name !== r.name && p.zone === r.zone).map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="py-2 text-right">
-                      {!r.monitored && (
-                        <button type="button" aria-label={`${r.name} 삭제`} onClick={() => setRows(rs => rs.filter(x => x.name !== r.name))} className="p-1.5 rounded text-base-500 hover:text-rose-300">
-                          <Trash2 size={15} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
+              {view.rows.map(r => (
+                <tr key={r.name} className={cn('align-top', !r.zone && 'opacity-60', (errorOf('parent', r.name) || errorOf('pair', r.name)) && 'bg-rose-500/5')}>
+                  <td className="py-2 pr-3">
+                    <div className="font-semibold text-base-100">{r.name}</div>
+                    <div className="text-xs text-base-500">{r.monitored ? '감시 중' : '표시만'}</div>
+                  </td>
+                  <td className="py-2 pr-2">
+                    <select aria-label={`${r.name} 종류`} value={r.kind} onChange={e => update(r.name, { kind: e.target.value as DeviceKind })} className={inputCls}>
+                      {(Object.keys(KIND_LABEL) as DeviceKind[]).map(k => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+                    </select>
+                  </td>
+                  <td className="py-2 pr-2">
+                    <select aria-label={`${r.name} 구역`} value={r.zone} onChange={e => update(r.name, { zone: e.target.value })} className={inputCls}>
+                      <option value="">구성도에서 빼기</option>
+                      {zones.map(z => <option key={z} value={z}>{z}</option>)}
+                    </select>
+                  </td>
+                  <td className="py-2 pr-2">
+                    <LinkInput value={r.parent ?? ''} error={errorOf('parent', r.name)} disabled={!r.zone} label={`${r.name} 위에 연결된 장비`}
+                      placeholder="없음 (맨 위)" onCommit={v => commitLink('parent', r.name, v)} />
+                  </td>
+                  <td className="py-2 pr-2">
+                    <LinkInput value={mateOf.get(r.name) ?? ''} error={errorOf('pair', r.name)} disabled={!r.zone} label={`${r.name} 이중화 짝`}
+                      placeholder="없음" onCommit={v => commitLink('pair', r.name, v)} />
+                  </td>
+                  <td className="py-2 text-right">
+                    {!r.monitored && (
+                      <button type="button" aria-label={`${r.name} 삭제`} onClick={() => remove(r.name)} className="p-1.5 rounded text-base-500 hover:text-rose-300">
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      </section>
+      )}
+      <Pager total={found.length} page={view.page} onPage={setPage} />
+    </>
+  )
+}
 
-    </div>
+// 치는 동안은 칸이 글자를 들고 있다가 벗어나거나 Enter일 때만 확정 — 한 글자마다 짝을 바꾸면 중간 이름과 짝이 맺혔다 풀림
+function LinkInput({ value, error, disabled, label, placeholder, onCommit }: {
+  value: string; error?: LinkError; disabled: boolean; label: string; placeholder: string; onCommit: (v: string) => void
+}) {
+  const [text, setText] = useState(error?.value ?? value)
+  const [base, setBase] = useState(value)
+  if (base !== value) { setBase(value); setText(value) }
+  return (
+    <>
+      <input
+        value={text} list="topology-device-names" disabled={disabled} aria-label={label} aria-invalid={!!error}
+        placeholder={placeholder} autoComplete="off"
+        onChange={e => setText(e.target.value)} onBlur={() => onCommit(text)}
+        onKeyDown={e => { if (e.key === 'Enter') onCommit(text) }}
+        className={cn(inputCls, 'placeholder:text-base-500', error && 'border-rose-500/60')}
+      />
+      {error && <p className="mt-1 text-xs text-rose-300">{error.msg}</p>}
+    </>
   )
 }

@@ -37,6 +37,12 @@ export async function deleteAsset(id: number): Promise<void> {
   await axios.delete(`/api/assets/${id}`)
 }
 
+// 서버별 실제 수집 경과 초 — 서버 시계로 잰 값이라 에이전트·브라우저 시계와 무관
+export async function fetchHostFreshness(): Promise<Record<string, { age_sec: number; interval_sec?: number }>> {
+  const res = await axios.get<Record<string, { age_sec: number; interval_sec?: number }>>('/api/hosts/freshness')
+  return res.data ?? {}
+}
+
 export async function fetchUptime(): Promise<Record<string, number>> {
   try {
     const res = await axios.get<Record<string, number>>('/api/uptime')

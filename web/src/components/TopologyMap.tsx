@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, Network, Server, Shield } from 'lucide-react'
 import { layoutTopology, NODE_H, NODE_W, type DeviceKind, type TopologyLayout } from '../api/topology'
@@ -31,21 +32,30 @@ const BOX: Record<NodeState, string> = {
   crit: 'fill-rose-950 stroke-rose-500 [stroke-width:2.5]',
   warn: 'fill-amber-950 stroke-amber-500 [stroke-width:2]',
   maint: 'fill-base-900 stroke-base-700 opacity-60',
-  ok: 'fill-base-900 stroke-emerald-600',
+  ok: 'fill-base-900 stroke-base-600',
   wait: 'fill-base-900 stroke-base-800',
 }
-const LABEL: Record<NodeState, string> = { crit: '위험', warn: '주의', maint: '점검 중', ok: '정상', wait: '확인 중' }
+const LABEL: Record<NodeState, string> = { crit: '위험', warn: '주의', maint: '점검 중', ok: '정상', wait: '응답 대기' }
 const LABEL_FILL: Record<NodeState, string> = {
-  crit: 'fill-rose-300', warn: 'fill-amber-300', maint: 'fill-purple-300', ok: 'fill-emerald-400', wait: 'fill-base-500',
+  crit: 'fill-rose-300', warn: 'fill-amber-300', maint: 'fill-purple-300', ok: 'fill-base-400', wait: 'fill-base-500',
 }
 const ICON_COLOR: Record<NodeState, string> = {
-  crit: 'text-rose-300', warn: 'text-amber-300', maint: 'text-base-500', ok: 'text-emerald-300', wait: 'text-base-600',
+  crit: 'text-rose-300', warn: 'text-amber-300', maint: 'text-base-500', ok: 'text-base-400', wait: 'text-base-600',
 }
 
-export default function TopologyMap({ layout, lookup, onPick, picked, blocked }: Props) {
+function TopologyMap({ layout, lookup: rawLookup, onPick, picked, blocked }: Props) {
   const navigate = useNavigate()
-  const scene = layoutTopology(layout)
+  const scene = useMemo(() => layoutTopology(layout), [layout])
   const at = new Map(scene.nodes.map(n => [n.device.name, n]))
+  // 형제 수는 선마다 세면 장비 수의 제곱이 됨 — 미리 한 번 셈
+  const siblings = new Map<string | undefined, number>()
+  for (const n of scene.nodes) siblings.set(n.device.parent, (siblings.get(n.device.parent) ?? 0) + 1)
+  // 한 장비를 선·상자 그리면서 여러 번 묻기 때문에 이번 렌더 안에서만 결과를 재사용
+  const seen = new Map<string, ReturnType<Props['lookup']>>()
+  const lookup = (name: string) => {
+    if (!seen.has(name)) seen.set(name, rawLookup(name))
+    return seen.get(name)
+  }
   const isDown = (name: string) => !!lookup(name)?.down
   // 선이 흐르는 건 아직 아무도 확인하지 않은 실제 장애뿐 — 확인했거나 점검 중이면 멈춤
   const live = (name: string) => isDown(name) && lookup(name)?.state !== 'maint' && !lookup(name)?.acked
@@ -77,7 +87,7 @@ export default function TopologyMap({ layout, lookup, onPick, picked, blocked }:
           ? `M${p.x},${bottom} V${bottom + 20} H${n.trunkX} V${bus} H${n.x} V${top}`
           : `M${p.x},${bottom} V${bus} H${n.x} V${top}`
         // 형제와 같이 쓰는 선까지 빨갛게 칠하면 다른 장비도 끊긴 것처럼 보여서 이 장비로 내려가는 마지막 구간만 표시
-        const only = scene.nodes.filter(m => m.device.parent === p.device.name).length === 1
+        const only = siblings.get(p.device.name) === 1
         const drop = only ? d : `M${n.x},${bus} V${top}`
         return (
           <g key={`l-${n.device.name}`}>
@@ -157,3 +167,5 @@ export default function TopologyMap({ layout, lookup, onPick, picked, blocked }:
     </svg>
   )
 }
+
+export default memo(TopologyMap)

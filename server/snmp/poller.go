@@ -69,7 +69,11 @@ type Poller struct {
 	counters map[string]*ifCounter   // "deviceID:ifIndex" → 이전 카운터
 	inflight map[int64]bool          // 폴링 진행 중인 장비 (느린 장비 중복 폴링 → 고루틴 누적 방지)
 	watch    map[int64]*downWatch    // 장애 알림용 판정 (Observe)
+	slots    chan struct{}           // 동시 폴링 상한 — 30초마다 장비 수만큼 UDP 소켓이 한꺼번에 열리지 않게
 }
+
+// 응답 없는 장비는 한 번에 약 6초 자리를 잡음 — 3,000대가 2분(판정 근거 유효 시간) 안에 한 바퀴 돌 만큼
+const maxConcurrentPolls = 256
 
 type downWatch struct {
 	name     string // 이름이 바뀌면 옛 이름으로 걸린 알림·확인을 풀어야 함
@@ -95,6 +99,7 @@ func NewPoller() *Poller {
 		inflight: make(map[int64]bool),
 		counters: make(map[string]*ifCounter),
 		watch:    make(map[int64]*downWatch),
+		slots:    make(chan struct{}, maxConcurrentPolls),
 	}
 }
 
@@ -249,7 +254,10 @@ func (p *Poller) Poll(dev Device) {
 	p.inflight[dev.ID] = true
 	p.mu.Unlock()
 
+	// 자리를 기다리는 동안도 inflight라 다음 주기가 같은 장비를 또 줄 세우지 않음
+	p.slots <- struct{}{}
 	status := p.poll(dev)
+	<-p.slots
 	p.mu.Lock()
 	if !status.Up {
 		since := status.CollectedAt

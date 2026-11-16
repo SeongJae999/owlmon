@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"slices"
 	"sort"
@@ -85,86 +86,89 @@ type SNMPSupplySnapshot struct {
 	PercentLeft float64 `json:"percent_left"`
 }
 
-// SNMPStatusForDevice는 한 장비의 Prometheus 기반 통합 스냅샷을 반환합니다.
-// agent 프록시(snmp_*) 또는 server 직접 폴링 둘 다 같은 메트릭 이름으로
-// 적재되어 UI는 어디서 폴링됐는지 신경 안 써도 됨.
-func SNMPStatusForDevice(prometheusURL, deviceName string) (*SNMPSnapshot, error) {
-	snap := &SNMPSnapshot{DeviceName: deviceName}
-	devSel := fmt.Sprintf(`{device=%q}`, deviceName)
-
-	// 1) up + uptime + response + descr (한 장비 한 row씩)
-	if r, err := query(prometheusURL, "snmp_device_up"+devSel); err == nil {
-		for _, x := range r.Data.Result {
-			snap.Up = valFloat(x.Value[1]) > 0
-			snap.SysDescr = x.Metric["device_descr"]
-			break
-		}
+// SNMPStatusAll은 모든 장비의 Prometheus 기반 통합 스냅샷을 조회 3번으로 모은다 — 장비마다 8번씩 물으면 수백 대에서 화면 주기를 넘김.
+// agent 프록시(snmp_*) 또는 server 직접 폴링 둘 다 같은 메트릭 이름으로 적재되어 UI는 어디서 폴링됐는지 신경 안 써도 됨.
+func SNMPStatusAll(prometheusURL string) (map[string]*SNMPSnapshot, error) {
+	// rate는 메트릭 이름을 지워 in/out을 한 조회로 구분할 수 없음. 수집기가 둘이면 같은 포트가 두 번 나와 sum이 아니라 max
+	qs := []string{
+		`{__name__=~"snmp_device_up|snmp_device_uptime_seconds|snmp_device_response_ms_milliseconds|snmp_switch_if_oper_up|snmp_printer_supply_percent|snmp_printer_total_pages"}`,
+		`max by (device, if_index) (rate(snmp_switch_if_in_bytes_total[2m]))`,
+		`max by (device, if_index) (rate(snmp_switch_if_out_bytes_total[2m]))`,
 	}
-	if r, err := query(prometheusURL, "snmp_device_uptime_seconds"+devSel); err == nil {
-		for _, x := range r.Data.Result {
-			snap.UptimeSec = valFloat(x.Value[1])
-			break
+	rs := make([]*promResult, len(qs))
+	for i, q := range qs {
+		r, err := query(prometheusURL, q)
+		if err == nil && r.Status != "success" {
+			err = fmt.Errorf("prometheus 응답 상태: %s", r.Status)
 		}
-	}
-	if r, err := query(prometheusURL, "snmp_device_response_ms_milliseconds"+devSel); err == nil {
-		for _, x := range r.Data.Result {
-			snap.ResponseMs = int64(valFloat(x.Value[1]))
-			break
+		if err != nil {
+			if i == 0 {
+				return nil, err
+			}
+			// 포트가 많으면 rate 조회만 시간 제한에 걸릴 수 있음 — 트래픽만 비우고 상태·응답 시간은 살림
+			log.Printf("[SNMP] 포트 트래픽 조회 실패: %v", err)
+			r = &promResult{}
 		}
+		rs[i] = r
 	}
 
-	// 2) 스위치 인터페이스 (snmp_switch_if_*) — Prometheus rate로 bps 계산
-	ifsByIndex := map[int]*SNMPInterfaceSnapshot{}
-	if r, err := query(prometheusURL, "snmp_switch_if_oper_up"+devSel); err == nil {
-		for _, x := range r.Data.Result {
+	snaps := map[string]*SNMPSnapshot{}
+	ifs := map[string]map[int]*SNMPInterfaceSnapshot{}
+	for _, x := range rs[0].Data.Result {
+		dev := x.Metric["device"]
+		if dev == "" {
+			continue
+		}
+		s := snaps[dev]
+		if s == nil {
+			s = &SNMPSnapshot{DeviceName: dev}
+			snaps[dev] = s
+		}
+		v := valFloat(x.Value[1])
+		switch x.Metric["__name__"] {
+		case "snmp_device_up":
+			s.Up = v > 0
+			// 응답 실패 때 device_descr가 빈 시계열이 함께 남음 — 빈 값이 설명을 덮지 않게
+			if d := x.Metric["device_descr"]; d != "" {
+				s.SysDescr = d
+			}
+		case "snmp_device_uptime_seconds":
+			s.UptimeSec = v
+		case "snmp_device_response_ms_milliseconds":
+			s.ResponseMs = int64(v)
+		case "snmp_switch_if_oper_up":
 			idx, _ := strconv.Atoi(x.Metric["if_index"])
 			if idx == 0 {
 				continue
 			}
-			ifsByIndex[idx] = &SNMPInterfaceSnapshot{
-				Index:  idx,
-				Name:   x.Metric["if_name"],
-				OperUp: valFloat(x.Value[1]) > 0,
+			if ifs[dev] == nil {
+				ifs[dev] = map[int]*SNMPInterfaceSnapshot{}
 			}
+			ifs[dev][idx] = &SNMPInterfaceSnapshot{Index: idx, Name: x.Metric["if_name"], OperUp: v > 0}
+		case "snmp_printer_supply_percent":
+			s.Supplies = append(s.Supplies, SNMPSupplySnapshot{Description: x.Metric["supply"], PercentLeft: v})
+		case "snmp_printer_total_pages":
+			s.TotalPages = int64(v)
 		}
 	}
-	if r, err := query(prometheusURL, `rate(snmp_switch_if_in_bytes_total`+devSel+`[2m])`); err == nil {
+	for i, r := range rs[1:] {
 		for _, x := range r.Data.Result {
 			idx, _ := strconv.Atoi(x.Metric["if_index"])
-			if s, ok := ifsByIndex[idx]; ok {
-				s.InBps = valFloat(x.Value[1])
+			if ifc := ifs[x.Metric["device"]][idx]; ifc != nil {
+				if i == 0 {
+					ifc.InBps = valFloat(x.Value[1])
+				} else {
+					ifc.OutBps = valFloat(x.Value[1])
+				}
 			}
 		}
 	}
-	if r, err := query(prometheusURL, `rate(snmp_switch_if_out_bytes_total`+devSel+`[2m])`); err == nil {
-		for _, x := range r.Data.Result {
-			idx, _ := strconv.Atoi(x.Metric["if_index"])
-			if s, ok := ifsByIndex[idx]; ok {
-				s.OutBps = valFloat(x.Value[1])
-			}
+	for dev, m := range ifs {
+		for _, ifc := range m {
+			snaps[dev].Interfaces = append(snaps[dev].Interfaces, *ifc)
 		}
 	}
-	for _, s := range ifsByIndex {
-		snap.Interfaces = append(snap.Interfaces, *s)
-	}
-
-	// 3) 프린터 토너/잉크
-	if r, err := query(prometheusURL, "snmp_printer_supply_percent"+devSel); err == nil {
-		for _, x := range r.Data.Result {
-			snap.Supplies = append(snap.Supplies, SNMPSupplySnapshot{
-				Description: x.Metric["supply"],
-				PercentLeft: valFloat(x.Value[1]),
-			})
-		}
-	}
-	if r, err := query(prometheusURL, "snmp_printer_total_pages"+devSel); err == nil {
-		for _, x := range r.Data.Result {
-			snap.TotalPages = int64(valFloat(x.Value[1]))
-			break
-		}
-	}
-
-	return snap, nil
+	return snaps, nil
 }
 
 // 수집기가 (서버 시계로) 자기 수집 간격의 3배, 최소 이 시간 넘게 새 샘플을 보내지 않으면 끊긴 것으로 봄 —

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -123,14 +124,31 @@ func InitDB() *AppContext {
 func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker, emailCfg *alert.EmailConfig, prometheusURL string) {
 	// 체커 고루틴이 locate를 읽기 전에 설정 (잠금 없는 필드)
 	if appCtx.AssetStore != nil {
+		// 장비 대장 전체를 1분에 한 번만 읽음 — 수천 대가 한꺼번에 끊기면 호스트마다 조회하던 것이 알림 발송을 붙잡음
+		var locMu sync.Mutex
+		var locMap map[string]string
+		var locAt time.Time
 		checker.SetLocator(func(host string) string {
-			c, cancel := context.WithTimeout(ctx, 2*time.Second)
-			defer cancel()
-			loc, err := appCtx.AssetStore.LocationOf(c, host)
-			if err != nil {
-				log.Printf("자산 위치 조회 실패 (%s): %v", host, err) // 위치 없이 메일은 그대로 보냄
+			locMu.Lock()
+			defer locMu.Unlock()
+			if locMap == nil || time.Since(locAt) > time.Minute {
+				c, cancel := context.WithTimeout(ctx, 3*time.Second)
+				list, err := appCtx.AssetStore.List(c)
+				cancel()
+				if err != nil {
+					log.Printf("자산 위치 조회 실패: %v", err) // 위치 없이 메일은 그대로 보냄
+					if locMap == nil {
+						locMap = map[string]string{} // 실패해도 1분은 다시 묻지 않음 — 장애 폭주 때 알림마다 전체 조회하지 않게
+					}
+				} else {
+					locMap = make(map[string]string, len(list))
+					for _, a := range list {
+						locMap[a.HostName] = db.LocationText(a.Location, a.Rack, a.RackUnit, a.RackSize)
+					}
+				}
+				locAt = time.Now()
 			}
-			return loc
+			return locMap[host]
 		})
 	}
 
@@ -174,6 +192,27 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 				}
 			}
 			return names, nil
+		})
+	}
+
+	// 위쪽 장비 장애로 함께 끊긴 장비를 원인 알림에 묶는 데 씀 — 저장된 구성도만 (자동 배치는 추정이라 알림을 막는 근거로 안 씀)
+	if appCtx.DBPool != nil {
+		topoStore := db.NewTopologyStore(appCtx.DBPool)
+		checker.SetTopology(func(c context.Context) (alert.Topology, error) {
+			l, err := topoStore.Get(c)
+			t := alert.Topology{Parent: map[string]string{}, Pair: map[string]string{}}
+			for _, d := range l.Devices {
+				if d.Parent != "" {
+					t.Parent[d.Name] = d.Parent
+				}
+				if d.Pair != "" {
+					t.Pair[d.Name] = d.Pair
+					if _, ok := t.Pair[d.Pair]; !ok {
+						t.Pair[d.Pair] = d.Name // 짝은 한쪽에만 적혀 있어도 서로 짝
+					}
+				}
+			}
+			return t, err
 		})
 	}
 
@@ -334,6 +373,19 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 				} else if deleted > 0 {
 					log.Printf("오래된 로그 %d건 삭제 (%s)", deleted, time.Since(start).Round(time.Millisecond))
 				}
+				// 웹 감시·DB 성능 결과도 같은 보존 기간 — 정리하는 곳이 없어 1,000곳이면 하루 144만 행씩 쌓였음
+				if appCtx.SyntheticStore != nil {
+					if n, err := appCtx.SyntheticStore.Cleanup(ctx, 30); err != nil {
+						log.Printf("오래된 웹 감시 결과 정리 실패: %v", err)
+					} else if n > 0 {
+						log.Printf("오래된 웹 감시 결과 %d건 삭제", n)
+					}
+				}
+				if appCtx.DPMStore != nil {
+					if err := appCtx.DPMStore.Cleanup(ctx, 30); err != nil {
+						log.Printf("오래된 DB 성능 기록 정리 실패: %v", err)
+					}
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -421,7 +473,10 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 		case ev.Removed:
 			// 장애 중에 지우거나 이름을 바꾼 장비 — 확인할 화면이 없어 옛 이름의 확인·단계 통보 대기만 정리
 			checker.ClearAck(d.Name, "snmp", "critical")
+			checker.SetNetDown(d.Name, false)
+			checker.ForgetQuiet(d.Name)
 		case ev.Down:
+			checker.SetNetDown(d.Name, true)
 			// 이번 장애가 시작되기 전에 눌린 확인만 풂 — 화면에 '응답 없음'이 뜬 뒤 알림 판정 전에 누른 확인은 살려 둠
 			if a, ok := checker.AckInfo(d.Name, "snmp", "critical"); ok && a.At.Before(ev.Since) {
 				checker.ClearAck(d.Name, "snmp", "critical")
@@ -430,6 +485,7 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 				Subject: fmt.Sprintf("[위험] %s 네트워크 장비 응답 없음", d.Name),
 				Body:    fmt.Sprintf("장비: %s\nIP: %s\n응답 없음 시작: %s\n\nSNMP 응답이 없습니다. 전원·케이블·장비 상태를 확인하세요.", d.Name, d.IP, ev.Since.Format("2006-01-02 15:04:05"))})
 		default:
+			checker.SetNetDown(d.Name, false)
 			checker.ClearAck(d.Name, "snmp", "critical")
 			ups = append(ups, alert.Alert{Host: d.Name, Category: "snmp",
 				Subject: fmt.Sprintf("[복구] %s 네트워크 장비 응답 복구", d.Name),
@@ -437,6 +493,6 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 		}
 	}
 	// 상위 스위치 하나가 죽으면 아래 장비가 같은 주기에 모두 끊김 — 많으면 한 통으로
-	checker.SendGroup("critical", "[위험] 네트워크 장비 %d대 응답 없음", downs)
-	checker.SendGroup("info", "[복구] 네트워크 장비 %d대 응답 복구", ups)
+	checker.SendDowns("[위험] 네트워크 장비 %d대 응답 없음", downs)
+	checker.SendUps("[복구] 네트워크 장비 %d대 응답 복구", ups)
 }

@@ -150,11 +150,10 @@ func (s *DPMStore) MetricsHistory(ctx context.Context, instanceID int64, hours i
 // Cleanup은 N일 이전의 메트릭/쿼리 통계를 삭제합니다.
 func (s *DPMStore) Cleanup(ctx context.Context, days int) error {
 	cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
-	if _, err := s.pool.Exec(ctx, `DELETE FROM dpm_instance_metrics WHERE collected_at < $1`, cutoff); err != nil {
-		return err
-	}
-	if _, err := s.pool.Exec(ctx, `DELETE FROM dpm_query_stats WHERE collected_at < $1`, cutoff); err != nil {
-		return err
+	for _, t := range []string{"dpm_instance_metrics", "dpm_query_stats"} {
+		if _, err := deleteBatched(ctx, s.pool, `DELETE FROM `+t+` WHERE ctid IN (SELECT ctid FROM `+t+` WHERE collected_at < $1 LIMIT 10000)`, cutoff); err != nil {
+			return err
+		}
 	}
 	return nil
 }

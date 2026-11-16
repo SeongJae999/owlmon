@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { noteServerDate } from '../utils/serverClock'
 
 const TOKEN_KEY = 'owlmon_token'
 
@@ -71,7 +72,7 @@ axios.interceptors.request.use((config) => {
 // 403 → 조회 전용 계정의 변경 시도. 버튼마다 권한 분기를 두지 않고 여기서 한 번에 안내
 export const FORBIDDEN_EVENT = 'owlmon:forbidden'
 axios.interceptors.response.use(
-  (res) => res,
+  (res) => { noteServerDate(res.headers?.date); return res },
   (err) => {
     const status = err.response?.status
     if (status === 401 && !err.config?.url?.endsWith('/api/auth/login')) {

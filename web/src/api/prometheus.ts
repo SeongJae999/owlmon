@@ -93,12 +93,10 @@ export async function fetchHosts(): Promise<string[]> {
     .filter((h: string | undefined): h is string => !!h)
 }
 
-// 최근 2분 안에 데이터를 보낸 호스트 목록 — 호스트마다 따로 묻지 않고 한 번에 (서버 수만큼 요청이 늘지 않게)
+// 끊기지 않은 호스트 목록 — 알림과 같은 기준(연속 3회 수집 없음, 서버 시계로 잼)을 서버가 판정해 줌. 화면과 메일이 서로 다른 때 끊김을 말하지 않게
 export async function fetchOnlineHosts(): Promise<string[]> {
-  const res = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
-    params: { query: 'count by (host_name) (count_over_time(system_cpu_usage_percent[2m]))' },
-  })
-  return (res.data?.data?.result ?? []).map((r: any) => r.metric?.host_name).filter(Boolean)
+  const res = await axios.get<Record<string, { down?: boolean }>>('/api/hosts/freshness')
+  return Object.entries(res.data ?? {}).filter(([, v]) => !v.down).map(([h]) => h)
 }
 
 export interface ServiceCheck {

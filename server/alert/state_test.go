@@ -142,7 +142,11 @@ func TestServerDownRecoveryClearsAckWithoutFiring(t *testing.T) {
 			fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{"host_name":"web-01"},"value":[0,"1"]}]}}`)
 			return
 		}
-		fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{},"value":[0,"8"]}]}}`)
+		if strings.Contains(q, "timestamp(") { // 방금 들어온 샘플 — 살아 있음
+			fmt.Fprintf(w, `{"status":"success","data":{"result":[{"metric":{"host_name":"web-01"},"value":[0,"%d"]}]}}`, time.Now().Unix())
+			return
+		}
+		fmt.Fprint(w, `{"status":"success","data":{"result":[{"metric":{"host_name":"web-01"},"value":[0,"8"]}]}}`)
 	}))
 	defer srv.Close()
 

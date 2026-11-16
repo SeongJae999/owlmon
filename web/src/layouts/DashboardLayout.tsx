@@ -2,7 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import { logout, getMe, heartbeat, FORBIDDEN_EVENT } from '../api/auth'
-import { useAlertStatus } from '../hooks/useMonitoring'
+import { useFleet } from '../hooks/useFleet'
 import {
   LayoutGrid,
   FileText,
@@ -23,9 +23,10 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
-import EmailStatusBanner from '../components/EmailStatusBanner'
 import ChatWidget from '../components/ChatWidget'
 import PasswordModal from '../components/PasswordModal'
+import ProblemsMenu from '../components/ProblemsMenu'
+import DeviceSearch from '../components/DeviceSearch'
 
 // 메뉴는 최소로 — 장비·알림 화면은 지금 상태의 행·카드·종 아이콘에서, 관리 화면은 설정 첫 줄 바로가기에서 들어감. 경로(path)는 그대로 (북마크 호환)
 type NavItem = { id: string; path: string; icon: any; label: string; short?: string; match?: string[]; leaves?: boolean; children?: NavItem[] }
@@ -46,7 +47,7 @@ const NAV_SECTIONS: { adminOnly?: boolean; items: NavItem[] }[] = [
     { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서', short: '보고서' },
   ] },
   { adminOnly: true, items: [
-    { id: 'settings', path: '/settings', icon: Settings, label: '설정', match: ['/rules', '/rules/stats', '/assets', '/topology', '/users', '/audit'] },
+    { id: 'settings', path: '/settings', icon: Settings, label: '설정', match: ['/rules', '/rules/stats', '/assets', '/groups', '/topology', '/users', '/audit'] },
   ] },
 ]
 
@@ -91,14 +92,14 @@ export default function DashboardLayout() {
     return () => clearTimeout(t)
   }, [forbidden])
   const location = useLocation()
-  const { data: activeAlerts = [] } = useAlertStatus()
-
-  const unackedAlertCount = activeAlerts.filter(a => !a.acked && !a.in_maintenance).length
+  // 배지·탭 제목·문제 메뉴가 지금 상태의 '처리할 문제'와 같은 수를 보이도록 한 번만 불러 나눠 씀
+  const fleet = useFleet()
+  const freshCount = fleet.fresh.length
   // 다른 탭·창을 보고 있어도 새 문제를 알아채도록 탭 제목에 미확인 건수 표시
   useEffect(() => {
-    document.title = unackedAlertCount > 0 ? `(${unackedAlertCount}) OWLmon` : 'OWLmon'
+    document.title = freshCount > 0 ? `(${freshCount}) OWLmon` : 'OWLmon'
     return () => { document.title = 'OWLmon' } // 상황판 등 레이아웃 밖으로 나가면 건수 제거
-  }, [unackedAlertCount])
+  }, [freshCount])
 
   const onLogout = () => {
     logout()
@@ -159,7 +160,7 @@ export default function DashboardLayout() {
                         }}
                         className={tabCls}
                       >
-                        <item.icon size={17} className={cn('hidden sm:block shrink-0', active ? 'text-brand-400' : 'text-base-500')} />
+                        <item.icon size={17} className={cn('hidden sm:block lg:max-xl:hidden shrink-0', active ? 'text-brand-400' : 'text-base-500')} />
                         <span>{item.label}</span>
                         <ChevronDown size={14} className={cn('-ml-0.5 text-base-500 transition-transform', open && 'rotate-180')} />
                       </button>
@@ -188,16 +189,11 @@ export default function DashboardLayout() {
                     aria-current={active ? 'page' : undefined}
                     className={tabCls}
                   >
-                    <item.icon size={17} className={cn('hidden sm:block shrink-0', active ? 'text-brand-400' : 'text-base-500')} />
-                    {/* 휴대폰 폭에선 짧은 이름 — 메뉴 6개가 한 줄에 들어가게 */}
-                    <span className={cn(item.short && 'hidden sm:inline')}>{item.label}</span>
-                    {item.short && <span className="sm:hidden">{item.short}</span>}
+                    <item.icon size={17} className={cn('hidden sm:block lg:max-xl:hidden shrink-0', active ? 'text-brand-400' : 'text-base-500')} />
+                    {/* 휴대폰 폭과 lg(1024~1279px, 문제·장비 찾기가 한 줄에 함께 들어감)에선 짧은 이름 — 메뉴가 잘리지 않게 */}
+                    <span className={cn(item.short && 'hidden sm:inline lg:max-xl:hidden')}>{item.label}</span>
+                    {item.short && <span className="sm:hidden lg:max-xl:inline">{item.short}</span>}
                     {item.leaves && <ArrowUpRight size={13} aria-label="전체 화면으로 열림" className="-ml-1 text-base-500" />}
-                    {item.id === 'overview' && unackedAlertCount > 0 && (
-                      <span aria-label={`처리할 문제 ${unackedAlertCount}건`} className="flex h-5 min-w-[20px] px-1 items-center justify-center rounded-full bg-rose-500 text-white text-xs font-bold tabular-nums">
-                        {unackedAlertCount}
-                      </span>
-                    )}
                   </Link>
                 )
               })}
@@ -205,7 +201,12 @@ export default function DashboardLayout() {
           ))}
         </nav>
 
-          <div className="ml-auto lg:ml-0 flex items-center gap-3 shrink-0">
+          <div className="ml-auto lg:ml-0 flex items-center gap-2 shrink-0">
+            <ProblemsMenu fleet={fleet} canAck={!!me && !isViewer} />
+            <DeviceSearch tiles={fleet.tiles} />
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
             <div className="flex items-center gap-1 p-1 bg-base-800 rounded-lg border border-base-700">
               <button
                 type="button"
@@ -219,9 +220,6 @@ export default function DashboardLayout() {
               {/* 벨 클릭 → 알림 이력 (장식 버튼이라 데모 중 무반응으로 보이던 것 수정) */}
               <Link to="/history" className="p-2 text-base-400 hover:text-brand-400 hover:bg-base-700 rounded-md transition-colors relative block" title="지난 알림" aria-label="지난 알림 보기">
                 <Bell size={18} />
-                {unackedAlertCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-base-900" />
-                )}
               </Link>
               <div className="w-px h-5 bg-base-700 mx-0.5" />
               <div className="relative">
@@ -261,7 +259,6 @@ export default function DashboardLayout() {
         {/* Scrollable Area */}
         <main className="flex-1 overflow-y-auto p-3 pb-20 sm:p-6 lg:p-8 scroll-smooth">
           <div className="w-full">
-            <EmailStatusBanner />
             <Suspense fallback={<div className="py-12 text-center text-sm text-base-500">불러오는 중...</div>}>
               <Outlet />
             </Suspense>

@@ -56,6 +56,7 @@ type Checker struct {
 	fails   map[int64]int    // monitor_id -> 연속 실패 횟수
 	stops   map[int64]chan struct{}
 	running map[int64]Monitor // 루프가 사용 중인 설정 — 수정 감지용
+	started bool              // 첫 동기화가 끝남 (mu로 보호)
 
 	// 알림 콜백 (3회 연속 실패/복구 시 호출)
 	onDown      func(m Monitor, r Result, consecutive int)
@@ -132,9 +133,11 @@ func (c *Checker) syncMonitors(ctx context.Context) {
 			stop := make(chan struct{})
 			c.stops[m.ID] = stop
 			c.running[m.ID] = m
-			go c.runMonitor(m, stop)
+			// 첫 시작 때만 분산 — 설정을 고친 뒤엔 바로 새 설정으로 검사해야 화면이 옛 결과로 남지 않음
+			go c.runMonitor(m, stop, !c.started)
 		}
 	}
+	c.started = true
 	// 비활성/삭제된 모니터 루프 정리
 	for id, stop := range c.stops {
 		if !active[id] {
@@ -148,10 +151,21 @@ func (c *Checker) syncMonitors(ctx context.Context) {
 }
 
 // runMonitor는 단일 모니터의 체크 루프입니다.
-func (c *Checker) runMonitor(m Monitor, stop chan struct{}) {
+func (c *Checker) runMonitor(m Monitor, stop chan struct{}, stagger bool) {
 	interval := time.Duration(m.IntervalSeconds) * time.Second
 	if interval < 10*time.Second {
 		interval = 10 * time.Second
+	}
+	var delay time.Duration
+	if stagger {
+		delay = firstDelay(m.ID, interval)
+	}
+	first := time.NewTimer(delay)
+	select {
+	case <-stop:
+		first.Stop()
+		return
+	case <-first.C:
 	}
 	c.executeOnce(m)
 	ticker := time.NewTicker(interval)
@@ -164,6 +178,16 @@ func (c *Checker) runMonitor(m Monitor, stop chan struct{}) {
 			c.executeOnce(m)
 		}
 	}
+}
+
+// 기동 때 모든 모니터가 같은 순간에 요청·DB 저장을 몰아 하지 않게 id로 첫 검사를 흩음 (최대 1분)
+func firstDelay(id int64, interval time.Duration) time.Duration {
+	spread := min(interval, time.Minute)
+	n := id % int64(spread/time.Second)
+	if n < 0 {
+		n = -n
+	}
+	return time.Duration(n) * time.Second
 }
 
 // executeOnce는 1회 체크 후 결과 저장과 알림 처리를 수행합니다.
@@ -227,6 +251,12 @@ func (c *Checker) TriggerOne(m Monitor) Result {
 	return r
 }
 
+// 검사마다 Transport를 새로 만들면 유휴 연결이 정리되지 않고 쌓임. 연결 재사용은 끔 — 응답시간에 매번 접속·TLS 시간이 들어가던 측정 기준을 유지
+var transport = &http.Transport{
+	TLSClientConfig:   &tls.Config{InsecureSkipVerify: false},
+	DisableKeepAlives: true,
+}
+
 // Check는 단일 HTTP 요청을 수행하고 결과를 반환합니다.
 func Check(m Monitor) Result {
 	r := Result{
@@ -243,12 +273,7 @@ func Check(m Monitor) Result {
 		timeout = 10 * time.Second
 	}
 
-	client := &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
-		},
-	}
+	client := &http.Client{Timeout: timeout, Transport: transport}
 
 	req, err := http.NewRequest(method, m.URL, nil)
 	if err != nil {

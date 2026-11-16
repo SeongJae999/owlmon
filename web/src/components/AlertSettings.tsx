@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import { getMe } from '../api/auth'
 import { cn } from '../utils/cn'
 import Loading from './Loading'
+import EmailStatusBanner from './EmailStatusBanner'
 
 interface Props {
   onSave?: () => void
@@ -33,6 +34,7 @@ export default function AlertSettings({ onSave }: Props) {
     mutationFn: setAlertConfig,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alertConfig'] })
+      queryClient.invalidateQueries({ queryKey: ['email-status'] })
       if (onSave) onSave()
     }
   })
@@ -80,10 +82,13 @@ export default function AlertSettings({ onSave }: Props) {
 
   return (
     <div className="max-w-3xl space-y-6">
+      {/* 관제 화면 맨 위를 차지하던 안내 — 알림 경로를 고칠 수 있는 이 화면에만 */}
+      {me?.role === 'admin' && <EmailStatusBanner />}
       {/* 관리 화면은 메뉴에 없음 — 설정 첫 줄에서 모두 들어감. 조회 계정도 알림 기록 화면 링크로 여기 올 수 있으니 관리자에게만 */}
       {me?.role === 'admin' && <nav aria-label="관리 화면" className="flex flex-wrap gap-2">
         {[
           { to: '/assets', label: '장비 목록' },
+          { to: '/groups', label: '그룹 관리' },
           { to: '/topology', label: '구성도 편집 · 엑셀로 장비 한 번에 등록' },
           { to: '/rules', label: '로그 감지 규칙' },
           ...(me?.multi_user ? [{ to: '/users', label: '사용자 관리' }] : []),

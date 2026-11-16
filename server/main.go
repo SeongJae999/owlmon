@@ -110,6 +110,8 @@ func startServer() func() {
 			To:       []string{getEnv("SMTP_TO", "")},
 		}
 	}
+	// 알림 설정 화면의 메일 상태·보고서 메일이 이 값을 씀 — 비어 있으면 SMTP를 설정해도 늘 '미설정'으로 보임
+	appCtx.EmailConfig = emailCfg
 	checker := alert.NewChecker(prometheusURL, emailCfg, appCtx.ConfigStore, appCtx.HistorySaver)
 
 	// 4. 백그라운드 워커 시작 — 앱 수명 ctx 하나로 종료 전파

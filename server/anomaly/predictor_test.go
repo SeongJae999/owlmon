@@ -195,7 +195,8 @@ func TestDiskWindow_순환버퍼_순서(t *testing.T) {
 		ts = ts.Add(30 * time.Second)
 	}
 
-	samples := w.getSamples()
+	older, newer := w.parts()
+	samples := append(append([]diskSample{}, older...), newer...)
 	if len(samples) != predictionWindowSize {
 		t.Fatalf("샘플 수 = %d, 기대값 = %d", len(samples), predictionWindowSize)
 	}
@@ -207,5 +208,28 @@ func TestDiskWindow_순환버퍼_순서(t *testing.T) {
 	last := float64(predictionWindowSize + 9)
 	if samples[len(samples)-1].value != last {
 		t.Errorf("마지막 값 = %f, 기대값 = %f", samples[len(samples)-1].value, last)
+	}
+}
+
+// 링버퍼를 그대로 돌아도 예전처럼 시간순 복사본으로 계산한 회귀와 비트 단위로 같아야 함 (채우는 중·한 바퀴 돈 뒤 모두)
+func TestLinearRegression_링버퍼_직접순회_결과동일(t *testing.T) {
+	w := newDiskWindow()
+	ts := time.Unix(1_700_000_000, 0)
+	for i := range predictionWindowSize*2 + 37 {
+		w.Add(ts, 40+float64(i%97)*0.31+float64(i)*0.002)
+		ts = ts.Add(30 * time.Second)
+		if i != 200 && i != predictionWindowSize*2+36 {
+			continue
+		}
+		ordered := make([]diskSample, w.count)
+		start := (w.pos - w.count + predictionWindowSize) % predictionWindowSize
+		for j := range w.count {
+			ordered[j] = w.samples[(start+j)%predictionWindowSize]
+		}
+		s1, i1, r1 := linearRegression(ordered)
+		s2, i2, r2 := linearRegression(w.parts())
+		if s1 != s2 || i1 != i2 || r1 != r2 {
+			t.Fatalf("샘플 %d개: 복사본 (%v,%v,%v) ≠ 직접 순회 (%v,%v,%v)", w.count, s1, i1, r1, s2, i2, r2)
+		}
 	}
 }

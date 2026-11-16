@@ -76,7 +76,7 @@ export default function ActiveAlertsPanel({ alerts, onChanged, host, error, load
     <section className="rounded-xl border border-base-800 bg-base-900/50" aria-label="처리할 문제">
       <h2 className="px-4 py-3 border-b border-base-800 text-sm font-semibold text-base-200 flex items-center gap-2">
         처리할 문제 <span className="tabular-nums">{open}건</span>
-        {items.length > open && <span className="ml-auto font-normal text-xs text-base-500 tabular-nums">처리 중 {items.length - open}건</span>}
+        {items.length > open && <span className="ml-auto font-normal text-xs text-base-500 tabular-nums">확인 {items.length - open}건</span>}
       </h2>
       {failMsg && <p role="alert" className="px-4 pt-3 text-sm text-base-300">{failMsg}</p>}
       <ul className="divide-y divide-base-800">
@@ -109,7 +109,7 @@ export default function ActiveAlertsPanel({ alerts, onChanged, host, error, load
                   className="sm:shrink-0 self-start sm:self-auto inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-base-700 bg-base-800/60 text-xs font-semibold text-base-200 hover:bg-base-700 disabled:opacity-50"
                   title="복구될 때까지 같은 알림 메일을 보내지 않습니다"
                 >
-                  <Check size={13} /> {pending === `${a.category}|${a.severity}` ? '처리 중…' : '확인'}
+                  <Check size={13} /> {pending === `${a.category}|${a.severity}` ? '보내는 중…' : '확인'}
                 </button>
               )}
             </li>

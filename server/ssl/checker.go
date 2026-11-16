@@ -92,15 +92,25 @@ func NewCertChecker() *CertChecker {
 	return &CertChecker{}
 }
 
+// 도메인 수만큼 TLS 접속을 한꺼번에 열지 않게 — 대상 서버·방화벽이 폭주로 볼 수 있음.
+// 너무 낮으면 '지금 확인'(요청 안에서 기다림)이 응답 없는 도메인 몇십 개에 시간 제한을 넘음
+const maxConcurrentChecks = 64
+
+// checkCert는 테스트에서 바꿔 끼움
+var checkCert = CheckCert
+
 // CheckAll은 도메인 목록의 인증서를 모두 체크하고 결과를 캐시합니다.
 func (cc *CertChecker) CheckAll(domains []DomainEntry) []CertInfo {
 	results := make([]CertInfo, len(domains))
+	slots := make(chan struct{}, maxConcurrentChecks)
 	var wg sync.WaitGroup
 	for i, d := range domains {
 		wg.Add(1)
+		slots <- struct{}{}
 		go func(idx int, domain DomainEntry) {
 			defer wg.Done()
-			results[idx] = CheckCert(domain.Domain, domain.Port)
+			defer func() { <-slots }()
+			results[idx] = checkCert(domain.Domain, domain.Port)
 		}(i, d)
 	}
 	wg.Wait()

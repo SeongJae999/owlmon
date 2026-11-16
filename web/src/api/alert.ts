@@ -62,6 +62,7 @@ export async function setAlertConfig(cfg: AlertConfig): Promise<AlertConfig> {
 export interface EmailStatus {
   smtp_configured: boolean
   recipients_count: number
+  other_channels?: boolean // 웹훅·문자 중 하나라도 설정됨
   healthy: boolean
   issues: string[]
 }
@@ -139,6 +140,10 @@ export async function getAlertStatus(): Promise<ActiveAlert[]> {
 
 export async function ackAlert(host: string, category: string, severity: string): Promise<void> {
   await axios.post('/api/alert/ack', { host, category, severity })
+}
+
+export async function ackAlerts(keys: { host: string; category: string; severity: string }[]): Promise<void> {
+  await axios.post('/api/alert/ack', keys)
 }
 
 export async function getMaintenanceHosts(): Promise<string[]> {

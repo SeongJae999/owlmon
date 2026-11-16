@@ -112,6 +112,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		r.Get("/api/alert/acks", alertHandler.ListAcks)
 		r.Get("/api/alert/status", statusHandler.GetStatus)
 		r.Get("/api/uptime", statusHandler.GetUptime)
+		r.Get("/api/hosts/freshness", statusHandler.GetFreshness)
 
 		if appCtx.HistoryStore != nil {
 			historyHandler := handler.NewHistoryHandler(appCtx.HistoryStore)
@@ -141,6 +142,21 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			r.Get("/api/racks", rackHandler.List)
 			r.With(auth.RequireAdmin).Put("/api/racks", rackHandler.Save)
 			r.With(auth.RequireAdmin).Delete("/api/racks", rackHandler.Delete)
+		}
+
+		// 장비 그룹 트리 — 장비 종류와 상관없이 고객이 정한 기준(위치·업무)으로 묶음
+		if appCtx.DBPool != nil {
+			groupStore := db.NewGroupStore(appCtx.DBPool)
+			if err := groupStore.EnsureTable(context.Background()); err != nil {
+				log.Printf("⚠️ 장비 그룹 테이블 준비 실패: %v", err)
+			} else {
+				groupHandler := handler.NewGroupHandler(groupStore)
+				r.Get("/api/groups", groupHandler.Tree)
+				r.With(auth.RequireAdmin).Post("/api/groups", groupHandler.Create)
+				r.With(auth.RequireAdmin).Put("/api/groups/members", groupHandler.Assign)
+				r.With(auth.RequireAdmin).Put("/api/groups/{id}", groupHandler.Update)
+				r.With(auth.RequireAdmin).Delete("/api/groups/{id}", groupHandler.Delete)
+			}
 		}
 
 		// 상황판 구성도 (구역 순서 + 장비 연결)

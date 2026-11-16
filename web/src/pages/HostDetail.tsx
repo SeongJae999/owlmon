@@ -1,4 +1,4 @@
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, useLocation, useNavigate, Link } from 'react-router-dom'
 import {
   useHosts,
   useAllHostStatuses,
@@ -8,7 +8,7 @@ import {
   useAlertStatus,
   useMaintenanceHosts
 } from '../hooks/useMonitoring'
-import { serverState, LABEL } from '../hooks/useFleet'
+import { serverState, LABEL, DOT } from '../hooks/useFleet'
 import ActiveAlertsPanel from '../components/ActiveAlertsPanel'
 import axios from 'axios'
 import { getAlertConfig, thresholds } from '../api/alert'
@@ -26,6 +26,9 @@ import { cn } from '../utils/cn'
 
 export default function HostDetailPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  // 앱 안에서 이동해 왔는지 — 첫 화면으로 바로 열면 location.key가 'default'
+  const inApp = useLocation().key !== 'default'
   const hostName = searchParams.get('host') || ''
 
   const { data: hosts = [], isError: hostsError, isSuccess: hostsReady } = useHosts()
@@ -92,7 +95,7 @@ export default function HostDetailPage() {
         <Server size={64} className="mb-2 opacity-10" />
         <p className="font-bold">호스트가 선택되지 않았습니다.</p>
         <Link to="/" className="flex items-center gap-2 text-brand-600 font-bold text-xs hover:gap-3 transition">
-          <ArrowLeft size={16} /> Dashboard
+          <ArrowLeft size={16} /> 지금 상태로
         </Link>
       </div>
     )
@@ -103,13 +106,12 @@ export default function HostDetailPage() {
   // 이전 결과가 남아 있어도 최근 조회가 실패했으면 "정상"보다 실패를 먼저 보여 줌
   // 메인·상황판과 같은 판정(useFleet.serverState) — 알림이 있으면 "정상 동작"이 아니라 위험·주의
   const state = serverState(hostStatuses[hostName], activeAlerts.filter(a => a.host === hostName && !a.in_maintenance), maintenanceHosts.includes(hostName))
-  const DOT = { crit: 'bg-rose-500', warn: 'bg-amber-400', maint: 'bg-purple-400', ok: 'bg-emerald-400', wait: 'bg-base-500' }
   const status = isOffline ? { dot: 'bg-rose-500', label: '연결 끊김' }
     : statusError || hostsError || alertsError ? { dot: 'bg-amber-400', label: '상태 조회 실패' }
-    : alertsPending ? { dot: 'bg-base-500', label: '확인 중' }
+    : alertsPending ? { dot: 'bg-base-500', label: '불러오는 중' }
     : hostStatuses[hostName] === 'online' ? { dot: DOT[state], label: state === 'ok' ? '정상 동작' : LABEL[state] }
     : hostsReady && !hosts.includes(hostName) ? { dot: 'bg-base-500', label: '수집 이력 없음' }
-    : { dot: 'bg-base-500', label: '확인 중' }
+    : { dot: 'bg-base-500', label: '불러오는 중' }
   const hostAnomalies = anomalyData?.anomalies.filter(a => a.host === hostName) || []
 
   return (
@@ -117,9 +119,11 @@ export default function HostDetailPage() {
       {/* Top Navigation & Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-base-800 pb-6">
         <div className="flex items-center gap-4 min-w-0">
-          <Link to="/" className="p-2 bg-base-900 hover:bg-base-800 rounded-lg border border-base-800 transition-colors text-base-400 shrink-0" title="목록으로">
+          {/* 뒤로 가기 — 들어온 목록의 그룹·검색·페이지가 그대로. 주소로 바로 열었으면 지금 상태로 */}
+          <button type="button" onClick={() => (inApp ? navigate(-1) : navigate('/'))} aria-label="목록으로" title="목록으로"
+            className="p-2 bg-base-900 hover:bg-base-800 rounded-lg border border-base-800 transition-colors text-base-400 shrink-0">
             <ChevronLeft size={18} />
-          </Link>
+          </button>
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl font-bold text-base-100 truncate" title={hostName}>{hostName}</h1>
@@ -168,7 +172,7 @@ export default function HostDetailPage() {
           <ShieldAlert className="text-rose-400 shrink-0" size={20} />
           <div>
             <p className="font-semibold text-sm">에이전트 연결 끊김</p>
-            <p className="text-xs font-medium opacity-80 mt-0.5">에이전트로부터 2분 넘게 데이터가 오지 않습니다. 아래 차트는 끊기기 전까지의 기록입니다.</p>
+            <p className="text-xs font-medium opacity-80 mt-0.5">에이전트로부터 수집이 연속 3번(기본 45초) 넘게 오지 않습니다. 아래 차트는 끊기기 전까지의 기록입니다.</p>
           </div>
         </div>
       )}

@@ -17,10 +17,10 @@ const (
 type DiskPrediction struct {
 	Host       string  `json:"host"`
 	Mountpoint string  `json:"mountpoint"`
-	Current    float64 `json:"current"`      // 현재 사용률 (%)
-	Slope      float64 `json:"slope"`        // 시간당 변화율 (%/h)
-	DaysLeft   float64 `json:"days_left"`    // 고갈까지 남은 일수 (-1이면 감소 추세)
-	R2         float64 `json:"r2"`           // 결정계수 (모델 신뢰도)
+	Current    float64 `json:"current"`   // 현재 사용률 (%)
+	Slope      float64 `json:"slope"`     // 시간당 변화율 (%/h)
+	DaysLeft   float64 `json:"days_left"` // 고갈까지 남은 일수 (-1이면 감소 추세)
+	R2         float64 `json:"r2"`        // 결정계수 (모델 신뢰도)
 	Message    string  `json:"message"`
 }
 
@@ -60,18 +60,12 @@ func (w *diskWindow) Ready() bool {
 	return w.count >= minPredictionSamples
 }
 
-// getSamples는 시간순 정렬된 현재 샘플을 반환합니다.
-func (w *diskWindow) getSamples() []diskSample {
-	result := make([]diskSample, w.count)
-	start := w.pos - w.count
-	if start < 0 {
-		start += predictionWindowSize
+// 복사 없이 시간순 두 조각으로 돌려줌 — 마운트×주기마다 11KB 복사본이 생기던 것. 합산 순서가 예전 복사본과 같아 회귀 결과가 비트 단위로 같음
+func (w *diskWindow) parts() (older, newer []diskSample) {
+	if w.count < predictionWindowSize {
+		return w.samples[:w.count], nil
 	}
-	for i := 0; i < w.count; i++ {
-		idx := (start + i) % predictionWindowSize
-		result[i] = w.samples[idx]
-	}
-	return result
+	return w.samples[w.pos:], w.samples[:w.pos]
 }
 
 // Predictor는 선형회귀 기반 디스크 고갈 예측기입니다.
@@ -107,8 +101,7 @@ func (p *Predictor) Feed(host, mountpoint string, value float64, ts time.Time) *
 		return nil
 	}
 
-	samples := w.getSamples()
-	slope, intercept, r2 := linearRegression(samples)
+	slope, intercept, r2 := linearRegression(w.parts())
 
 	pred := &DiskPrediction{
 		Host:       host,
@@ -124,7 +117,7 @@ func (p *Predictor) Feed(host, mountpoint string, value float64, ts time.Time) *
 		pred.Message = host + " " + mountpoint + ": 디스크 사용량 안정/감소 추세"
 	} else {
 		// 고갈까지 남은 시간 (초)
-		lastTs := samples[len(samples)-1].timestamp
+		lastTs := float64(ts.Unix())
 		timeToFull := (diskFullThreshold - (slope*lastTs + intercept)) / slope
 		daysLeft := timeToFull / 86400
 		if daysLeft < 0 {
@@ -182,19 +175,20 @@ func (p *Predictor) ClearAll() {
 
 // linearRegression은 최소제곱법으로 선형회귀를 수행합니다.
 // 반환: slope, intercept, R²
-func linearRegression(samples []diskSample) (slope, intercept, r2 float64) {
-	n := float64(len(samples))
+func linearRegression(parts ...[]diskSample) (slope, intercept, r2 float64) {
+	var n, sumX, sumY, sumXY, sumX2, sumY2 float64
+	for _, samples := range parts {
+		for _, s := range samples {
+			n++
+			sumX += s.timestamp
+			sumY += s.value
+			sumXY += s.timestamp * s.value
+			sumX2 += s.timestamp * s.timestamp
+			sumY2 += s.value * s.value
+		}
+	}
 	if n < 2 {
 		return 0, 0, 0
-	}
-
-	var sumX, sumY, sumXY, sumX2, sumY2 float64
-	for _, s := range samples {
-		sumX += s.timestamp
-		sumY += s.value
-		sumXY += s.timestamp * s.value
-		sumX2 += s.timestamp * s.timestamp
-		sumY2 += s.value * s.value
 	}
 
 	denom := n*sumX2 - sumX*sumX
@@ -208,10 +202,12 @@ func linearRegression(samples []diskSample) (slope, intercept, r2 float64) {
 	// R² (결정계수)
 	meanY := sumY / n
 	var ssTot, ssRes float64
-	for _, s := range samples {
-		predicted := slope*s.timestamp + intercept
-		ssRes += (s.value - predicted) * (s.value - predicted)
-		ssTot += (s.value - meanY) * (s.value - meanY)
+	for _, samples := range parts {
+		for _, s := range samples {
+			predicted := slope*s.timestamp + intercept
+			ssRes += (s.value - predicted) * (s.value - predicted)
+			ssTot += (s.value - meanY) * (s.value - meanY)
+		}
 	}
 	if ssTot == 0 {
 		r2 = 1
