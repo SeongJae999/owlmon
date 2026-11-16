@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS snmp_devices (
     ip          TEXT NOT NULL UNIQUE,            -- IP 주소
     community   TEXT NOT NULL DEFAULT 'public', -- Community String (v2c)
     port        INT  NOT NULL DEFAULT 161,
+    server_reach BOOLEAN NOT NULL DEFAULT false,   -- 서버 직접 폴링이 응답받은 적 있음
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

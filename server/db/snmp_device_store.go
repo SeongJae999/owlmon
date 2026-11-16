@@ -16,9 +16,19 @@ func NewSNMPDeviceStore(pool *pgxpool.Pool) *SNMPDeviceStore {
 	return &SNMPDeviceStore{pool: pool}
 }
 
+func (s *SNMPDeviceStore) EnsureColumns(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `ALTER TABLE snmp_devices ADD COLUMN IF NOT EXISTS server_reach BOOLEAN NOT NULL DEFAULT false`)
+	return err
+}
+
+func (s *SNMPDeviceStore) MarkServerReach(ctx context.Context, id int64) error {
+	_, err := s.pool.Exec(ctx, `UPDATE snmp_devices SET server_reach = true WHERE id = $1`, id)
+	return err
+}
+
 func (s *SNMPDeviceStore) List(ctx context.Context) ([]snmp.Device, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT id, name, ip, community, port FROM snmp_devices ORDER BY created_at`)
+		`SELECT id, name, ip, community, port, server_reach FROM snmp_devices ORDER BY created_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +37,7 @@ func (s *SNMPDeviceStore) List(ctx context.Context) ([]snmp.Device, error) {
 	var devices []snmp.Device
 	for rows.Next() {
 		var d snmp.Device
-		if err := rows.Scan(&d.ID, &d.Name, &d.IP, &d.Community, &d.Port); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.IP, &d.Community, &d.Port, &d.ServerReach); err != nil {
 			return nil, err
 		}
 		devices = append(devices, d)
@@ -47,7 +57,8 @@ func (s *SNMPDeviceStore) Add(ctx context.Context, d snmp.Device) (snmp.Device, 
 // community가 비어 있으면 기존 값 유지 — 화면이 현재 값을 받지 못하므로 빈 값은 "변경 안 함"
 func (s *SNMPDeviceStore) Update(ctx context.Context, d snmp.Device) (snmp.Device, error) {
 	err := s.pool.QueryRow(ctx,
-		`UPDATE snmp_devices SET name=$1, ip=$2, community=COALESCE(NULLIF($3, ''), community), port=$4
+		`UPDATE snmp_devices SET name=$1, ip=$2, community=COALESCE(NULLIF($3, ''), community), port=$4,
+		     server_reach = server_reach AND ip = $2
 		 WHERE id=$5 RETURNING community`,
 		d.Name, d.IP, d.Community, d.Port, d.ID,
 	).Scan(&d.Community)

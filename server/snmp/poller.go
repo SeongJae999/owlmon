@@ -31,6 +31,8 @@ type Device struct {
 	IP        string
 	Community string `json:"-"` // 장비 접속 암호이므로 어떤 API 응답에도 내보내지 않음
 	Port      int
+	// 서버 직접 폴링이 응답받은 적 있음(DB에 남김) — 재기동 뒤에도 서버 폴링 실패를 장애 근거로 씀
+	ServerReach bool `json:"-"`
 }
 
 // InterfaceStats는 단일 인터페이스 상태입니다.
@@ -86,6 +88,9 @@ type downWatch struct {
 	agentAt, serverAt time.Time
 	serverReach       bool // 서버 직접 폴링이 응답받은 적 있음 — 서버가 닿는 장비라 서버 폴링 실패가 장애 근거가 됨
 	noData            bool // 직전 판정에 근거가 없었음(수집 경로 끊김) — 화면이 '응답 없음' 대신 '수집 끊김'으로 보이게
+	conflict          bool // 서버 폴링은 실패인데 에이전트 값은 응답 중 — 서버 쪽 경로 문제일 수도 있어 알림 문구로 구분
+	noDataSince       time.Time
+	noDataAlerted     bool
 }
 
 // 장애 판정 기록만 초기화 — 샘플 시각·도달 여부는 유지
@@ -112,24 +117,45 @@ const (
 
 // Event는 장애 시작·복구 전환. Removed는 장애 중에 목록에서 빠지거나 이름이 바뀐 장비 — 복구 알림 없이 옛 이름의 알림만 정리
 type Event struct {
-	Device  Device
-	Down    bool // true = 장애 시작, false = 복구
-	Removed bool
-	Since   time.Time // 응답이 끊기기 시작한 시각
+	Device   Device
+	Down     bool // true = 장애 시작, false = 복구
+	Removed  bool
+	NoData   bool      // 수집 끊김이 noDataAlertAfter 넘게 이어짐 — 상태를 모르는 채로 알림이 영영 안 나가지 않게
+	Conflict bool      // 장애 근거가 서버 폴링뿐이고 에이전트 값은 응답 중
+	Since    time.Time // 응답이 끊기기 시작한 시각
 }
+
+const noDataAlertAfter = 15 * time.Minute
 
 // 서버 직접 폴링 결과가 이보다 오래되면 응답 근거로 쓰지 않음
 const memFresh = 2 * time.Minute
 
-// Up은 화면·알림이 같은 기준을 쓰도록 한 곳에서 판정 — 에이전트가 수집한 값(Prometheus) 또는 서버 직접 폴링 중 하나라도 응답하면 정상
+// Up은 화면·알림이 같은 기준을 쓰도록 한 곳에서 판정 — 에이전트가 수집한 값(Prometheus) 또는 서버 직접 폴링 중 하나라도 응답하면 정상.
+// 단 서버가 닿는 장비의 서버 폴링 실패는 에이전트 값보다 우선 — 에이전트 키는 공유라 누구나 장비 응답을 보낼 수 있음
 func (p *Poller) Up(dev Device, promUp map[string]bool, now time.Time) bool {
-	if promUp[dev.Name] {
-		return true
-	}
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	st := p.statuses[dev.ID]
-	return st != nil && st.Up && now.Sub(st.CollectedAt) < memFresh
+	fresh := st != nil && now.Sub(st.CollectedAt) < memFresh
+	if fresh && st.Up {
+		return true
+	}
+	if fresh && p.reached(dev) {
+		return false
+	}
+	return promUp[dev.Name]
+}
+
+func (p *Poller) reached(dev Device) bool {
+	w := p.watch[dev.ID]
+	return dev.ServerReach || (w != nil && w.serverReach)
+}
+
+// Reached는 서버 직접 폴링이 응답받은 적 있는 장비 — 호출 측이 DB에 남겨 재기동·이름 변경 뒤에도 유지
+func (p *Poller) Reached(dev Device) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.reached(dev)
 }
 
 // Sample은 에이전트가 수집한 장비 응답 (Prometheus snmp_device_up 최신 샘플)
@@ -145,16 +171,18 @@ func (p *Poller) evidence(dev Device, w *downWatch, latest map[string]Sample, re
 	s, inProm := latest[dev.Name]
 	st := p.statuses[dev.ID]
 	fresh := st != nil && now.Sub(st.CollectedAt) < memFresh
-	if fresh && st.Up {
+	if dev.ServerReach || (fresh && st.Up) {
 		w.serverReach = true
 	}
+	serverDown := fresh && !st.Up && w.serverReach
+	w.conflict = serverDown && inProm && s.Up
 	switch {
-	case inProm && s.Up:
+	case inProm && s.Up && !serverDown:
 		return true, s.At, time.Time{}
 	case fresh && st.Up:
 		return true, time.Time{}, st.CollectedAt
 	}
-	if inProm {
+	if inProm && !s.Up {
 		agentAt = s.At
 	}
 	if fresh && (w.serverReach || !recent[dev.Name]) {
@@ -184,6 +212,15 @@ func (p *Poller) Observe(devices []Device, latest map[string]Sample, recent map[
 		}
 		up, agentAt, serverAt := p.evidence(d, w, latest, recent, now)
 		w.noData = !up && agentAt.IsZero() && serverAt.IsZero()
+		switch {
+		case !w.noData:
+			w.noDataSince, w.noDataAlerted = time.Time{}, false
+		case w.noDataSince.IsZero():
+			w.noDataSince = now
+		case !w.noDataAlerted && now.Sub(w.noDataSince) >= noDataAlertAfter:
+			w.noDataAlerted = true
+			events = append(events, Event{Device: d, NoData: true, Since: w.noDataSince})
+		}
 		newAgent, newServer := agentAt.After(w.agentAt), serverAt.After(w.serverAt)
 		if newAgent {
 			w.agentAt = agentAt
@@ -210,7 +247,7 @@ func (p *Poller) Observe(devices []Device, latest map[string]Sample, recent map[
 			w.streak++
 			if w.streak >= downAfter && !w.alerted {
 				w.alerted = true
-				events = append(events, Event{Device: d, Down: true, Since: w.since})
+				events = append(events, Event{Device: d, Down: true, Conflict: w.conflict, Since: w.since})
 			}
 		}
 	}

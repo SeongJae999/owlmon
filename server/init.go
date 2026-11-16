@@ -80,6 +80,9 @@ func InitDB() *AppContext {
 		appCtx.HistorySaver = db.NewHistorySaver(pool)
 		appCtx.HistoryStore = db.NewAlertHistoryStore(pool)
 		appCtx.SNMPDeviceStore = db.NewSNMPDeviceStore(pool)
+		if err := appCtx.SNMPDeviceStore.EnsureColumns(context.Background()); err != nil {
+			log.Printf("SNMP 장비 칸 준비 실패: %v", err)
+		}
 		appCtx.AssetStore = db.NewAssetStore(pool)
 		appCtx.SSLDomainStore = db.NewSSLDomainStore(pool)
 		appCtx.LogStore = db.NewLogStore(pool)
@@ -350,6 +353,13 @@ func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker
 							samples[name] = snmppkg.Sample{Up: x.Up, At: x.At}
 						}
 						notifySNMP(checker, appCtx.SNMPPoller.Observe(devices, samples, agentSeen, time.Now()))
+						for _, d := range devices {
+							if !d.ServerReach && appCtx.SNMPPoller.Reached(d) {
+								if err := appCtx.SNMPDeviceStore.MarkServerReach(ctx, d.ID); err != nil {
+									log.Printf("[SNMP] 서버 도달 기록 실패 (%s): %v", d.Name, err)
+								}
+							}
+						}
 					}
 				}
 				select {
@@ -471,10 +481,14 @@ func buildHostContext(prometheusURL string, detector *anomaly.Detector, host str
 }
 
 func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
-	var downs, ups []alert.Alert
+	var downs, ups, noData []alert.Alert
 	for _, ev := range events {
 		d := ev.Device
 		switch {
+		case ev.NoData:
+			noData = append(noData, alert.Alert{Host: d.Name, Category: "snmp",
+				Subject: fmt.Sprintf("[주의] %s 네트워크 장비 상태 수집 끊김", d.Name),
+				Body:    fmt.Sprintf("장비: %s\nIP: %s\n수집 끊김 시작: %s\n\n이 장비를 수집하는 에이전트의 값이 들어오지 않고 서버도 직접 닿지 않아 응답 여부를 모릅니다. 수집 에이전트와 Collector 상태를 확인하세요.", d.Name, d.IP, ev.Since.Format("2006-01-02 15:04:05"))})
 		case ev.Removed:
 			// 장애 중에 지우거나 이름을 바꾼 장비 — 확인할 화면이 없어 옛 이름의 확인·단계 통보 대기만 정리
 			checker.ClearAck(d.Name, "snmp", "critical")
@@ -486,9 +500,12 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 			if a, ok := checker.AckInfo(d.Name, "snmp", "critical"); ok && a.At.Before(ev.Since) {
 				checker.ClearAck(d.Name, "snmp", "critical")
 			}
+			body := fmt.Sprintf("장비: %s\nIP: %s\n응답 없음 시작: %s\n\nSNMP 응답이 없습니다. 전원·케이블·장비 상태를 확인하세요.", d.Name, d.IP, ev.Since.Format("2006-01-02 15:04:05"))
+			if ev.Conflict {
+				body += "\n\n서버 직접 폴링은 응답이 없는데 에이전트 수집 값은 응답 중으로 들어옵니다. 서버와 장비 사이 경로 문제이거나, 에이전트 키로 보낸 값이 실제와 다를 수 있습니다."
+			}
 			downs = append(downs, alert.Alert{Host: d.Name, Category: "snmp",
-				Subject: fmt.Sprintf("[위험] %s 네트워크 장비 응답 없음", d.Name),
-				Body:    fmt.Sprintf("장비: %s\nIP: %s\n응답 없음 시작: %s\n\nSNMP 응답이 없습니다. 전원·케이블·장비 상태를 확인하세요.", d.Name, d.IP, ev.Since.Format("2006-01-02 15:04:05"))})
+				Subject: fmt.Sprintf("[위험] %s 네트워크 장비 응답 없음", d.Name), Body: body})
 		default:
 			checker.SetNetDown(d.Name, false)
 			checker.ClearAck(d.Name, "snmp", "critical")
@@ -500,4 +517,5 @@ func notifySNMP(checker *alert.Checker, events []snmppkg.Event) {
 	// 상위 스위치 하나가 죽으면 아래 장비가 같은 주기에 모두 끊김 — 많으면 한 통으로
 	checker.SendDowns("[위험] 네트워크 장비 %d대 응답 없음", downs)
 	checker.SendUps("[복구] 네트워크 장비 %d대 응답 복구", ups)
+	checker.SendGroup("warning", "[주의] 네트워크 장비 %d대 상태 수집 끊김", noData)
 }
