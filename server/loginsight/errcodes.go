@@ -173,10 +173,10 @@ func errCodeStateSig() string {
 	return ErrCodeDigest() + "|" + strings.Join(keys, ",")
 }
 
-// 해설을 꺼 둔 코드도 포함 — 끈 동안 만든 분석이 다시 켠 뒤 24시간 재사용되지 않게 서명을 남긴다
+// 해설을 꺼 둔 코드와 사전 전체를 끈 동안의 코드도 포함 — 끈 동안 만든 분석이 다시 켠 뒤 24시간 재사용되지 않게 서명을 남긴다
 func hasErrCodes(lines []string) bool {
 	for _, l := range lines {
-		if len(findCodes(Templatize(l))) > 0 {
+		if len(findCodes(templatize(l, true))) > 0 {
 			return true
 		}
 	}
@@ -196,9 +196,6 @@ const codeMark = "\ue000"
 var reCodeMark = regexp.MustCompile(codeMark + `([g-p]+)` + codeMark)
 
 func protectCodes(s string) string {
-	if !errCodeDictOn() {
-		return s
-	}
 	hits := findCodes(s)
 	for i := len(hits) - 1; i >= 0; i-- {
 		h := hits[i]

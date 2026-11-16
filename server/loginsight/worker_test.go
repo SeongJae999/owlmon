@@ -175,6 +175,31 @@ func TestProcessGroups_ErrCodeCacheRoundTrip(t *testing.T) {
 	}
 }
 
+// 원인 묶음은 TemplateHash가 유닛 키라 사전 전체를 껐다 켜도 해시가 같다 — 서명으로만 갈린다
+func TestProcessGroups_ErrCodeDictOffThenOn(t *testing.T) {
+	prov := &stubProvider{name: "stub", response: validJSON()}
+	store := newStubStore()
+	w := newTestWorker(NewAnalyzer(prov), store, 10)
+	ctx := context.Background()
+	lines := []LogLine{{ID: 1, HostName: "db1", Message: "tibero.service: TBR-2131: Generic I/O error."}}
+
+	t.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "off")
+	off := Cluster(lines, 3)
+	if n, _ := w.processGroups(ctx, off); n != 1 || store.saved[0].ErrCodeSig != "off" {
+		t.Fatalf("사전을 끈 동안의 분석도 코드가 있으면 서명을 남겨야 함: %+v", store.saved)
+	}
+	store.cached[off[0].TemplateHash] = &store.saved[0]
+
+	t.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "")
+	on := Cluster(lines, 3)
+	if on[0].TemplateHash != off[0].TemplateHash {
+		t.Fatal("원인 묶음 해시는 사전 상태와 무관해야 이 시나리오가 성립")
+	}
+	if n, _ := w.processGroups(ctx, on); n != 1 {
+		t.Error("사전을 다시 켜면 끈 동안 만든 분석을 다시 해야 함")
+	}
+}
+
 func TestProcessGroups_CacheHitSkipsLLM(t *testing.T) {
 	ana := &stubAnalyzer{}
 	store := newStubStore()
