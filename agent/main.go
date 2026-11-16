@@ -112,6 +112,9 @@ func startAgent() func() {
 	if _, err := collector.NewNetworkCollector(meter); err != nil {
 		log.Fatalf("네트워크 수집기 초기화 실패: %v", err)
 	}
+	if err := collector.NewHostInfoCollector(ctx, meter, endpoint); err != nil {
+		log.Fatalf("에이전트 정보 수집기 초기화 실패: %v", err)
+	}
 
 	// 로그 수집 시작 (파일 tail + journald 수집기는 같은 Tailer 버퍼 공유)
 	if cfg.Logs.Enabled {

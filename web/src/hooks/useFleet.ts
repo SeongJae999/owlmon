@@ -21,6 +21,7 @@ export interface Tile {
   kind: Kind
   name: string
   sub?: string
+  ip?: string // IP 대역 자동 그룹용 — 서버는 에이전트가 보낸 관리 IP
   state: State
   detail: string
   down?: boolean
@@ -129,6 +130,8 @@ export function useFleet() {
     { name: '서버 목록', kind: '서버', q: qHosts }, { name: '서버 상태', kind: '서버', q: qStatus },
     { name: '서버 지표', kind: '서버', q: qMetrics }, { name: '알림', kind: '서버', q: qAlerts },
     { name: '점검 목록', kind: '서버', q: qMaint },
+    // 서버 IP가 여기서 옴 — 못 받으면 IP 대역으로 묶인 서버가 그룹에서 조용히 빠지므로 실패·대기를 드러냄
+    { name: '서버 수집 시각', kind: '서버', q: qFresh },
     { name: '네트워크 장비', kind: '네트워크 장비', q: qSnmp }, { name: '웹사이트', kind: '웹사이트', q: qSynth },
     { name: '보안 인증서', kind: '웹사이트', q: qSsl }, { name: '데이터베이스', kind: '데이터베이스', q: qDpm },
   ]
@@ -196,7 +199,7 @@ export function useFleet() {
       const lead = unacked[0] ?? mine[0]
       const more = mine.length > 1 ? ` 외 ${mine.length - 1}건` : ''
       tiles.push({
-        key: `h-${h}`, kind: '서버', name: h, purpose: purposeOf(h), state, since,
+        key: `h-${h}`, kind: '서버', name: h, sub: hostAge?.[h]?.ip, ip: hostAge?.[h]?.ip, purpose: purposeOf(h), state, since,
         // 수집 주기의 3배 + 전송 여유, 최소 60초 — 주기를 늘린 에이전트(OWLMON_COLLECT_INTERVAL)가 늘 지연으로 보이지 않게
         sampledAt: hostAge?.[h] ? hostAgeAt - hostAge[h].age_sec * 1000 : undefined,
         expectMs: Math.max(60_000, (hostAge?.[h]?.interval_sec ?? 15) * 3000 + 15_000),
@@ -221,7 +224,7 @@ export function useFleet() {
       const a = down ? ackOf(key) : undefined
       const ackValid = a && (!d.DownSince || a.acked_at >= d.DownSince)
       tiles.push({
-        key: `n-${d.Device.ID}`, kind: '네트워크 장비', name: d.Device.Name, sub: d.Device.IP, purpose: purposeOf(d.Device.Name),
+        key: `n-${d.Device.ID}`, kind: '네트워크 장비', name: d.Device.Name, sub: d.Device.IP, ip: d.Device.IP, purpose: purposeOf(d.Device.Name),
         // 폴링 30초 — 그 3배
         sampledAt: d.DataAgeSec != null ? snmpAt - d.DataAgeSec * 1000 : undefined, expectMs: 90_000,
         state: !d.CollectedAt || (!d.Up && d.NoData) ? 'wait' : d.Up ? 'ok' : 'crit',
@@ -239,7 +242,7 @@ export function useFleet() {
       const key = { host: s.monitor.name, category: 'synthetic', severity: 'critical' }
       const a = failing ? ackOf(key) : undefined
       tiles.push({
-        key: `w-${s.monitor.id}`, kind: '웹사이트', name: s.monitor.name, sub: s.monitor.url.replace(/^https?:\/\//, ''),
+        key: `w-${s.monitor.id}`, kind: '웹사이트', name: s.monitor.name, sub: s.monitor.url.replace(/^https?:\/\//, ''), ip: hostOf(s.monitor.url),
         // 점검 시각은 서버 시계 — 관제 PC 시계 차이를 빼서 비교. 응답이 늦은 점검은 시간 제한만큼 늦게 끝남
         sampledAt: s.latest ? serverToLocal(Date.parse(s.latest.checked_at)) : undefined,
         expectMs: Math.max(s.monitor.interval_seconds, s.monitor.timeout_seconds) * 2000 + 30_000,
@@ -277,7 +280,7 @@ export function useFleet() {
       const key = { host: d.instance.name, category: 'dpm', severity: 'critical' }
       const a = m?.error ? ackOf(key) : undefined
       tiles.push({
-        key: `d-${d.instance.id}`, kind: '데이터베이스', name: d.instance.name, sub: d.instance.db_type,
+        key: `d-${d.instance.id}`, kind: '데이터베이스', name: d.instance.name, sub: d.instance.db_type, ip: d.instance.host,
         sampledAt: m ? serverToLocal(Date.parse(m.collected_at)) : undefined, expectMs: Math.max(30, d.instance.poll_interval_sec) * 2000 + 30_000,
         state: !m ? 'wait' : m.error ? 'crit' : 'ok',
         detail: !m ? '첫 응답 대기' : m.error ? '연결 실패' : `연결 ${m.connections_active}/${m.connections_max}`,

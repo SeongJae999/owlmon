@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -60,6 +61,10 @@ type countingProm struct {
 
 func (p *countingProm) kind(q string) string {
 	switch {
+	case strings.Contains(q, "owlmon_agent_info") && strings.Contains(q, "[7d:5m]"):
+		return "info7d"
+	case strings.Contains(q, "owlmon_agent_info"):
+		return "info"
 	case strings.Contains(q, "count_over_time"):
 		return "uptime"
 	case strings.Contains(q, "[7d:5m]"):
@@ -237,5 +242,47 @@ func TestFreshnessUsesServerClock(t *testing.T) {
 	// 시계가 늦은 서버도 화면 목록에서 끊김으로 보지 않음 (예전 기준은 '지금 − 샘플 시각 > 2분')
 	if snap := h.snapshot(); snap.Down["web-01"] {
 		t.Fatal("늦은 시계를 끊김으로 판정")
+	}
+}
+
+// 에이전트가 보낸 관리 IP가 화면용 응답에 실림 — IP 대역 자동 그룹이 이 값을 씀
+func TestFreshnessCarriesAgentIP(t *testing.T) {
+	now := float64(time.Now().Unix())
+	p, h := newCountingProm(t)
+	ipRow := func(host, ip string, at float64) promRow {
+		return promRow{map[string]string{"host_name": host, "host_ip": ip}, at}
+	}
+	ips := func() map[string]string {
+		t.Helper()
+		expire(&h.promCache)
+		rec := httptest.NewRecorder()
+		h.GetFreshness(rec, httptest.NewRequest("GET", "/api/hosts/freshness", nil))
+		var got map[string]struct {
+			IP string `json:"ip"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]string{}
+		for k, v := range got {
+			out[k] = v.IP
+		}
+		return out
+	}
+	p.set("7d", promVector(row("web-01", now-5), row("old-01", now-3600)))
+	p.set("now", promVector(row("web-01", now-5)))
+	// 꺼진 지 한 시간 된 old-01은 7일 조회로만 IP가 남음. web-01은 IP가 바뀐 직후라 옛 시계열도 잡힘 — 더 최근 것이 이김
+	p.set("info7d", promVector(ipRow("old-01", "10.9.9.9", now-3600), ipRow("web-01", "10.1.2.2", now-400)))
+	p.set("info", promVector(ipRow("web-01", "10.1.2.2", now-200), ipRow("web-01", "10.1.2.3", now-5)))
+	if got := ips(); got["web-01"] != "10.1.2.3" || got["old-01"] != "10.9.9.9" {
+		t.Fatalf("ip: %v", got)
+	}
+	// IP 조회만 실패하면 지난 IP를 그대로 쓰고 상태는 '조회 실패'가 아님
+	p.set("info", "not json")
+	if got := ips(); got["web-01"] != "10.1.2.3" {
+		t.Fatalf("지난 IP 유지: %v", got)
+	}
+	if h.snapshot().Failed {
+		t.Fatal("IP 조회 실패가 상태 조회 실패로 번짐")
 	}
 }

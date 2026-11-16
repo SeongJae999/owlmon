@@ -50,6 +50,8 @@ type StatusHandler struct {
 	lastSeen   map[string]time.Time
 	seenFullAt time.Time // 7일 조회로 lastSeen을 새로 만든 시각
 	seenAt     time.Time // 최신 시각 조회로 lastSeen을 갱신한 시각
+	// 꺼진 서버도 IP 대역 그룹에 남아야 함 — 지표는 5분 뒤 조회에서 빠지므로 마지막 IP를 기억
+	ips map[string]agentIP
 
 	// 끊김·수집 지연 판정 — 알림(체커)과 같은 규칙. 샘플 시각이 바뀐 때를 서버 시계로 기록
 	live prom.HostLiveness
@@ -197,10 +199,23 @@ func (s fleetSnapshot) hosts() []string {
 	return out
 }
 
+type agentIP struct {
+	ip string
+	at float64 // 그 IP로 마지막 수집된 시각 — IP가 바뀐 직후 옛 시계열이 5분 남아도 새 IP가 이김
+}
+
+// 쿼리 위치 — 7일 쿼리 둘은 가끔만 붙음
+const (
+	qIP     = 4
+	qSeen7d = 5
+	qIP7d   = 6
+)
+
 // Prometheus 결과만 캐시한다 — 임계치·확인·점검은 요청마다 최신으로 합쳐야 확인 버튼이 바로 반영된다
 type promStatus struct {
 	cpu, mem, disk []promResult
 	seen           map[string]time.Time // nil이면 마지막 수신 시각을 몰라 끊김 판정을 건너뛴다
+	ips            map[string]string    // 에이전트가 보낸 관리 IP — 화면이 IP 대역으로 그룹을 자동 지정
 	failed         bool
 }
 
@@ -211,11 +226,14 @@ func (h *StatusHandler) fetchProm() (promStatus, error) {
 		"max(system_memory_usage_percent) by (host_name)",
 		"max(system_disk_usage_percent) by (host_name, mountpoint)",
 		"max by (host_name) (timestamp(system_cpu_usage_percent))",
+		"max by (host_name, host_ip) (timestamp(owlmon_agent_info))",
 	}
 	// 꺼진 지 5분이 넘으면 lookback에서 빠져 최신 시각 쿼리에 안 나온다. 7일 이력은 무거워 가끔만 보고 그사이엔 메모리에 이어 붙인다
 	full := now.Sub(h.seenFullAt) >= seenFullEvery || now.Sub(h.seenAt) >= seenGap
 	if full {
-		queries = append(queries, "max by (host_name) (max_over_time(timestamp(system_cpu_usage_percent)[7d:5m]))")
+		queries = append(queries,
+			"max by (host_name) (max_over_time(timestamp(system_cpu_usage_percent)[7d:5m]))",
+			"max by (host_name, host_ip) (max_over_time(timestamp(owlmon_agent_info)[7d:5m]))")
 	}
 	results := make([][]promResult, len(queries))
 	errs := make([]error, len(queries))
@@ -230,20 +248,33 @@ func (h *StatusHandler) fetchProm() (promStatus, error) {
 	wg.Wait()
 
 	st := promStatus{cpu: results[0], mem: results[1], disk: results[2]}
-	for _, err := range errs {
+	for i, err := range errs {
 		if err != nil {
 			log.Printf("[status] prometheus 조회 실패: %v", err)
-			st.failed = true
+			// IP는 그룹 표시용 — 실패해도 지난 IP를 쓰면 되니 상태 전체를 '조회 실패'로 만들지 않음
+			if i != qIP && i != qIP7d {
+				st.failed = true
+			}
 		}
 	}
 
+	if full && errs[qIP7d] == nil {
+		h.mergeIPs(results[qIP7d], now)
+	}
+	if errs[qIP] == nil {
+		h.mergeIPs(results[qIP], now)
+	}
+	st.ips = make(map[string]string, len(h.ips))
+	for host, a := range h.ips {
+		st.ips[host] = a.ip
+	}
 	// 7일 쿼리는 5분 간격이라 살아 있는 서버도 늦게 보인다. 최신 시각 쿼리가 실패하면 오탐을 내지 않도록 판정을 건너뛴다
-	if errs[3] != nil || (full && errs[4] != nil) {
+	if errs[3] != nil || (full && errs[qSeen7d] != nil) {
 		return st, nil
 	}
 	if full {
 		h.lastSeen = map[string]time.Time{}
-		for _, r := range results[4] {
+		for _, r := range results[qSeen7d] {
 			h.lastSeen[r.metric["host_name"]] = time.Unix(int64(r.value), 0)
 		}
 		h.seenFullAt = now
@@ -266,6 +297,23 @@ func (h *StatusHandler) fetchProm() (promStatus, error) {
 	h.seenAt = now
 	st.seen = maps.Clone(h.lastSeen)
 	return st, nil
+}
+
+func (h *StatusHandler) mergeIPs(rows []promResult, now time.Time) {
+	if h.ips == nil {
+		h.ips = map[string]agentIP{}
+	}
+	for _, r := range rows {
+		host, ip := r.metric["host_name"], r.metric["host_ip"]
+		if cur, ok := h.ips[host]; ip != "" && (!ok || r.value >= cur.at) {
+			h.ips[host] = agentIP{ip, r.value}
+		}
+	}
+	for host, a := range h.ips {
+		if now.Sub(time.Unix(int64(a.at), 0)) > 7*24*time.Hour {
+			delete(h.ips, host)
+		}
+	}
 }
 
 func (h *StatusHandler) snapshot() fleetSnapshot {
@@ -418,16 +466,17 @@ func (h *StatusHandler) GetFreshness(w http.ResponseWriter, r *http.Request) {
 		AgeSec      float64 `json:"age_sec"`
 		IntervalSec float64 `json:"interval_sec,omitempty"`
 		Down        bool    `json:"down,omitempty"` // 화면의 끊김 표시도 알림과 같은 기준으로
+		IP          string  `json:"ip,omitempty"`
 	}
 	now := time.Now()
 	out := make(map[string]fresh, len(st.seen))
 	for host := range st.seen {
 		s := h.live.State(host, now)
 		if !s.Known {
-			out[host] = fresh{Down: true}
+			out[host] = fresh{Down: true, IP: st.ips[host]}
 			continue
 		}
-		out[host] = fresh{AgeSec: s.Age.Seconds(), IntervalSec: s.Interval.Seconds(), Down: s.Down}
+		out[host] = fresh{AgeSec: s.Age.Seconds(), IntervalSec: s.Interval.Seconds(), Down: s.Down, IP: st.ips[host]}
 	}
 	writeJSON(w, out)
 }
