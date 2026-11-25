@@ -49,6 +49,7 @@ type stubStore struct {
 	saveErr   error
 	histFirst time.Time
 	histN     int
+	cases     []PastCase
 }
 
 func newStubStore() *stubStore {
@@ -77,6 +78,32 @@ func (s *stubStore) TouchTemplate(ctx context.Context, hash string) error {
 
 func (s *stubStore) History(ctx context.Context, hash, host string) (time.Time, int, error) {
 	return s.histFirst, s.histN, nil
+}
+
+func (s *stubStore) PastCases(ctx context.Context, hash string, n int) ([]PastCase, error) {
+	return s.cases, nil
+}
+
+// 분석 뒤 운영자가 라벨을 남기면 캐시를 버리고 그 사례를 넣어 다시 분석해야 한다
+func TestProcessGroups_PastCases(t *testing.T) {
+	ana := &stubAnalyzer{}
+	store := newStubStore()
+	analyzedAt := time.Now().Add(-time.Hour)
+	store.cached["h"] = &Insight{TemplateHash: "h", CreatedAt: analyzedAt}
+	w := newTestWorker(ana, store, 10)
+	g := []LogGroup{{TemplateHash: "h", HostName: "web1"}}
+
+	store.cases = []PastCase{{Category: "false_positive", CreatedAt: analyzedAt.Add(-time.Minute)}}
+	if n, _ := w.processGroups(context.Background(), g); n != 0 {
+		t.Error("분석보다 오래된 라벨이면 캐시를 재사용해야 함")
+	}
+	store.cases[0].CreatedAt = analyzedAt.Add(time.Minute)
+	if n, _ := w.processGroups(context.Background(), g); n != 1 {
+		t.Fatal("분석 뒤 새 라벨이 생기면 다시 분석해야 함")
+	}
+	if len(ana.last.PastCases) != 1 || ana.last.PastCases[0].Category != "false_positive" {
+		t.Errorf("사례가 분석기에 전달돼야 함: %+v", ana.last.PastCases)
+	}
 }
 
 // === 인터페이스 호환성 ===

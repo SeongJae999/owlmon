@@ -87,6 +87,9 @@ func InitDB() *AppContext {
 		appCtx.SSLDomainStore = db.NewSSLDomainStore(pool)
 		appCtx.LogStore = db.NewLogStore(pool)
 		appCtx.LogAnnotationStore = db.NewLogAnnotationStore(pool)
+		if err := appCtx.LogAnnotationStore.EnsureColumns(context.Background()); err != nil {
+			log.Printf("로그 라벨 칸 준비 실패: %v", err)
+		}
 		appCtx.SyntheticStore = db.NewSyntheticStore(pool)
 		appCtx.DPMStore = db.NewDPMStore(pool)
 		appCtx.AgentStore = db.NewAgentStore(pool)

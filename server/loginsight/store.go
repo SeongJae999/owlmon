@@ -164,6 +164,31 @@ func (s *Store) History(ctx context.Context, hash, host string) (time.Time, int,
 	return *first, n, nil
 }
 
+// PastCases — 같은 그룹 해시에 운영자가 남긴 라벨 최신 n건 (호스트 무관 — 같은 사이트의 다른 서버 경험도 쓴다).
+func (s *Store) PastCases(ctx context.Context, hash string, n int) ([]PastCase, error) {
+	if s == nil || s.pool == nil {
+		return nil, errors.New("Store: pool 미설정")
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT COALESCE(category, ''), COALESCE(problem, ''), COALESCE(solution, ''), COALESCE(line, ''), created_at
+		FROM log_annotations
+		WHERE template_hash = $1
+		ORDER BY created_at DESC LIMIT $2`, hash, n)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PastCase
+	for rows.Next() {
+		var c PastCase
+		if err := rows.Scan(&c.Category, &c.Problem, &c.Solution, &c.Line, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 // TouchTemplate — 같은 패턴이 또 등장했지만 LLM 호출은 건너뛸 때
 // hit_count + last_seen_at만 갱신.
 func (s *Store) TouchTemplate(ctx context.Context, hash string) error {

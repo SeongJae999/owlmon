@@ -46,25 +46,26 @@ func (s sevSet) has(v string) bool {
 }
 
 type evalCase struct {
-	ID           string   `json:"id"`
-	Tags         []string `json:"tags"`
-	Split        string   `json:"split"`
-	Label        string   `json:"label"`
-	Source       string   `json:"source"`
-	Note         string   `json:"note"`
-	Host         string   `json:"host"`
-	Log          string   `json:"log"`
-	Lines        []string `json:"lines"`
-	Count        int      `json:"count"`
-	HostCtx      string   `json:"host_ctx"`
-	Context      string   `json:"context"` // 자산 정보처럼 운영 프롬프트에 아직 없는 맥락 — 모델의 맥락 활용 능력을 미리 측정
-	HistDays     int      `json:"hist_days"`
-	HistN        int      `json:"hist_n"`
-	WantSev      sevSet   `json:"want_sev"`
-	WantHuman    *bool    `json:"want_human"` // 생략하면 채점 안 함 (대응 필요 여부도 갈리는 케이스)
-	WantCategory string   `json:"want_category"`
-	MustMention  []string `json:"must_mention"` // 항목마다 "a|b" 중 하나라도 요약·원인·조치에 있어야 함
-	MustNot      []string `json:"must_not"`
+	ID           string                `json:"id"`
+	Tags         []string              `json:"tags"`
+	Split        string                `json:"split"`
+	Label        string                `json:"label"`
+	Source       string                `json:"source"`
+	Note         string                `json:"note"`
+	Host         string                `json:"host"`
+	Log          string                `json:"log"`
+	Lines        []string              `json:"lines"`
+	Count        int                   `json:"count"`
+	HostCtx      string                `json:"host_ctx"`
+	Context      string                `json:"context"` // 자산 정보처럼 운영 프롬프트에 아직 없는 맥락 — 모델의 맥락 활용 능력을 미리 측정
+	HistDays     int                   `json:"hist_days"`
+	HistN        int                   `json:"hist_n"`
+	PastCases    []loginsight.PastCase `json:"past_cases"` // 운영자 확인 사례 주입
+	WantSev      sevSet                `json:"want_sev"`
+	WantHuman    *bool                 `json:"want_human"` // 생략하면 채점 안 함 (대응 필요 여부도 갈리는 케이스)
+	WantCategory string                `json:"want_category"`
+	MustMention  []string              `json:"must_mention"` // 항목마다 "a|b" 중 하나라도 요약·원인·조치에 있어야 함
+	MustNot      []string              `json:"must_not"`
 	file         string
 }
 
@@ -149,7 +150,7 @@ func main() {
 		Model: *model,
 		JSON:  os.Getenv("LLMEVAL_PLAIN") == "", // 운영 워커와 같은 설정으로 평가
 	}
-	hashIn := loginsight.SystemPrompt(nil)
+	hashIn := loginsight.SystemPrompt(nil) + loginsight.PastCaseRules
 	switch *cond {
 	case "0":
 		os.Setenv("OWLMON_LOGINSIGHT_ERRCODE_DICT", "off")
@@ -216,6 +217,7 @@ func buildUserMsg(c evalCase) (string, string) {
 		Count:           count,
 		TemplateExample: loginsight.Templatize(lines[0]),
 		SampleLines:     lines,
+		PastCases:       c.PastCases,
 	}
 	if c.HistN > 0 {
 		g.FirstSeenAt = time.Now().Add(-time.Duration(c.HistDays)*24*time.Hour - time.Hour)
@@ -230,7 +232,7 @@ func buildUserMsg(c evalCase) (string, string) {
 	if c.Context != "" {
 		msg += "\n" + c.Context
 	}
-	return loginsight.SystemPrompt(lines), msg
+	return loginsight.SystemPromptFor(g), msg
 }
 
 func runOnce(p *llm.OllamaProvider, sys, msg string, c evalCase) runResult {

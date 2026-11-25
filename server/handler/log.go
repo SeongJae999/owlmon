@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/seongJae/owlmon/server/auth"
 	"github.com/seongJae/owlmon/server/db"
+	"github.com/seongJae/owlmon/server/loginsight"
 	"github.com/seongJae/owlmon/server/masking"
 	"github.com/seongJae/owlmon/server/rules"
 )
@@ -452,6 +453,8 @@ func (h *LogHandler) Annotate(w http.ResponseWriter, r *http.Request) {
 		Problem:      req.Problem,
 		Solution:     req.Solution,
 		AlertID:      req.AlertID,
+		Line:         rec.Line,
+		TemplateHash: loginsight.GroupHash(rec.Line),
 	}
 	if err := h.annStore.Insert(r.Context(), a); err != nil {
 		respondError(w, http.StatusInternalServerError, "서버 내부 오류", err)

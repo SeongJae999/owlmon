@@ -185,12 +185,15 @@ CREATE TABLE IF NOT EXISTS log_annotations (
     problem       TEXT,                            -- 원인 설명 (자유 텍스트)
     solution      TEXT,                            -- 조치 내용 (자유 텍스트)
     alert_id      BIGINT REFERENCES alert_history(id) ON DELETE SET NULL, -- 연관 알림 (옵션)
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    line          TEXT,                            -- 라벨 시점 로그 원문 (logs 정리 후 학습 입력 보존)
+    template_hash TEXT                             -- loginsight 그룹 해시 — 같은 패턴 분석에 사례로 주입
 );
 
 CREATE INDEX IF NOT EXISTS idx_log_annotations_log_id ON log_annotations (log_id);
 CREATE INDEX IF NOT EXISTS idx_log_annotations_alert  ON log_annotations (alert_id);
 CREATE INDEX IF NOT EXISTS idx_log_annotations_created ON log_annotations (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_log_annotations_template ON log_annotations (template_hash, created_at DESC);
 
 -- 에이전트 관리
 CREATE TABLE IF NOT EXISTS agents (

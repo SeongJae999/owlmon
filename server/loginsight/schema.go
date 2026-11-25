@@ -92,4 +92,15 @@ type LogGroup struct {
 
 	FirstSeenAt   time.Time // 이 호스트에서 이 패턴을 처음 분석한 시각 (이력 없으면 zero)
 	PriorAnalyses int       // 이전 분석 횟수 (0이면 이력 없음)
+
+	PastCases []PastCase // 같은 그룹 해시에 운영자가 남긴 원인·조치 (최신순, 호스트 무관)
+}
+
+// PastCase — log_annotations 한 건. 분석 프롬프트에 "[운영자 확인 사례]"로 붙는다.
+type PastCase struct {
+	Category  string    `json:"category"` // root_cause | action_taken | false_positive
+	Problem   string    `json:"problem"`
+	Solution  string    `json:"solution"`
+	Line      string    `json:"line"`
+	CreatedAt time.Time `json:"-"`
 }

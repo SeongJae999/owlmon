@@ -115,6 +115,14 @@ func Hash(template string) string {
 	return hex.EncodeToString(h[:8])
 }
 
+// GroupHash — 한 줄이 Cluster에서 속할 그룹의 해시. 운영자 라벨을 같은 그룹 분석에 붙일 때 같은 키를 쓴다.
+func GroupHash(line string) string {
+	if ik := IncidentKey(line); ik != "" {
+		return Hash(ik)
+	}
+	return Hash(Templatize(line))
+}
+
 // LogLine — Cluster 입력용. 워커가 logs 테이블에서 fetch한 raw 로그를 이 형태로 변환한다.
 type LogLine struct {
 	ID       int64
@@ -148,10 +156,7 @@ func Cluster(lines []LogLine, maxSamples int) []LogGroup {
 		tpl := Templatize(l.Message)
 		th := Hash(tpl)
 		ik := IncidentKey(l.Message)
-		h := th
-		if ik != "" {
-			h = Hash(ik)
-		}
+		h := GroupHash(l.Message)
 		k := key{host: l.HostName, hash: h}
 		g, ok := groups[k]
 		if !ok {

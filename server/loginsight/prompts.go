@@ -128,6 +128,42 @@ const ErrCodeRules = `오류 코드 해설 활용 (제품 고유 오류 코드):
 
 var systemPromptNoCodes = strings.Replace(SystemPromptLogCluster, ErrCodeRules, "", 1)
 
+// PastCaseRules — 운영자 확인 사례가 있는 분석에만 덧붙인다 (지시문만으로 다른 판단이 흔들리지 않게)
+const PastCaseRules = `
+
+운영자 확인 사례 활용 (이 사이트의 정답 — 단, 아래 안전 규칙이 먼저):
+- 안전 규칙(최우선): 먼저 Sample log lines를 한 줄씩 사례의 "로그:"와 비교하라. 사례 로그에 없는 종류의 줄이 하나라도 있으면
+  그 줄은 사례와 상관없이 위 심각도 기준으로 따로 판단하고, 전체 severity는 가장 심각한 줄 기준으로 정하라.
+  특히 파일시스템 읽기 전용 전환(Remounting filesystem read-only), 파일시스템 오류(EXT4-fs error 등), OOM, 데이터 손상,
+  서비스 영구 다운이 보이면 오탐 사례가 있어도 절대 low로 내리지 말고 summary_ko·root_cause_ko에 그 신호를 적어라.
+- 입력에 "[운영자 확인 사례]"가 있으면 이 사이트 운영자가 같은 패턴의 로그에 직접 남긴 원인·조치 기록이다. 일반 지식보다 우선한다.
+- 사례 로그와 이번 로그가 같은 문제(같은 서비스·장비·오류)일 때만 따르라. 대상이 다르면 참고만 하라.
+- root_cause_ko는 사례의 원인을 바탕으로 쓰고, action_ko는 운영자가 실제로 한 조치를 먼저 적어라 (예: "지난번 조치: ...").
+- 분류가 "오탐"인 사례는 운영자가 그 줄이 문제없다고 확인한 것이다 → 이번 줄이 모두 사례와 같은 종류면 severity="low", needs_human=false.
+- 사례가 있다는 이유만으로 심각도를 올리지 마라. 심각도는 위 심각도 기준으로 정한다.`
+
+// SystemPromptFor — 그룹 입력에 맞는 시스템 프롬프트 (오류 코드 지시문·운영자 사례 지시문을 필요할 때만)
+func SystemPromptFor(g LogGroup) string {
+	s := SystemPrompt(g.SampleLines)
+	if len(g.PastCases) > 0 {
+		s += PastCaseRules
+	}
+	return s
+}
+
+var caseLabel = map[string]string{
+	"root_cause":     "원인 확인",
+	"action_taken":   "조치 완료",
+	"false_positive": "오탐(문제 없음)",
+}
+
+func runeCut(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
+}
+
 // 지시문을 모든 분석에 넣었더니 코드 없는 줄(DB 데드락)의 대응 필요 판단까지 바뀌었다
 func SystemPrompt(lines []string) string {
 	if errCodeNotes(lines) == "" {
@@ -161,6 +197,22 @@ func BuildUserMsg(g LogGroup) string {
 	if g.PriorAnalyses > 0 {
 		days := int(time.Since(g.FirstSeenAt).Hours() / 24)
 		fmt.Fprintf(&b, "\n[패턴 이력] 이 호스트에서 %d일 전 처음 분석됨, 지금까지 %d회 분석 (해결되지 않고 재발 중)\n", days, g.PriorAnalyses)
+	}
+	if len(g.PastCases) > 0 {
+		b.WriteString("\n[운영자 확인 사례] (이 사이트 운영자가 같은 패턴 로그에 남긴 기록, 최신순)\n")
+		for i, c := range g.PastCases {
+			label := caseLabel[c.Category]
+			if label == "" {
+				label = "기록"
+			}
+			fmt.Fprintf(&b, "%d. 분류: %s\n   로그: %s\n", i+1, label, runeCut(c.Line, 300))
+			if c.Problem != "" {
+				fmt.Fprintf(&b, "   원인: %s\n", runeCut(c.Problem, 300))
+			}
+			if c.Solution != "" {
+				fmt.Fprintf(&b, "   조치: %s\n", runeCut(c.Solution, 300))
+			}
+		}
 	}
 	return b.String()
 }

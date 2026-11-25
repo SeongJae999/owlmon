@@ -21,7 +21,7 @@ go run ./cmd/llmeval -compare ../scripts/llm-eval/results/baseline-gemma4-12b.js
 
 | 파일 | 내용 |
 |---|---|
-| `eval-set.jsonl` | 합성 — 정상 종료·실장애·보안·일시적 |
+| `eval-set.jsonl` | 합성 — 정상 종료·실장애·보안·일시적·운영자 사례(`pc-*`) |
 | `eval-set-prod.jsonl` | 운영 실로그 (2026-06, 2026-11 수집) |
 | `eval-set-history.jsonl` | `[패턴 이력]` 주입 (장기 지속) |
 | `eval-set-multiline.jsonl` | 원인 묶기로 여러 종류 줄이 한 그룹 |
@@ -39,6 +39,7 @@ go run ./cmd/llmeval -compare ../scripts/llm-eval/results/baseline-gemma4-12b.js
 | `log` 또는 `lines` | 입력 로그 (한 줄 / 여러 줄) |
 | `host`, `count`, `host_ctx`, `hist_days`·`hist_n` | 운영 워커가 붙이는 입력 그대로 재현 |
 | `context` | 운영에 아직 없는 맥락(자산 정보 등) — 맥락 활용 능력 측정용 |
+| `past_cases` | `[운영자 확인 사례]` 주입 — `{category, line, problem, solution}` 목록 (category: `root_cause`·`action_taken`·`false_positive`) |
 | `want_sev` | 정답 심각도. 갈리는 케이스는 `["medium","high"]`처럼 범위 |
 | `want_human` | 대응 필요 여부. 생략하면 채점 안 함 |
 | `want_category` | 분류 (선택) |

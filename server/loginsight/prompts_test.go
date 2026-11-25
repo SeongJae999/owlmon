@@ -64,3 +64,23 @@ func TestSystemPromptLogCluster_FewShot(t *testing.T) {
 		t.Error("few-shot 입력/출력 마커 개수 불일치 — 예시 쌍이 깨졌을 수 있음")
 	}
 }
+
+func TestPastCasesPrompt(t *testing.T) {
+	g := LogGroup{HostName: "h", Count: 1, TemplateExample: "x", SampleLines: []string{"nginx: upstream timed out"}}
+	if strings.Contains(BuildUserMsg(g), "[운영자 확인 사례]") || strings.Contains(SystemPromptFor(g), "운영자 확인 사례 활용") {
+		t.Fatal("사례가 없으면 블록·지시문을 넣지 않아야 함")
+	}
+	g.PastCases = []PastCase{{Category: "false_positive", Line: "nginx: upstream timed out", Problem: "야간 백업 중 일시 지연", Solution: strings.Repeat("가", 400)}}
+	msg := BuildUserMsg(g)
+	for _, want := range []string{"[운영자 확인 사례]", "분류: 오탐(문제 없음)", "원인: 야간 백업 중 일시 지연", "…"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("유저 메시지에 %q 없음:\n%s", want, msg)
+		}
+	}
+	if strings.Contains(msg, strings.Repeat("가", 301)) {
+		t.Error("사례 문구는 300자로 잘라야 함")
+	}
+	if !strings.HasSuffix(SystemPromptFor(g), PastCaseRules) {
+		t.Error("사례가 있으면 지시문을 덧붙여야 함")
+	}
+}

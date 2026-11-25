@@ -21,6 +21,9 @@ type LogAnnotation struct {
 	Solution     string    `json:"solution,omitempty"`
 	AlertID      *int64    `json:"alert_id,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
+	// logs가 30일 뒤 지워져도 학습 쌍의 입력과, 같은 패턴 분석에 붙일 키(loginsight.GroupHash)를 남긴다
+	Line         string `json:"line,omitempty"`
+	TemplateHash string `json:"template_hash,omitempty"`
 }
 
 // LogAnnotationStore는 log_annotations 테이블 저장소입니다.
@@ -32,15 +35,29 @@ func NewLogAnnotationStore(pool *pgxpool.Pool) *LogAnnotationStore {
 	return &LogAnnotationStore{pool: pool}
 }
 
+// EnsureColumns — init.sql은 새 DB에서만 돌기 때문에 기존 운영 DB에도 생기도록 기동 시 추가
+func (s *LogAnnotationStore) EnsureColumns(ctx context.Context) error {
+	for _, q := range []string{
+		`ALTER TABLE log_annotations ADD COLUMN IF NOT EXISTS line TEXT`,
+		`ALTER TABLE log_annotations ADD COLUMN IF NOT EXISTS template_hash TEXT`,
+		`CREATE INDEX IF NOT EXISTS idx_log_annotations_template ON log_annotations (template_hash, created_at DESC)`,
+	} {
+		if _, err := s.pool.Exec(ctx, q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Insert는 새 라벨을 저장합니다. 같은 log_id에 여러 라벨 가능.
 // 반환 값에 생성된 id와 created_at이 채워집니다.
 func (s *LogAnnotationStore) Insert(ctx context.Context, a *LogAnnotation) error {
 	return s.pool.QueryRow(ctx,
 		`INSERT INTO log_annotations
-		 (log_id, log_timestamp, annotator, category, problem, solution, alert_id)
-		 VALUES ($1, $2, $3, NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), $7)
+		 (log_id, log_timestamp, annotator, category, problem, solution, alert_id, line, template_hash)
+		 VALUES ($1, $2, $3, NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), $7, NULLIF($8, ''), NULLIF($9, ''))
 		 RETURNING id, created_at`,
-		a.LogID, a.LogTimestamp, a.Annotator, a.Category, a.Problem, a.Solution, a.AlertID,
+		a.LogID, a.LogTimestamp, a.Annotator, a.Category, a.Problem, a.Solution, a.AlertID, a.Line, a.TemplateHash,
 	).Scan(&a.ID, &a.CreatedAt)
 }
 
@@ -49,7 +66,7 @@ func (s *LogAnnotationStore) ListByLogID(ctx context.Context, logID int64) ([]Lo
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, log_id, log_timestamp, annotator,
 		        COALESCE(category, ''), COALESCE(problem, ''), COALESCE(solution, ''),
-		        alert_id, created_at
+		        alert_id, created_at, COALESCE(line, ''), COALESCE(template_hash, '')
 		 FROM log_annotations
 		 WHERE log_id = $1
 		 ORDER BY created_at DESC`,
@@ -63,7 +80,7 @@ func (s *LogAnnotationStore) ListByLogID(ctx context.Context, logID int64) ([]Lo
 	for rows.Next() {
 		var a LogAnnotation
 		if err := rows.Scan(&a.ID, &a.LogID, &a.LogTimestamp, &a.Annotator,
-			&a.Category, &a.Problem, &a.Solution, &a.AlertID, &a.CreatedAt); err != nil {
+			&a.Category, &a.Problem, &a.Solution, &a.AlertID, &a.CreatedAt, &a.Line, &a.TemplateHash); err != nil {
 			return nil, err
 		}
 		result = append(result, a)
@@ -85,7 +102,7 @@ func (s *LogAnnotationStore) List(ctx context.Context, limit, offset int) ([]Log
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, log_id, log_timestamp, annotator,
 		        COALESCE(category, ''), COALESCE(problem, ''), COALESCE(solution, ''),
-		        alert_id, created_at
+		        alert_id, created_at, COALESCE(line, ''), COALESCE(template_hash, '')
 		 FROM log_annotations
 		 ORDER BY created_at DESC
 		 LIMIT $1 OFFSET $2`,
@@ -99,7 +116,7 @@ func (s *LogAnnotationStore) List(ctx context.Context, limit, offset int) ([]Log
 	for rows.Next() {
 		var a LogAnnotation
 		if err := rows.Scan(&a.ID, &a.LogID, &a.LogTimestamp, &a.Annotator,
-			&a.Category, &a.Problem, &a.Solution, &a.AlertID, &a.CreatedAt); err != nil {
+			&a.Category, &a.Problem, &a.Solution, &a.AlertID, &a.CreatedAt, &a.Line, &a.TemplateHash); err != nil {
 			return nil, 0, err
 		}
 		result = append(result, a)

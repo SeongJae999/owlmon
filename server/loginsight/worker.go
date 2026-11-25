@@ -23,7 +23,10 @@ type storeIface interface {
 	ByTemplate(ctx context.Context, hash, host string, maxAge time.Duration) (*Insight, error)
 	TouchTemplate(ctx context.Context, hash string) error
 	History(ctx context.Context, hash, host string) (time.Time, int, error)
+	PastCases(ctx context.Context, hash string, n int) ([]PastCase, error)
 }
+
+const pastCasesPerGroup = 3
 
 // Worker — log_insights 백그라운드 워커.
 // 매 Interval마다 Tick()을 실행해 지난 tick 이후 들어온 ERROR/WARN 로그를 분석.
@@ -175,9 +178,12 @@ func (w *Worker) processGroups(ctx context.Context, groups []LogGroup) (int, err
 		if budget <= 0 {
 			break
 		}
+		// 조회 실패(라벨 테이블 없음 등)는 사례 없이 분석
+		g.PastCases, _ = w.store.PastCases(ctx, g.TemplateHash, pastCasesPerGroup)
 		cached, _ := w.store.ByTemplate(ctx, g.TemplateHash, g.HostName, w.cfg.CacheTTL)
-		// 해설이 바뀌었거나 꺼졌으면 옛 해설로 만든 분석을 재사용하지 않는다
-		if cached != nil && errCodeCacheOK(cached.ErrCodeSig) {
+		// 해설이 바뀌었거나 꺼졌거나, 분석 뒤 운영자가 새 라벨을 남겼으면 옛 분석을 재사용하지 않는다
+		if cached != nil && errCodeCacheOK(cached.ErrCodeSig) &&
+			(len(g.PastCases) == 0 || !g.PastCases[0].CreatedAt.After(cached.CreatedAt)) {
 			_ = w.store.TouchTemplate(ctx, g.TemplateHash)
 			continue
 		}

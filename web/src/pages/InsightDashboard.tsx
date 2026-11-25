@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Sparkles, RefreshCw, AlertTriangle, Filter, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { Sparkles, RefreshCw, AlertTriangle, Filter, ChevronDown, ChevronRight, FileText, Tag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   listInsights,
@@ -10,6 +10,8 @@ import {
   type Insight,
 } from '../api/insights'
 import { cn } from '../utils/cn'
+import { getLogById, type LogRecord } from '../api/logs'
+import AnnotateModal from '../components/AnnotateModal'
 import PageToolbar from '../components/PageToolbar'
 import { TONES } from '../utils/severity'
 
@@ -71,6 +73,17 @@ export default function InsightDashboard() {
   const [severity, setSeverity] = useState<Severity | ''>('')
   const [hostFilter, setHostFilter] = useState('')
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  // 운영자가 남긴 원인·조치는 같은 패턴의 다음 분석에 사례로 들어간다
+  const [annotLog, setAnnotLog] = useState<LogRecord | null>(null)
+  const [annotErr, setAnnotErr] = useState<{ id: number; msg: string } | null>(null)
+  const openAnnotate = async (ins: Insight) => {
+    setAnnotErr(null)
+    try {
+      setAnnotLog(await getLogById(ins.sample_log_ids[0]))
+    } catch {
+      setAnnotErr({ id: ins.id, msg: '근거 로그가 보존 기간(30일)이 지나 삭제되어 기록을 남길 수 없습니다.' })
+    }
+  }
 
   const { data: status } = useQuery({
     queryKey: ['insightStatus'],
@@ -270,6 +283,22 @@ export default function InsightDashboard() {
                         <span>근거 로그 {ins.sample_log_ids.length}건</span>
                       )}
                     </div>
+                    {ins.sample_log_ids?.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => openAnnotate(ins)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-base-700 text-xs font-semibold text-base-300 hover:bg-base-800"
+                        >
+                          <Tag size={12} aria-hidden="true" />
+                          실제 원인·조치 남기기
+                        </button>
+                        <span className="text-xs text-base-500">남긴 내용은 같은 문제가 다시 생길 때 AI 분석에 반영됩니다</span>
+                        {annotErr?.id === ins.id && (
+                          <span role="alert" className="text-xs text-amber-300">{annotErr.msg}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -277,6 +306,7 @@ export default function InsightDashboard() {
           })}
         </div>
       )}
+      {annotLog && <AnnotateModal log={annotLog} onClose={() => setAnnotLog(null)} />}
     </div>
   )
 }

@@ -318,3 +318,17 @@ func TestCluster_IncidentGroupsDistinctSamples(t *testing.T) {
 		t.Errorf("대상 IP 그룹은 호스트별로 분리돼야 함: %+v / %+v", groups[1], groups[2])
 	}
 }
+
+// 라벨에 저장하는 해시가 워커 그룹 해시와 달라지면 사례가 영영 붙지 않는다
+func TestGroupHashMatchesCluster(t *testing.T) {
+	for _, line := range []string{
+		"nginx.service: Failed with result 'exit-code'.",
+		"connect() failed (111: Connection refused) while connecting to 10.0.0.5:8080",
+		"sshd[123]: Failed password for root from 1.2.3.4 port 22 ssh2",
+	} {
+		g := Cluster([]LogLine{{ID: 1, HostName: "h", Message: line}}, 3)
+		if got := GroupHash(line); got != g[0].TemplateHash {
+			t.Errorf("%q: GroupHash=%s, Cluster=%s", line, got, g[0].TemplateHash)
+		}
+	}
+}
