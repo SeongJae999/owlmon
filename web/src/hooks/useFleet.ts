@@ -23,7 +23,10 @@ export interface Tile {
   sub?: string
   ip?: string // IP 대역 자동 그룹용 — 서버는 에이전트가 보낸 관리 IP
   state: State
-  detail: string
+  detail: string // 전체 문장 — 장비 표·구성도·랙 툴팁, 처리할 문제의 마우스 툴팁
+  // 처리할 문제 목록용 — 한 줄로 자를 앞부분과, 잘리면 안 되는 덧붙임(외 N건·디스크 예측). 없으면 detail을 그대로 씀
+  lead?: string
+  tags?: string[]
   down?: boolean
   bars?: { label: string; value: number | null; warn: number; crit: number }[]
   to: string
@@ -38,6 +41,20 @@ export interface Tile {
   // 마지막으로 실제 수집된 시각(브라우저 시계, ms)과 이보다 오래되면 '수집 지연'으로 볼 기준 — 화면을 받아 온 시각과 다름
   sampledAt?: number
   expectMs?: number
+}
+
+// 웹사이트 점검 오류 원문(Go net/http)을 원인 한마디로 — 모르는 오류는 요청 주소 앞머리만 떼고 그대로
+export function shortError(e: string): string {
+  const m = e.toLowerCase()
+  if (m.includes('timeout') || m.includes('deadline exceeded')) return '응답 시간 초과'
+  if (m.includes('no such host') || m.includes('server misbehaving')) return '도메인 조회 실패 (DNS)'
+  if (m.includes('connection refused')) return '연결 거부 (서비스 꺼짐·포트 닫힘)'
+  if (m.includes('connection reset') || m.includes('eof')) return '연결이 중간에 끊김'
+  if (m.includes('network is unreachable') || m.includes('no route to host')) return '네트워크 경로 없음'
+  if (m.includes('certificate has expired')) return '인증서 만료'
+  if (m.includes('x509') || m.includes('tls:') || m.includes('certificate')) return '인증서 오류'
+  if (m.includes('stopped after') && m.includes('redirect')) return '리다이렉트 반복'
+  return e.replace(/^[A-Z]+ "[^"]*": /, '')
 }
 
 // 끊김·점검·첫 응답 전 장비는 수집이 멈춘 게 당연하니 지연으로 세지 않음
@@ -198,13 +215,17 @@ export function useFleet() {
       // 미확인 알림을 먼저 보여 줌 — 확인한 알림 문구가 새 문제를 가리지 않게
       const lead = unacked[0] ?? mine[0]
       const more = mine.length > 1 ? ` 외 ${mine.length - 1}건` : ''
+      const diskSoon = (fullIn.get(h) ?? Infinity) <= 30 && `약 ${Math.max(1, Math.ceil(fullIn.get(h)!))}일 후 디스크 가득 참`
+      const offline = hostStatuses[h] === 'offline'
       tiles.push({
         key: `h-${h}`, kind: '서버', name: h, sub: hostAge?.[h]?.ip, ip: hostAge?.[h]?.ip, purpose: purposeOf(h), state, since,
         // 수집 주기의 3배 + 전송 여유, 최소 60초 — 주기를 늘린 에이전트(OWLMON_COLLECT_INTERVAL)가 늘 지연으로 보이지 않게
         sampledAt: hostAge?.[h] ? hostAgeAt - hostAge[h].age_sec * 1000 : undefined,
         expectMs: Math.max(60_000, (hostAge?.[h]?.interval_sec ?? 15) * 3000 + 15_000),
-        detail: hostStatuses[h] === 'offline' ? '연결 끊김'
-          : [lead && `${lead.message}${more}`, (fullIn.get(h) ?? Infinity) <= 30 && `약 ${Math.max(1, Math.ceil(fullIn.get(h)!))}일 후 디스크 가득 참`].filter(Boolean).join(' · '),
+        detail: offline ? '연결 끊김' : [lead && `${lead.message}${more}`, diskSoon].filter(Boolean).join(' · '),
+        // 문장 끝에 붙던 건수·디스크 예측이 먼저 잘리지 않게 따로 — 알림 문구가 없으면 디스크 예측이 본문
+        lead: offline ? undefined : lead ? lead.message : diskSoon || undefined,
+        tags: offline ? undefined : [lead && more.trim(), lead && diskSoon].filter((x): x is string => !!x),
         down: hostStatuses[h] === 'offline',
         acked: mine.length > 0 && unacked.length === 0 ? { by: mine[0].acked_by ?? '', at: mine[0].acked_at } : undefined,
         ackKeys: unacked.map(a => ({ host: a.host, category: a.category, severity: a.severity })),
@@ -250,6 +271,8 @@ export function useFleet() {
         detail: !s.latest ? '첫 점검 대기' : ok
           ? `응답 ${s.latest.response_time_ms}ms${s.latest.response_time_ms > 3000 ? ' (느림)' : ''}`
           : (s.latest.error || `HTTP ${s.latest.status_code}`),
+        // Go 오류 원문은 앞에 요청 주소가 붙어 원인이 뒤에서 잘림 — 목록엔 원인만, 원문은 툴팁(detail)
+        lead: s.latest && !ok && s.latest.error ? shortError(s.latest.error) : undefined,
         // 느림(주의)은 메일도 해제 경로도 없어 확인 대상이 아님 — 실패일 때만
         acked: a ? { by: a.acked_by, at: a.acked_at } : undefined,
         ackKeys: failing && !a ? [key] : undefined,
@@ -316,7 +339,7 @@ export function useFleet() {
         const mate = pairOf.get(p)
         if (downNames.has(p) && (!mate || downNames.has(mate))) x.causedBy = p
       }
-      if (x.causedBy) x.detail = `${x.causedBy} 장애 영향`
+      if (x.causedBy) { x.detail = `${x.causedBy} 장애 영향`; x.lead = undefined; x.tags = undefined }
     }
     const topoByName = new Map<string, Tile>()
     for (const x of topoTiles) {

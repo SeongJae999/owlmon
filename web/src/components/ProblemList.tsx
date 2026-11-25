@@ -71,7 +71,14 @@ export default function ProblemList({ open, impactOf, rowAckKeys, failed, stale,
     }
   }
 
-  // 하위 영향·확인자 — 내용(detail)이 길어 잘려도 이 정보는 남도록 따로 둔다
+  // 한 줄로 자르는 앞부분과 잘리지 않는 덧붙임 — 건수·디스크 예측이 문장 끝에서 먼저 잘리던 것
+const leadOf = (x: Tile) => x.lead ?? x.detail
+function Tags({ x, className }: { x: Tile; className?: string }) {
+  if (!x.tags?.length) return null
+  return <>{x.tags.map(t => <span key={t} className={cn('shrink-0 font-semibold text-base-100 tabular-nums', className)}>{t}</span>)}</>
+}
+
+// 하위 영향·확인자 — 내용(detail)이 길어 잘려도 이 정보는 남도록 따로 둔다
   const ackText = (x: Tile) => x.acked && `${x.acked.by ? `${x.acked.by} 확인` : '확인함'}${x.acked.at ? ` ${ago(x.acked.at, now)}` : ''}`
   const notes = (x: Tile, names = false) => {
     const impact = impactOf(x.name)
@@ -107,7 +114,9 @@ export default function ProblemList({ open, impactOf, rowAckKeys, failed, stale,
                   <span className={cn('min-w-0 truncate font-semibold text-base-100', large && 'text-lg')}>{x.name}</span>
                   {x.since && <span className={cn('ml-auto shrink-0 text-base-500 tabular-nums', large ? 'text-sm' : 'text-xs')}>{lasting(x.since, now)}</span>}
                 </div>
-                <p className={cn('mt-0.5 truncate text-base-300', large ? 'text-base' : 'text-sm')}>{x.detail}</p>
+                {/* 상황판(large)은 누를 수 없어 툴팁도 못 봄 — 두 줄까지 보여 줌 */}
+                <p className={cn('mt-0.5 text-base-300', large ? 'text-base line-clamp-2 break-words' : 'text-sm truncate')} title={x.detail}>{leadOf(x)}</p>
+                {!!x.tags?.length && <p className={cn('flex flex-wrap gap-x-2', large ? 'text-sm' : 'text-xs')}><Tags x={x} /></p>}
                 {x.location && <p className={cn('truncate text-base-400', large ? 'text-sm' : 'text-xs')} title={x.location}>위치 {x.location}</p>}
                 {notes(x, true) && <p className={cn('truncate text-base-500', large ? 'text-sm' : 'text-xs')} title={notes(x, true)}>{notes(x, true)}</p>}
               </Link>
@@ -150,7 +159,8 @@ export default function ProblemList({ open, impactOf, rowAckKeys, failed, stale,
                 </span>
                 <span role="cell" className="hidden @4xl:block truncate text-sm text-base-400">{x.kind}</span>
                 <span role="cell" className="min-w-0 basis-full @lg:basis-auto flex items-baseline gap-1.5 text-sm">
-                  <span className="min-w-0 truncate text-base-200">{x.detail}</span>
+                  <span className="min-w-0 truncate text-base-200" title={x.detail}>{leadOf(x)}</span>
+                  <Tags x={x} />
                   {/* 원인 장비임을 한눈에 — 영향 대수는 굵게, 색은 중립 */}
                   {impact.length > 0 && <span className="shrink-0 font-semibold text-base-100 tabular-nums" title={`하위 ${impact.length}대: ${impact.join(', ')}`}>하위 {impact.length}대</span>}
                   {ackNote && <span className="shrink-0 max-w-[40%] truncate text-base-500">· {ackNote}</span>}
