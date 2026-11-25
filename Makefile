@@ -1,4 +1,4 @@
-.PHONY: dev stop lint format test up down clean
+.PHONY: dev stop up down clean
 
 # 개발 환경 전체 시작 (OS 자동 감지)
 dev:
@@ -15,20 +15,6 @@ ifeq ($(OS),Windows_NT)
 else
 	bash stop.sh
 endif
-
-# 린트
-lint:
-	ruff check src/ tests/
-	mypy src/
-
-# 포맷
-format:
-	ruff format src/ tests/
-	ruff check --fix src/ tests/
-
-# 테스트
-test:
-	pytest --cov=src --cov-report=term-missing
 
 # Docker 인프라 시작
 up:
