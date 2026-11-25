@@ -82,9 +82,14 @@ if [[ ! -f "$ENV_FILE" ]]; then
     JWT_SECRET=$(openssl rand -hex 32)
 
     pushd "$ROOT/server" > /dev/null
-    HASH_OUTPUT=$(go run ./cmd/hashpw admin 2>&1)
+    # 첫 실행 때 go가 모듈 다운로드 메시지를 stderr로 내보내므로 stdout의 bcrypt 해시 줄만 쓴다
+    HASH_OUTPUT=$(go run ./cmd/hashpw admin 2>/dev/null)
     popd > /dev/null
-    PASSWORD_HASH=$(echo "$HASH_OUTPUT" | head -1 | tr -d '[:space:]')
+    PASSWORD_HASH=$(echo "$HASH_OUTPUT" | grep -m1 '^\$2' | tr -d '[:space:]')
+    if [[ -z "$PASSWORD_HASH" ]]; then
+        echo "[오류] 관리자 비밀번호 해시 생성 실패 — cd server && go run ./cmd/hashpw admin 으로 확인하세요."
+        exit 1
+    fi
 
     cat > "$ENV_FILE" <<EOF
 OWLMON_JWT_SECRET=$JWT_SECRET
