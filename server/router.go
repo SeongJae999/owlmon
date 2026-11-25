@@ -172,6 +172,21 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 			}
 		}
 
+		// 작업 지시 — 장비별 "언제까지 무엇을". 조회는 모두, 등록·수정·삭제는 관리자, 상태·처리 메모는 조회 계정(현장 엔지니어)도
+		if appCtx.DBPool != nil {
+			workOrderStore := db.NewWorkOrderStore(appCtx.DBPool)
+			if err := workOrderStore.EnsureTable(context.Background()); err != nil {
+				log.Printf("⚠️ work_orders 테이블 준비 실패: %v", err)
+			} else {
+				workOrderHandler := handler.NewWorkOrderHandler(workOrderStore)
+				r.Get("/api/work-orders", workOrderHandler.List)
+				r.With(auth.RequireAdmin).Post("/api/work-orders", workOrderHandler.Create)
+				r.With(auth.RequireAdmin).Put("/api/work-orders/{id}", workOrderHandler.Update)
+				r.With(auth.RequireAdmin).Delete("/api/work-orders/{id}", workOrderHandler.Delete)
+				r.Post("/api/work-orders/{id}/status", workOrderHandler.SetStatus)
+			}
+		}
+
 		// SNMP — appCtx.SNMPPoller는 init.go의 백그라운드 폴러와 같은 인스턴스
 		if appCtx.SNMPDeviceStore != nil {
 			if appCtx.SNMPPoller == nil {

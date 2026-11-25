@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, CornerLeftUp, FileUp, Plus, RotateCcw, Save, Search, Trash2, Workflow, X } from 'lucide-react'
 import PageToolbar from '../components/PageToolbar'
 import TopologyMap from '../components/TopologyMap'
@@ -15,6 +16,8 @@ import {
   type DeviceKind, type TopologyDevice, type TopologyLayout,
 } from '../api/topology'
 import { cn } from '../utils/cn'
+import { useOpenWorkByHost } from '../api/workOrders'
+import { WorkBadge } from '../components/WorkOrderPanel'
 
 const KIND_LABEL: Record<DeviceKind, string> = { internet: '인터넷·회선', firewall: '방화벽·보안', network: '스위치·네트워크', server: '서버' }
 const inputCls = 'w-full h-9 px-2.5 rounded-lg bg-base-800 border border-base-700 text-sm text-base-100 focus:outline-none focus:border-brand-500'
@@ -358,8 +361,13 @@ function DeviceRows({ rows, zones, mateOf, errorOf, commitLink, update, remove }
   commitLink: (field: Link, name: string, raw: string) => void
   update: (name: string, patch: Partial<Row>) => void; remove: (name: string) => void
 }) {
-  const [query, setQuery] = useState('')
+  // 작업 목록에서 장비를 누르고 들어오면(?focus=장비이름) 그 장비만 보이게 검색해 두고 행을 강조
+  const focus = useSearchParams()[0].get('focus') ?? ''
+  const [query, setQuery] = useState(focus)
   const [page, setPage] = useState(0)
+  const [focusBase, setFocusBase] = useState(focus)
+  if (focusBase !== focus) { setFocusBase(focus); setQuery(focus); setPage(0) }
+  const work = useOpenWorkByHost()
   const placedNames = useMemo(() => rows.filter(r => r.zone).map(r => r.name), [rows])
   const q = query.trim().toLowerCase()
   const found = useMemo(() => q ? rows.filter(r => r.name.toLowerCase().includes(q) || r.zone.toLowerCase().includes(q)) : rows, [rows, q])
@@ -396,9 +404,10 @@ function DeviceRows({ rows, zones, mateOf, errorOf, commitLink, update, remove }
             </thead>
             <tbody className="divide-y divide-base-800">
               {view.rows.map(r => (
-                <tr key={r.name} className={cn('align-top', !r.zone && 'opacity-60', (errorOf('parent', r.name) || errorOf('pair', r.name)) && 'bg-rose-500/5')}>
+                <tr key={r.name} className={cn('align-top', !r.zone && 'opacity-60', (errorOf('parent', r.name) || errorOf('pair', r.name)) && 'bg-rose-500/5',
+                  focus && r.name === focus && 'bg-brand-500/10 shadow-[inset_3px_0_0_var(--color-brand-400)]')}>
                   <td className="py-2 pr-3">
-                    <div className="font-semibold text-base-100">{r.name}</div>
+                    <div className="flex items-center gap-1.5 font-semibold text-base-100">{r.name}<WorkBadge info={work.get(r.name)} /></div>
                     <div className="text-xs text-base-500">{r.monitored ? '감시 중' : '표시만'}</div>
                   </td>
                   <td className="py-2 pr-2">

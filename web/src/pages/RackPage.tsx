@@ -9,6 +9,8 @@ import { getMe } from '../api/auth'
 import { errorText } from '../api/users'
 import { useFleet, LABEL, type State, type Tile } from '../hooks/useFleet'
 import { cn } from '../utils/cn'
+import { useOpenWorkByHost, type HostWork } from '../api/workOrders'
+import { WorkBadge } from '../components/WorkOrderPanel'
 
 // 42U 랙이 한 화면(약 760px)에 들어오는 칸 높이
 const U_H = 18
@@ -22,6 +24,7 @@ export default function RackPage() {
   const { data: assets, isSuccess: assetsReady, isError: assetsError } = useQuery({ queryKey: ['assets'], queryFn: fetchAssets })
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
   const { tiles, kindPending, kindFailed } = useFleet()
+  const work = useOpenWorkByHost()
   const admin = me?.role === 'admin'
   const [form, setForm] = useState<{ rack: Rack; editing: boolean } | null>(null)
   const [error, setError] = useState('')
@@ -143,7 +146,7 @@ export default function RackPage() {
             <div className="flex flex-wrap items-start gap-4">
               {(racks ?? []).filter(r => r.room === room).map(rack => (
                 <RackView
-                  key={rack.name} rack={rack} assets={placed.filter(a => a.rack === rack.name)} tileOf={tileOf} noTile={noTile} focus={focus}
+                  key={rack.name} rack={rack} assets={placed.filter(a => a.rack === rack.name)} tileOf={tileOf} noTile={noTile} focus={focus} work={work}
                   onEdit={admin ? () => { setError(''); setForm({ rack, editing: true }) } : undefined}
                   onDelete={admin ? () => run(() => deleteRack(rack.name)) : undefined}
                 />
@@ -166,8 +169,9 @@ export default function RackPage() {
   )
 }
 
-function RackView({ rack, assets, tileOf, noTile, focus, onEdit, onDelete }: {
-  rack: Rack; assets: Asset[]; tileOf: (name: string) => Tile | undefined; noTile: string; focus: string | null; onEdit?: () => void; onDelete?: () => void
+function RackView({ rack, assets, tileOf, noTile, focus, work, onEdit, onDelete }: {
+  rack: Rack; assets: Asset[]; tileOf: (name: string) => Tile | undefined; noTile: string; focus: string | null; work: Map<string, HostWork>
+  onEdit?: () => void; onDelete?: () => void
 }) {
   const used = assets.reduce((n, a) => n + (a.rack_size || 1), 0)
   const bad = assets.filter(a => { const t = tileOf(a.host_name); return (t?.state === 'crit' || t?.state === 'warn') && !t.acked && !t.causedBy }).length
@@ -193,14 +197,14 @@ function RackView({ rack, assets, tileOf, noTile, focus, onEdit, onDelete }: {
         </ol>
         <div className="relative flex-1 border-x-2 border-base-700 bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_17px,var(--color-base-800)_17px,var(--color-base-800)_18px)]"
           style={{ height: rack.height * U_H }}>
-          {assets.map(a => <Device key={a.host_name} asset={a} rack={rack} tile={tileOf(a.host_name)} noTile={noTile} focused={a.host_name === focus} />)}
+          {assets.map(a => <Device key={a.host_name} asset={a} rack={rack} tile={tileOf(a.host_name)} noTile={noTile} focused={a.host_name === focus} work={work.get(a.host_name)} />)}
         </div>
       </div>
     </figure>
   )
 }
 
-function Device({ asset, rack, tile, noTile, focused }: { asset: Asset; rack: Rack; tile?: Tile; noTile: string; focused: boolean }) {
+function Device({ asset, rack, tile, noTile, focused, work }: { asset: Asset; rack: Rack; tile?: Tile; noTile: string; focused: boolean; work?: HostWork }) {
   const size = asset.rack_size || 1
   const state: State = tile?.state ?? 'wait'
   const bad = state === 'crit' || state === 'warn'
@@ -209,7 +213,8 @@ function Device({ asset, rack, tile, noTile, focused }: { asset: Asset; rack: Ra
   const label = tile?.causedBy ? '상위 영향' : bad && tile?.acked ? '확인함' : tile && state !== 'ok' ? LABEL[state] : ''
   const blink = open && state === 'crit'
   const pos = `${rack.name} ${unitRange(asset.rack_unit, size)}`
-  const title = [asset.host_name, tile ? label || LABEL[state] : noTile, tile?.detail, pos].filter(Boolean).join('\n')
+  const workText = work?.count ? `남은 작업 ${work.count}건${work.overdue ? ` (기한 지남 ${work.overdue}건)` : ''}` : ''
+  const title = [asset.host_name, tile ? label || LABEL[state] : noTile, tile?.detail, pos, workText].filter(Boolean).join('\n')
   const body = (
     <>
       <span className={cn('w-1 self-stretch shrink-0 rounded-sm', tile?.causedBy ? 'bg-base-500' : BAR[state], blink && 'motion-safe:animate-blink')} />
@@ -217,6 +222,7 @@ function Device({ asset, rack, tile, noTile, focused }: { asset: Asset; rack: Ra
         <span className={cn('font-semibold', open ? 'text-base-50' : 'text-base-200')}>{asset.host_name}</span>
         {size >= 2 && asset.description && <span className="ml-1.5 text-base-500">{asset.description}</span>}
       </span>
+      <WorkBadge info={work} />
       {label && <span className={cn('shrink-0 text-[10px]', open ? 'text-base-200' : 'text-base-500')}>{label}</span>}
     </>
   )

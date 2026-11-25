@@ -67,6 +67,25 @@ CREATE TABLE IF NOT EXISTS group_members (
 );
 CREATE INDEX IF NOT EXISTS group_members_group ON group_members (group_id);
 
+-- 작업 지시 — 장비별 "언제까지 무엇을" (기존 DB는 서버 기동 시 WorkOrderStore.EnsureTable이 생성)
+CREATE TABLE IF NOT EXISTS work_orders (
+    id          BIGSERIAL PRIMARY KEY,
+    host_name   TEXT NOT NULL CHECK (host_name <> ''),
+    title       TEXT NOT NULL CHECK (title <> ''),
+    description TEXT NOT NULL DEFAULT '',
+    due_date    DATE,                                  -- NULL이면 기한 없음
+    assignee    TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'doing', 'done')),
+    alert_ref   TEXT,
+    created_by  TEXT NOT NULL DEFAULT '',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    done_note   TEXT NOT NULL DEFAULT '',
+    done_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS work_orders_open ON work_orders (status, due_date);
+CREATE INDEX IF NOT EXISTS work_orders_host ON work_orders (host_name);
+
 -- SNMP 네트워크 장비
 CREATE TABLE IF NOT EXISTS snmp_devices (
     id          BIGSERIAL PRIMARY KEY,

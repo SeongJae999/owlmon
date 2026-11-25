@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -106,12 +107,29 @@ var viewerAllowedWrites = map[string]bool{
 	"/api/auth/heartbeat": true,
 }
 
+// 경로에 번호가 들어가는 허용 변경 — 현장 엔지니어(조회 계정)가 작업 처리 결과를 남김
+var viewerAllowedWritePatterns = []*regexp.Regexp{
+	regexp.MustCompile(`^/api/work-orders/[0-9]+/status$`),
+}
+
+func viewerMayWrite(path string) bool {
+	if viewerAllowedWrites[path] {
+		return true
+	}
+	for _, re := range viewerAllowedWritePatterns {
+		if re.MatchString(path) {
+			return true
+		}
+	}
+	return false
+}
+
 // ReadOnlyGuard는 조회 전용 계정의 변경 요청을 막는다. 화면마다 권한 코드를 두지 않고 여기 한 곳에서 처리.
 func ReadOnlyGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if RoleFromContext(r.Context()) == RoleViewer &&
 			r.Method != http.MethodGet && r.Method != http.MethodHead &&
-			!viewerAllowedWrites[r.URL.Path] {
+			!viewerMayWrite(r.URL.Path) {
 			http.Error(w, "조회 전용 계정은 변경할 수 없습니다", http.StatusForbidden)
 			return
 		}

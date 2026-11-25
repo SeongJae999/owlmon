@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import { logout, getMe, heartbeat, FORBIDDEN_EVENT } from '../api/auth'
@@ -27,6 +27,7 @@ import ChatWidget from '../components/ChatWidget'
 import PasswordModal from '../components/PasswordModal'
 import ProblemsMenu from '../components/ProblemsMenu'
 import DeviceSearch from '../components/DeviceSearch'
+import WorkOrderPanel, { WorkOrderButton } from '../components/WorkOrderPanel'
 
 // 메뉴는 최소로 — 장비·알림 화면은 지금 상태의 행·카드·종 아이콘에서, 관리 화면은 설정 첫 줄 바로가기에서 들어감. 경로(path)는 그대로 (북마크 호환)
 type NavItem = { id: string; path: string; icon: any; label: string; short?: string; match?: string[]; leaves?: boolean; children?: NavItem[] }
@@ -61,6 +62,9 @@ export default function DashboardLayout() {
     setTheme(next)
   }
   const [passwordOpen, setPasswordOpen] = useState(false)
+  // 작업 목록 서랍 — 어느 화면에서든 열어 현장 엔지니어가 할 일을 보고 장비 위치로 감
+  const [workOpen, setWorkOpen] = useState(false)
+  const closeWork = useCallback(() => setWorkOpen(false), [])
   const [forbidden, setForbidden] = useState<string | null>(null)
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: getMe, staleTime: 5 * 60_000 })
   const isViewer = me?.role === 'viewer'
@@ -217,6 +221,7 @@ export default function DashboardLayout() {
               >
                 {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
+              <WorkOrderButton open={workOpen} onClick={() => setWorkOpen(o => !o)} />
               {/* 벨 클릭 → 알림 이력 (장식 버튼이라 데모 중 무반응으로 보이던 것 수정) */}
               <Link to="/history" className="p-2 text-base-400 hover:text-brand-400 hover:bg-base-700 rounded-md transition-colors relative block" title="지난 알림" aria-label="지난 알림 보기">
                 <Bell size={18} />
@@ -277,6 +282,7 @@ export default function DashboardLayout() {
           </footer>
         </main>
       <ChatWidget />
+      <WorkOrderPanel open={workOpen} onClose={closeWork} isAdmin={me?.role === 'admin'} tiles={fleet.tiles} />
       {passwordOpen && <PasswordModal onClose={() => setPasswordOpen(false)} />}
       {forbidden && (
         <div role="alert" className="fixed z-[70] top-28 lg:top-20 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl border border-amber-500/40 bg-base-900 text-amber-300 text-sm shadow-xl">
