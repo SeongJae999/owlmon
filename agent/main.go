@@ -147,6 +147,10 @@ func startAgent() func() {
 			log.Printf("로그 파일 수집: %d개", len(cfg.Logs.Tails))
 		}
 
+		collector.StartDiskWatch(ctx, func(line string) {
+			tailer.Push(logtail.LogEntry{Timestamp: time.Now(), Host: hostname, Source: "owlmon-agent", FilePath: "disk-watch", Line: line, Level: "WARN"})
+		})
+
 		// journald 수집 (Linux 전용 — 다른 OS에서는 stub이 자동 비활성)
 		if cfg.Logs.Journald.Enabled {
 			patterns := cfg.Logs.Journald.IncludePatterns

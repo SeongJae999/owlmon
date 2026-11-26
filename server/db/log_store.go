@@ -3,10 +3,12 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -261,6 +263,20 @@ func (s *LogStore) GetByID(ctx context.Context, id int64) (*LogRecord, error) {
 		return nil, err
 	}
 	return &r, nil
+}
+
+// LatestLine은 호스트가 since 이후 보낸 filePath 로그 중 가장 최근 줄을 돌려줍니다. 없으면 "".
+func (s *LogStore) LatestLine(ctx context.Context, host, filePath string, since time.Time) (string, error) {
+	var line string
+	err := s.pool.QueryRow(ctx,
+		`SELECT line FROM logs WHERE host = $1 AND file_path = $2 AND timestamp >= $3
+		 ORDER BY timestamp DESC LIMIT 1`,
+		host, filePath, since,
+	).Scan(&line)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return line, err
 }
 
 // HistogramBucket은 시간대별 로그 카운트 버킷입니다.

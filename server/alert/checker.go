@@ -42,6 +42,7 @@ type Checker struct {
 	sslMu           sync.Mutex
 	sslPrev         map[string]sslSeen       // 도메인별 직전 인증서 상태 (만료 전환·교체 감지)
 	locate          func(host string) string // nil이면 위치 줄 생략
+	diskWriters     func(host string) string // nil이면 디스크 알림에 원인 줄 생략
 	notifier        *Notifier
 	escMu           sync.Mutex
 	unacked         map[string]*pendingAlert // 단계 통보 대기 중인 위험 알림 (key: 호스트/항목/대상)
@@ -103,6 +104,19 @@ func (c *Checker) Notifier() *Notifier { return c.notifier }
 
 // IT 전담이 없는 기관은 메일 받은 사람이 장비 위치를 모름 — 자산 관리에 적은 위치를 본문에 붙인다
 func (c *Checker) SetLocator(f func(host string) string) { c.locate = f }
+
+// "디스크가 찼다"만으로는 관제사가 손쓸 수 없어 에이전트가 잰 쓰기 상위 프로세스를 붙인다
+func (c *Checker) SetDiskWriters(f func(host string) string) { c.diskWriters = f }
+
+func (c *Checker) withDiskWriters(host, body string) string {
+	if c.diskWriters == nil {
+		return body
+	}
+	if w := c.diskWriters(host); w != "" {
+		return body + "\n\n에이전트가 확인한 원인: " + w
+	}
+	return body
+}
 
 func (c *Checker) location(host string) string {
 	if c.locate == nil {
@@ -397,6 +411,7 @@ func (c *Checker) checkDisk(results []metricResult, warn, crit float64) {
 			if c.state.ShouldAlert(critKey) {
 				subject := fmt.Sprintf("[위험] %s 디스크 %s %.1f%%", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크가 거의 꽉 찼습니다. 즉시 용량을 확보하세요.", host, mount, val)
+				body = c.withDiskWriters(host, body)
 				c.send(host, "disk", mount, "critical", subject, body)
 			}
 		} else if val >= warn {
@@ -406,6 +421,7 @@ func (c *Checker) checkDisk(results []metricResult, warn, crit float64) {
 			if c.state.ShouldAlert(warnKey) {
 				subject := fmt.Sprintf("[주의] %s 디스크 %s %.1f%%", host, mount, val)
 				body := fmt.Sprintf("호스트: %s\n마운트: %s\n현재 사용률: %.1f%%\n\n디스크 용량이 부족해지고 있습니다. 확인해 주세요.", host, mount, val)
+				body = c.withDiskWriters(host, body)
 				c.send(host, "disk", mount, "warning", subject, body)
 			}
 		} else {
@@ -514,6 +530,9 @@ func (c *Checker) checkRapidGrowth() {
 				subject := fmt.Sprintf("[예측] %s — %s 1시간 급증 (+%.1f%%p)", host, ck.name, growth)
 				body := fmt.Sprintf("호스트: %s\n메트릭: %s\n1시간 전 대비 변화: +%.1f%%포인트\n\n갑작스러운 자원 사용 증가 — 빈번한 import/덤프/로그 폭증 등 의심.",
 					host, ck.name, growth)
+				if ck.category == "rapid_disk" {
+					body = c.withDiskWriters(host, body)
+				}
 				c.sendAlert(host, ck.category, severity, subject, body)
 			}
 		}

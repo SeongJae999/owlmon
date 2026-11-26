@@ -46,26 +46,7 @@ func NewDiskCollector(meter metric.Meter) (*DiskCollector, error) {
 	c := &DiskCollector{usageGauge: usageGauge, usedGauge: usedGauge, totalGauge: totalGauge}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		partitions, err := disk.Partitions(false) // 물리 디스크만
-		if err != nil {
-			return fmt.Errorf("파티션 목록 수집 실패: %w", err)
-		}
-
-		for _, p := range partitions {
-			// 가상/pseudo 파일시스템 제외 (devfs, tmpfs, autofs 등)
-			switch p.Fstype {
-			case "devfs", "tmpfs", "autofs", "overlay", "squashfs", "fuse", "fusectl",
-				"cgroup", "cgroup2", "proc", "sysfs", "debugfs", "securityfs":
-				continue
-			}
-
-			usage, err := disk.Usage(p.Mountpoint)
-			if err != nil {
-				continue // 접근 불가 파티션은 건너뜀
-			}
-			if usage.Total == 0 {
-				continue // 전체 용량 0 (autofs 등 가상 마운트) 제외
-			}
+		return forEachDisk(func(p disk.PartitionStat, usage *disk.UsageStat) {
 			attrs := metric.WithAttributeSet(attribute.NewSet(
 				attribute.String("mountpoint", p.Mountpoint),
 				attribute.String("device", p.Device),
@@ -73,12 +54,33 @@ func NewDiskCollector(meter metric.Meter) (*DiskCollector, error) {
 			o.ObserveFloat64(usageGauge, usage.UsedPercent, attrs)
 			o.ObserveInt64(usedGauge, int64(usage.Used), attrs)
 			o.ObserveInt64(totalGauge, int64(usage.Total), attrs)
-		}
-		return nil
+		})
 	}, usageGauge, usedGauge, totalGauge)
 	if err != nil {
 		return nil, fmt.Errorf("디스크 콜백 등록 실패: %w", err)
 	}
 
 	return c, nil
+}
+
+// forEachDisk는 물리 디스크 파티션마다 사용량을 넘깁니다 (가상 파일시스템·접근 불가 파티션 제외).
+func forEachDisk(fn func(p disk.PartitionStat, u *disk.UsageStat)) error {
+	partitions, err := disk.Partitions(false) // 물리 디스크만
+	if err != nil {
+		return fmt.Errorf("파티션 목록 수집 실패: %w", err)
+	}
+	for _, p := range partitions {
+		// 가상/pseudo 파일시스템 제외 (devfs, tmpfs, autofs 등)
+		switch p.Fstype {
+		case "devfs", "tmpfs", "autofs", "overlay", "squashfs", "fuse", "fusectl",
+			"cgroup", "cgroup2", "proc", "sysfs", "debugfs", "securityfs":
+			continue
+		}
+		usage, err := disk.Usage(p.Mountpoint)
+		if err != nil || usage.Total == 0 {
+			continue // 접근 불가 파티션, 전체 용량 0 (autofs 등 가상 마운트) 제외
+		}
+		fn(p, usage)
+	}
+	return nil
 }

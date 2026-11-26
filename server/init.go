@@ -137,6 +137,18 @@ func InitDB() *AppContext {
 // (종전: 워커들이 ctx 없이 돌아 HTTP만 닫히고 체커/폴러는 종료 중에도 계속 동작).
 func InitWorkers(ctx context.Context, appCtx *AppContext, checker *alert.Checker, emailCfg *alert.EmailConfig, prometheusURL string) {
 	// 체커 고루틴이 locate를 읽기 전에 설정 (잠금 없는 필드)
+	if appCtx.LogStore != nil {
+		checker.SetDiskWriters(func(host string) string {
+			c, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			// 에이전트는 10분 +1%p에 보고하므로 1시간 기준 급증 알림 시점엔 이미 지났을 수 있다
+			line, err := appCtx.LogStore.LatestLine(c, host, "disk-watch", time.Now().Add(-time.Hour))
+			if err != nil {
+				log.Printf("디스크 쓰기 원인 조회 실패: %v", err) // 원인 없이 메일은 그대로 보냄
+			}
+			return line
+		})
+	}
 	if appCtx.AssetStore != nil {
 		// 장비 대장 전체를 1분에 한 번만 읽음 — 수천 대가 한꺼번에 끊기면 호스트마다 조회하던 것이 알림 발송을 붙잡음
 		var locMu sync.Mutex
