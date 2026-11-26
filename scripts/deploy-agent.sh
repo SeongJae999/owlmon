@@ -111,12 +111,6 @@ YAML"
             '"$SUDO"' systemctl daemon-reload
             echo \"  ☑ self-update 쓰기 경로 추가됨\"
         fi
-        # 디스크 급증 때 다른 계정 프로세스의 쓰기량을 읽는 권한 (기존 유닛에는 없음)
-        if ! '"$SUDO"' grep -q "^AmbientCapabilities=" /etc/systemd/system/owlmon-agent.service 2>/dev/null; then
-            '"$SUDO"' sed -i "/^NoNewPrivileges=true\$/i AmbientCapabilities=CAP_SYS_PTRACE\nCapabilityBoundingSet=CAP_SYS_PTRACE" /etc/systemd/system/owlmon-agent.service
-            '"$SUDO"' systemctl daemon-reload
-            echo \"  ☑ 프로세스 쓰기량 읽기 권한(CAP_SYS_PTRACE) 추가됨\"
-        fi
         '"$SUDO"' chown owlmon-agent:owlmon-agent /opt/owlmon/config.yaml
         '"$SUDO"' chmod 600 /opt/owlmon/config.yaml
         if ! '"$SUDO"' grep -Eq "^[[:space:]]*agent_key:[[:space:]]*\"?[^\"[:space:]]" /opt/owlmon/config.yaml; then

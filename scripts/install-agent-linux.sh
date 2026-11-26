@@ -214,10 +214,6 @@ Environment=OWLMON_SERVER_URL=$SERVER_URL
 Environment=OWLMON_CONFIG=$INSTALL_DIR/config.yaml
 Environment=OWLMON_COLLECT_INTERVAL=$COLLECT_INTERVAL
 
-# 디스크 급증 때 다른 계정 프로세스의 쓰기량(/proc/PID/io)을 읽는 권한만 준다 (root로 돌리지 않음)
-AmbientCapabilities=CAP_SYS_PTRACE
-CapabilityBoundingSet=CAP_SYS_PTRACE
-
 # 보안 강화
 NoNewPrivileges=true
 ProtectSystem=strict

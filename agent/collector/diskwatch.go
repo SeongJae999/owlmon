@@ -3,7 +3,11 @@ package collector
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/user"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,8 +42,8 @@ func StartDiskWatch(ctx context.Context, report func(line string)) {
 				if !ok {
 					return
 				}
-				ws, readable, total := topDiskWriters(ctx, diskWatchMeasure)
-				report(describeRise(p.Mountpoint, from, u.UsedPercent, ws, readable, total))
+				ws, note := topDiskWriters(ctx, diskWatchMeasure)
+				report(describeRise(p.Mountpoint, from, u.UsedPercent, ws, note))
 			})
 		}
 	}()
@@ -62,37 +66,60 @@ func (d diskRise) observe(mount string, pct float64) (from float64, rose bool) {
 }
 
 type diskWriter struct {
-	pid             int32
-	name, user, cwd string
-	bytesPerSec     float64
+	label       string // "unzip(pid 1234, will, /home/will/dev)" 또는 "mysql.service"
+	bytesPerSec float64
 }
 
 // topDiskWriters는 d 동안 디스크에 가장 많이 쓴 프로세스를 잰다.
-// 다른 사용자 프로세스의 쓰기량은 root나 CAP_SYS_PTRACE가 있어야 읽혀서 읽은 개수(readable)도 함께 돌려준다.
-func topDiskWriters(ctx context.Context, d time.Duration) (ws []diskWriter, readable, total int) {
+// 에이전트는 전용 계정으로 돌아 다른 계정 프로세스의 쓰기량(/proc/PID/io, 소유자만 읽기)을 못 읽는다.
+// 절반 넘게 못 읽으면 누구나 읽을 수 있는 cgroup io.stat으로 서비스·컨테이너·사용자 세션 단위를 대신 보여 준다.
+func topDiskWriters(ctx context.Context, d time.Duration) (ws []diskWriter, note string) {
 	first, total := writeBytes(ctx)
+	cgFirst := cgroupWriteBytes(cgroupRoot)
 	select {
 	case <-ctx.Done():
-		return nil, len(first), total
+		return nil, ""
 	case <-time.After(d):
 	}
-	second, _ := writeBytes(ctx)
-	for pid, b := range second {
-		if a, ok := first[pid]; ok && b > a {
-			ws = append(ws, diskWriter{pid: pid, bytesPerSec: float64(b-a) / d.Seconds()})
+	if len(first) >= total/2 {
+		second, _ := writeBytes(ctx)
+		for pid, b := range second {
+			if a, ok := first[pid]; ok && b > a {
+				ws = append(ws, diskWriter{label: processLabel(ctx, pid), bytesPerSec: float64(b-a) / d.Seconds()})
+			}
+		}
+		return top(ws), ""
+	}
+	if len(cgFirst) == 0 {
+		return nil, fmt.Sprintf("프로세스 %d개 중 %d개만 확인 (다른 계정 프로세스를 읽을 수 없고 cgroup v2도 없음)", total, len(first))
+	}
+	for path, b := range cgroupWriteBytes(cgroupRoot) {
+		if a, ok := cgFirst[path]; ok && b > a {
+			ws = append(ws, diskWriter{label: cgroupLabel(cgroupRoot, path), bytesPerSec: float64(b-a) / d.Seconds()})
 		}
 	}
+	return top(ws), ""
+}
+
+func top(ws []diskWriter) []diskWriter {
 	sort.Slice(ws, func(i, j int) bool { return ws[i].bytesPerSec > ws[j].bytesPerSec })
 	if len(ws) > topWriters {
 		ws = ws[:topWriters]
 	}
-	for i := range ws {
-		p := &process.Process{Pid: ws[i].pid}
-		ws[i].name, _ = p.NameWithContext(ctx)
-		ws[i].user, _ = p.UsernameWithContext(ctx)
-		ws[i].cwd, _ = p.CwdWithContext(ctx)
+	return ws
+}
+
+func processLabel(ctx context.Context, pid int32) string {
+	p := &process.Process{Pid: pid}
+	name, _ := p.NameWithContext(ctx)
+	l := fmt.Sprintf("%s(pid %d", name, pid)
+	if u, _ := p.UsernameWithContext(ctx); u != "" {
+		l += ", " + u
 	}
-	return ws, len(first), total
+	if cwd, _ := p.CwdWithContext(ctx); cwd != "" {
+		l += ", " + cwd
+	}
+	return l + ")"
 }
 
 func writeBytes(ctx context.Context) (map[int32]uint64, int) {
@@ -109,7 +136,62 @@ func writeBytes(ctx context.Context) (map[int32]uint64, int) {
 	return m, len(ps)
 }
 
-func describeRise(mount string, from, to float64, ws []diskWriter, readable, total int) string {
+const cgroupRoot = "/sys/fs/cgroup"
+
+// cgroupWriteBytes는 cgroup별 누적 쓰기 바이트를 읽는다. 최상위(system.slice 등) 아래에 io.stat이 있으면
+// 그 하위(서비스·컨테이너)를, 없으면(user.slice는 사용자별로 안 나뉨) 최상위 자체를 쓴다. 키는 root 기준 경로.
+func cgroupWriteBytes(root string) map[string]uint64 {
+	m := map[string]uint64{}
+	tops, _ := filepath.Glob(filepath.Join(root, "*", "io.stat"))
+	for _, t := range tops {
+		files, _ := filepath.Glob(filepath.Join(filepath.Dir(t), "*", "io.stat"))
+		if len(files) == 0 {
+			files = []string{t}
+		}
+		for _, f := range files {
+			data, err := os.ReadFile(f)
+			if err != nil {
+				continue
+			}
+			var sum uint64
+			for _, field := range strings.Fields(string(data)) { // "8:0 rbytes=1 wbytes=2 ..." 장치별 한 줄
+				if v, ok := strings.CutPrefix(field, "wbytes="); ok {
+					n, _ := strconv.ParseUint(v, 10, 64)
+					sum += n
+				}
+			}
+			rel, _ := filepath.Rel(root, filepath.Dir(f))
+			m[rel] = sum
+		}
+	}
+	return m
+}
+
+// cgroupLabel은 cgroup 경로를 관제사가 알아볼 이름으로 바꾼다.
+func cgroupLabel(root, path string) string {
+	base := filepath.Base(path)
+	if id, ok := strings.CutPrefix(strings.TrimSuffix(base, ".scope"), "docker-"); ok || filepath.Base(filepath.Dir(path)) == "docker" {
+		if !ok {
+			id = base
+		}
+		return "Docker 컨테이너 " + id[:min(12, len(id))]
+	}
+	if path != "user.slice" {
+		return base
+	}
+	var names []string
+	dirs, _ := filepath.Glob(filepath.Join(root, "user.slice", "user-*.slice"))
+	for _, d := range dirs {
+		uid := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(d), "user-"), ".slice")
+		if u, err := user.LookupId(uid); err == nil {
+			uid = u.Username
+		}
+		names = append(names, uid)
+	}
+	return "사용자 로그인 세션(" + strings.Join(names, ", ") + ")"
+}
+
+func describeRise(mount string, from, to float64, ws []diskWriter, note string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "디스크 %s 사용률이 %d분 사이 %.1f%% → %.1f%% (+%.1f%%p) 급증. 쓰기 상위: ",
 		mount, diskWatchSamples, from, to, to-from)
@@ -120,17 +202,10 @@ func describeRise(mount string, from, to float64, ws []diskWriter, readable, tot
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		fmt.Fprintf(&b, "%s(pid %d", w.name, w.pid)
-		if w.user != "" {
-			b.WriteString(", " + w.user)
-		}
-		if w.cwd != "" {
-			b.WriteString(", " + w.cwd)
-		}
-		fmt.Fprintf(&b, ") %.1fMB/s", w.bytesPerSec/1e6)
+		fmt.Fprintf(&b, "%s %.1fMB/s", w.label, w.bytesPerSec/1e6)
 	}
-	if readable < total/2 {
-		fmt.Fprintf(&b, " — 프로세스 %d개 중 %d개만 확인 (에이전트에 다른 사용자 프로세스를 읽을 권한 없음)", total, readable)
+	if note != "" {
+		b.WriteString(" — " + note)
 	}
 	return b.String()
 }
