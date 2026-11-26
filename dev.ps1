@@ -124,6 +124,7 @@ if (-not (Test-Path "$root\web\node_modules")) {
 # ---------------------------------------------------------------------------
 Write-Host "[1/4] Docker 인프라 시작..." -ForegroundColor Yellow
 if (-not $env:OWLMON_AGENT_KEY) { $env:OWLMON_AGENT_KEY = "owlmon-dev-key" } # agent/config.yaml과 같은 개발용 키
+if (-not $env:OWLMON_LEGACY_SHARED_KEY) { $env:OWLMON_LEGACY_SHARED_KEY = "true" } # 개발용 에이전트는 공용 키로 보냄
 docker compose -f "$root\docker-compose.yml" up -d
 if ($LASTEXITCODE -ne 0) { Write-Error "Docker 실패"; exit 1 }
 Write-Host "      완료" -ForegroundColor Green

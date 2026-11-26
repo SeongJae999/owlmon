@@ -43,7 +43,7 @@ func TestNewOTLPExporterAuthorizationHeader(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			exp, err := NewOTLPExporter(ctx, lis.Addr().String(), tt.agentKey)
+			exp, err := NewOTLPExporter(ctx, lis.Addr().String(), tt.agentKey, nil)
 			if err != nil {
 				t.Fatalf("exporter 생성 실패: %v", err)
 			}

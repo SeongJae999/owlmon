@@ -43,3 +43,27 @@ func TestClientIP(t *testing.T) {
 		t.Errorf("설정이 없으면 헤더를 믿지 않아야 함: %s", got)
 	}
 }
+
+// nginx 내부 전용 경로(/api/agent/auth)는 nginx 컨테이너에서 직접 온 요청만 — 헤더로 위장해도 안 됨
+func TestFromTrustedProxy(t *testing.T) {
+	lookupProxy = func(string) ([]string, error) { return []string{"172.18.0.5"}, nil }
+	proxyAt = time.Time{}
+	t.Setenv("OWLMON_TRUSTED_PROXY", "owlmon-web")
+
+	r := httptest.NewRequest("GET", "/api/agent/auth", nil)
+	r.RemoteAddr = "172.18.0.5:40000"
+	if !FromTrustedProxy(r) {
+		t.Error("nginx에서 온 요청을 거부함")
+	}
+	r.RemoteAddr = "192.168.0.66:40000"
+	r.Header.Set("X-Real-IP", "172.18.0.5")
+	if FromTrustedProxy(r) {
+		t.Error("8080 직접 접속을 X-Real-IP 위조로 통과시킴")
+	}
+
+	t.Setenv("OWLMON_TRUSTED_PROXY", "")
+	r.RemoteAddr = "172.18.0.5:40000"
+	if FromTrustedProxy(r) {
+		t.Error("신뢰 프록시 설정이 없는데 통과시킴")
+	}
+}

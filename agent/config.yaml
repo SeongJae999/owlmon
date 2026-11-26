@@ -1,4 +1,4 @@
-otlp_endpoint: "localhost:4317"
+otlp_endpoint: "localhost:14317" # 개발용: Collector 직접 (운영은 서버 주소:443, TLS)
 
 checks:
   - name: "Google"
@@ -13,7 +13,7 @@ checks:
 
   - name: "OTel Collector gRPC 포트"
     type: tcp
-    target: "localhost:4317"
+    target: "localhost:14317"
     interval: 60s
 
 # 로그 수집 설정

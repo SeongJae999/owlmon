@@ -126,6 +126,7 @@ echo "[1/4] Docker 인프라 시작..."
 # (전체 컨테이너 띄우기는 운영 배포에서: docker compose up -d --build)
 export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-owlmon}" # 위 server/.env DSN과 같은 개발용 값
 export OWLMON_AGENT_KEY="${OWLMON_AGENT_KEY:-owlmon-dev-key}" # agent/config.yaml과 같은 개발용 키
+export OWLMON_LEGACY_SHARED_KEY="${OWLMON_LEGACY_SHARED_KEY:-true}" # 개발용 에이전트는 공용 키로 보냄 (화면에 전환 경고가 뜨는 게 정상)
 docker compose -f "$ROOT/docker-compose.yml" up -d \
     postgres prometheus otel-collector
 echo "      완료"

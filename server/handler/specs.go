@@ -46,6 +46,9 @@ func (h *SpecsHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "잘못된 요청 본문", http.StatusBadRequest)
 		return
 	}
+	if name := AgentName(r.Context()); name != "" {
+		p.HostName = name // 키에 묶인 장비 이름이 우선
+	}
 	if p.HostName == "" {
 		http.Error(w, "host_name 누락", http.StatusBadRequest)
 		return

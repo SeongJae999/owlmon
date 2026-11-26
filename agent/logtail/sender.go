@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/seongJae/owlmon/agent/config"
 	"net/http"
 	"time"
 )
@@ -19,7 +20,7 @@ func NewSender(serverURL, agentKey string) *Sender {
 	return &Sender{
 		serverURL: serverURL,
 		agentKey:  agentKey,
-		client:    &http.Client{Timeout: 10 * time.Second},
+		client:    config.ServerClient(10 * time.Second),
 	}
 }
 

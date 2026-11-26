@@ -207,6 +207,15 @@ func ClientIP(r *http.Request) string {
 	return peer
 }
 
+// FromTrustedProxy는 요청이 nginx(OWLMON_TRUSTED_PROXY) 컨테이너에서 직접 왔는지 — nginx 내부 전용 경로를 8080 직접 접속에서 막을 때
+func FromTrustedProxy(r *http.Request) bool {
+	peer, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		peer = r.RemoteAddr
+	}
+	return isTrustedProxy(peer)
+}
+
 var (
 	lookupProxy = net.LookupHost // 테스트에서 교체
 	proxyMu     sync.Mutex

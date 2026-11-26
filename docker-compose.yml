@@ -2,10 +2,10 @@
 # 설치: scripts/release.sh로 만든 번들의 install.sh 사용 (폐쇄망 포함). 개발 중 소스 빌드는 dev.sh
 #
 # 외부 노출 포트 — 이것만 연다:
-#   443    웹 UI (HTTPS) — 80은 443으로 이동
-#   4317   에이전트 메트릭 (OTLP gRPC, Agent Key 필요)
-#   8080   에이전트 로그 수집·자동 업데이트 (API는 전부 인증 필요)
-# DB(5433)·Prometheus(9090)는 이 서버 안(127.0.0.1)에서만 접근 — 사내망에 열면 인증 없이 조회됨
+#   443    웹 UI (HTTPS) + 에이전트 메트릭(OTLP gRPC)·로그·등록 — 80은 443으로 이동
+#   4317   예전 방식 에이전트의 메트릭 (nginx가 받아 443과 같은 키 확인 후 Collector로. 공용 키는 전환 설정일 때만)
+#   8080   예전 방식 에이전트의 로그 수집·자동 업데이트 (API는 전부 인증 필요)
+# DB(5433)·Prometheus(9090)·Collector(14317)는 이 서버 안(127.0.0.1)에서만 접근 — 사내망에 열면 인증 없이 넣거나 조회됨
 
 services:
   # 메트릭 저장소 (TSDB)
@@ -28,9 +28,8 @@ services:
     image: otel/opentelemetry-collector-contrib:0.96.0
     container_name: owlmon-otel-collector
     ports:
-      - "4317:4317"   # OTLP gRPC (에이전트, Agent Key 필요). 내부 메트릭(8888)은 열지 않음
-    environment:
-      - OWLMON_AGENT_KEY=${OWLMON_AGENT_KEY:-}
+      # 외부 에이전트는 nginx(443)를 거쳐야 함 — 키 확인·장비 이름 덮어쓰기가 거기서 일어남. 내부 메트릭(8888)은 열지 않음
+      - "127.0.0.1:14317:4317"   # 개발용 에이전트(make dev)가 이 PC에서 직접 보냄
     volumes:
       - ./infra/otel/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     restart: unless-stopped
@@ -61,6 +60,8 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+      additional_contexts:
+        scripts: ./scripts   # 에이전트 설치 스크립트를 이미지에 넣어 /api/agent/install-agent.* 로 내려줌
     container_name: owlmon-server
     ports:
       - "8080:8080"   # 에이전트 로그 수집·자동 업데이트
@@ -71,8 +72,9 @@ services:
       - OWLMON_LISTEN=:8080
       - POSTGRES_DSN=postgres://owlmon:${POSTGRES_PASSWORD}@postgres:5432/owlmon?sslmode=disable
       - OWLMON_JWT_SECRET=${OWLMON_JWT_SECRET:-}
-      # 에이전트 메트릭·로그 수집 공통 인증 키 (모든 에이전트 config.yaml의 agent_key와 일치해야 함)
+      # 예전 공용 에이전트 키 — OWLMON_LEGACY_SHARED_KEY=true일 때만 받음 (기존 설치를 옮기는 동안만)
       - OWLMON_AGENT_KEY=${OWLMON_AGENT_KEY:-}
+      - OWLMON_LEGACY_SHARED_KEY=${OWLMON_LEGACY_SHARED_KEY:-false}
       # 이 컨테이너에서 온 요청의 X-Real-IP만 신뢰 (8080 직접 접속으로 접속 기록 IP를 위조하지 못하게)
       - OWLMON_TRUSTED_PROXY=owlmon-web
       # SMTP (선택 — .env에 비워두면 알림 비활성)
@@ -97,6 +99,7 @@ services:
       - OWLMON_LOGINSIGHT_ERRCODE_OFF=${OWLMON_LOGINSIGHT_ERRCODE_OFF:-}
     volumes:
       - ./data/owlmon-server:/app/data   # JWT secret 등 영속화
+      - ./data/certs:/app/certs:ro       # 설치 명령에 넣을 웹 인증서 지문 계산용 (읽기만)
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,10 +117,12 @@ services:
     ports:
       - "80:80"     # HTTPS로 이동만 함
       - "443:443"
+      - "4317:4317" # 예전 방식 에이전트 메트릭 (평문 gRPC) — 모두 옮긴 뒤 닫아도 됨
     volumes:
       - ./data/certs:/etc/nginx/certs   # 기관 인증서는 여기 cert.pem·key.pem으로 (없으면 자체 서명 자동 생성)
     depends_on:
       - owlmon-server
+      - otel-collector   # nginx가 시작할 때 grpc_pass 대상 이름을 찾음
     restart: unless-stopped
 
   # 일일 PostgreSQL 자동 백업 (매일 03:00 KST, 30일 rolling)

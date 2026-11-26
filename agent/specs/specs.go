@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/seongJae/owlmon/agent/config"
 	"net"
 	"net/http"
 	"os"
@@ -31,10 +32,10 @@ type CPUInfo struct {
 
 // DiskInfo는 단일 블록 디바이스 정보를 담는다.
 type DiskInfo struct {
-	Name       string `json:"name"`        // sda, nvme0n1
+	Name       string `json:"name"` // sda, nvme0n1
 	SizeBytes  uint64 `json:"size_bytes"`
-	Rotational bool   `json:"rotational"`  // true=HDD, false=SSD
-	Model      string `json:"model"`       // "Samsung SSD 990 PRO 2TB"
+	Rotational bool   `json:"rotational"` // true=HDD, false=SSD
+	Model      string `json:"model"`      // "Samsung SSD 990 PRO 2TB"
 }
 
 // NetworkInfo는 네트워크 인터페이스 요약이다.
@@ -116,7 +117,7 @@ func (s *Specs) Send(ctx context.Context, serverURL, agentKey string) error {
 		req.Header.Set("X-Agent-Key", agentKey)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := config.ServerClient(10 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("스펙 전송 실패: %w", err)

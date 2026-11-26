@@ -48,6 +48,23 @@ func binaryName(osName, arch string) string {
 	return "owlmon-agent-" + osName + "-" + arch
 }
 
+// platform — os·arch는 파일 이름에 그대로 들어가므로 허용 목록만 받는다 (../ 로 저장 폴더 밖 파일을 읽지 못하게).
+func platform(r *http.Request) (osName, arch string, ok bool) {
+	osName, arch = r.URL.Query().Get("os"), r.URL.Query().Get("arch")
+	if osName == "" {
+		osName = "linux"
+	}
+	if arch == "" {
+		arch = "amd64"
+	}
+	switch osName {
+	case "linux", "windows", "darwin":
+	default:
+		return "", "", false
+	}
+	return osName, arch, arch == "amd64" || arch == "arm64"
+}
+
 // computeSHA256은 파일 sha256을 계산. 작은 파일(15MB)이라 메모리 부담 X.
 func computeSHA256(path string) (string, int64, error) {
 	f, err := os.Open(path)
@@ -65,15 +82,11 @@ func computeSHA256(path string) (string, int64, error) {
 
 // GetLatest GET /api/agent/latest?os=linux&arch=amd64
 func (h *AgentUpdateHandler) GetLatest(w http.ResponseWriter, r *http.Request) {
-	osName := r.URL.Query().Get("os")
-	arch := r.URL.Query().Get("arch")
-	if osName == "" {
-		osName = "linux"
+	osName, arch, ok := platform(r)
+	if !ok {
+		http.Error(w, "지원하지 않는 os/arch", http.StatusBadRequest)
+		return
 	}
-	if arch == "" {
-		arch = "amd64"
-	}
-
 	path := filepath.Join(h.storageDir, binaryName(osName, arch))
 	stat, err := os.Stat(path)
 	if err != nil {
@@ -105,15 +118,11 @@ func (h *AgentUpdateHandler) GetLatest(w http.ResponseWriter, r *http.Request) {
 
 // GetBinary GET /api/agent/binary?os=linux&arch=amd64
 func (h *AgentUpdateHandler) GetBinary(w http.ResponseWriter, r *http.Request) {
-	osName := r.URL.Query().Get("os")
-	arch := r.URL.Query().Get("arch")
-	if osName == "" {
-		osName = "linux"
+	osName, arch, ok := platform(r)
+	if !ok {
+		http.Error(w, "지원하지 않는 os/arch", http.StatusBadRequest)
+		return
 	}
-	if arch == "" {
-		arch = "amd64"
-	}
-
 	path := filepath.Join(h.storageDir, binaryName(osName, arch))
 	f, err := os.Open(path)
 	if err != nil {

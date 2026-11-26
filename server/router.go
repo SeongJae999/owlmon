@@ -44,7 +44,13 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 	alertHandler := handler.NewAlertHandler(appCtx.ConfigStore, checker, appCtx.EmailConfig)
 	statusHandler := handler.NewStatusHandler(prometheusURL, appCtx.ConfigStore, checker, appCtx.DBPool)
 	anomalyHandler := handler.NewAnomalyHandler(checker.Detector, checker.Predictor)
-	agentHandler := handler.NewAgentHandler(appCtx.AgentStore)
+	// 공용 키(OWLMON_AGENT_KEY)는 기존 설치를 옮기는 동안만 — 켜면 그 키로 온 데이터는 장비 이름 묶기가 안 된다
+	legacyKey := ""
+	if getEnv("OWLMON_LEGACY_SHARED_KEY", "") == "true" {
+		legacyKey = getEnv("OWLMON_AGENT_KEY", "")
+	}
+	agentHandler := handler.NewAgentHandler(appCtx.AgentStore, appCtx.AuditStore, legacyKey != "",
+		getEnv("OWLMON_TLS_CERT", "/app/certs/cert.pem"), getEnv("OWLMON_AGENT_SCRIPTS_DIR", "../scripts"))
 	reportHandler := handler.NewReportHandler(report.NewReporter(prometheusURL, appCtx.EmailConfig, appCtx.ConfigStore))
 	chatDeps := &handler.ChatDeps{
 		Status: statusHandler, Checker: checker, History: appCtx.HistoryStore,
@@ -62,7 +68,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 	// ── 에이전트 전용 엔드포인트 — X-Agent-Key 인증 ──
 	// (종전: specs ingest 무인증, self-update는 JWT 그룹에 있어 에이전트가 항상 401 받던 버그 수정)
-	agentKeyAuth := handler.AgentKeyAuth(getEnv("OWLMON_AGENT_KEY", ""), appCtx.AgentStore)
+	agentKeyAuth := handler.AgentKeyAuth(legacyKey, appCtx.AgentStore)
 	agentUpdateHandler := handler.NewAgentUpdateHandler("/app/data/agents")
 	var specsHandler *handler.SpecsHandler
 	if appCtx.SpecsStore != nil {
@@ -73,10 +79,20 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		if specsHandler != nil {
 			r.Post("/api/agent/specs", specsHandler.Ingest)
 		}
-		// Agent self-update — 에이전트가 X-Agent-Key로 바이너리 확인/다운로드
+	})
+	// 바이너리 확인/다운로드 — 에이전트 키(self-update) 또는 설치 중인 서버의 등록 토큰
+	r.Group(func(r chi.Router) {
+		r.Use(handler.AgentBinaryAuth(legacyKey, appCtx.AgentStore))
 		r.Get("/api/agent/latest", agentUpdateHandler.GetLatest)
 		r.Get("/api/agent/binary", agentUpdateHandler.GetBinary)
 	})
+	// 무인증 — 설치 스크립트(비밀 없음), 등록 토큰 교환(토큰이 인증), nginx의 메트릭 키 확인
+	r.Get("/api/agent/install-agent.sh", agentHandler.InstallScript("install-agent-linux.sh"))
+	r.Get("/api/agent/install-agent.ps1", agentHandler.InstallScript("install-agent-windows.ps1"))
+	if appCtx.AgentStore != nil {
+		r.Post("/api/agent/enroll", agentHandler.Enroll)
+	}
+	r.Get("/api/agent/auth", handler.AgentAuthCheck(legacyKey, appCtx.AgentStore))
 
 	// 스펙 조회는 관리자(JWT) 그룹
 	if specsHandler != nil {
@@ -198,7 +214,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 		// Log
 		if appCtx.LogStore != nil {
-			logHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, getEnv("OWLMON_AGENT_KEY", ""), appCtx.RulesEngine, appCtx.LogRuleMatchStore, checker.SendAlert)
+			logHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, legacyKey, appCtx.RulesEngine, appCtx.LogRuleMatchStore, checker.SendAlert)
 			r.Get("/api/logs", logHandler.Search)
 			r.Get("/api/logs/histogram", logHandler.Histogram)
 			r.Get("/api/logs/export", logHandler.Export)
@@ -235,8 +251,8 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 		}
 
 		// Agents (Admin)
-		// register는 키 발급 엔드포인트 — 무인증이면 누구나 에이전트 행을 무한 생성 가능해 관리자 전용으로 이동
-		r.With(auth.RequireAdmin).Post("/api/agent/register", agentHandler.Register)
+		// 서버 추가 — 일회용 등록 토큰 발급 (키는 에이전트가 토큰으로 직접 받아 관리자도 원문을 보지 않음)
+		r.With(auth.RequireAdmin).Post("/api/agent/enroll-tokens", agentHandler.IssueEnrollToken)
 		r.With(auth.RequireAdmin).Get("/api/agents", agentHandler.List)
 		r.With(auth.RequireAdmin).Post("/api/agents/{id}/status", agentHandler.UpdateStatus)
 		r.With(auth.RequireAdmin).Delete("/api/agents/{id}", agentHandler.Delete)
@@ -280,7 +296,7 @@ func InitRouter(appCtx *AppContext, checker *alert.Checker, jwtSecret, username,
 
 	// Log Ingest (Agent Key Auth)
 	if appCtx.LogStore != nil {
-		logIngestHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, getEnv("OWLMON_AGENT_KEY", ""), appCtx.RulesEngine, appCtx.LogRuleMatchStore, checker.SendAlert)
+		logIngestHandler := handler.NewLogHandler(appCtx.LogStore, appCtx.LogAnnotationStore, appCtx.AgentStore, legacyKey, appCtx.RulesEngine, appCtx.LogRuleMatchStore, checker.SendAlert)
 		r.Post("/api/logs/ingest", logIngestHandler.Ingest)
 	}
 

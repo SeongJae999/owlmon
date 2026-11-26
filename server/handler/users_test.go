@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -326,12 +327,17 @@ func TestAlertConfig_HidesRecipientsFromViewer(t *testing.T) {
 	}
 }
 
-func TestMaskKey(t *testing.T) {
-	if got := maskKey("abcdef123456"); got != "abcd****" {
-		t.Fatalf("got %q", got)
+// 장비 이름은 gRPC 메타데이터(ASCII)·Prometheus 라벨로 그대로 쓰이므로 헤더 주입·한글이 들어가면 안 됨
+func TestAgentNameRe(t *testing.T) {
+	for _, ok := range []string{"web-01", "db.school.local", "SRV_2"} {
+		if !agentNameRe.MatchString(ok) {
+			t.Fatalf("허용해야 함: %q", ok)
+		}
 	}
-	if got := maskKey("abc"); got != "****" {
-		t.Fatalf("got %q", got)
+	for _, bad := range []string{"", "-web", "a b", "웹서버", "x\r\nX-Owlmon-Host: y", strings.Repeat("a", 64)} {
+		if agentNameRe.MatchString(bad) {
+			t.Fatalf("거부해야 함: %q", bad)
+		}
 	}
 }
 
@@ -353,5 +359,59 @@ func TestPasswordPolicy(t *testing.T) {
 		if (passwordPolicy(pw) == "") != ok {
 			t.Errorf("passwordPolicy(%q) ok=%v 기대", pw, ok)
 		}
+	}
+}
+
+// os·arch에 ../ 를 넣어 저장 폴더 밖 파일(JWT 시크릿 등)을 읽지 못해야 함
+func TestAgentBinary_RejectsPathTraversal(t *testing.T) {
+	data := t.TempDir()
+	store := filepath.Join(data, "agents")
+	h := NewAgentUpdateHandler(store)
+	if err := os.WriteFile(filepath.Join(data, ".owlmon_secret"), []byte("secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store, "owlmon-agent-linux-amd64"), []byte("bin"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"os=linux&arch=x/../../.owlmon_secret", "os=../.owlmon_secret&arch=amd64", "os=linux&arch=386"} {
+		for _, fn := range []http.HandlerFunc{h.GetBinary, h.GetLatest} {
+			rec := httptest.NewRecorder()
+			fn(rec, httptest.NewRequest("GET", "/api/agent/binary?"+q, nil))
+			if rec.Code != http.StatusBadRequest || strings.Contains(rec.Body.String(), "secret") {
+				t.Fatalf("%s: 400 기대, got %d %q", q, rec.Code, rec.Body.String())
+			}
+		}
+	}
+	rec := httptest.NewRecorder()
+	h.GetBinary(rec, httptest.NewRequest("GET", "/api/agent/binary?os=linux&arch=amd64", nil))
+	if rec.Code != http.StatusOK || rec.Body.String() != "bin" {
+		t.Fatalf("정상 요청: got %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+// 무인증 enroll — IP당 실패 한도를 넘으면 DB·감사 기록 없이 429, 다른 IP는 영향 없음
+func TestEnroll_FailureLimitPerIP(t *testing.T) {
+	h := NewAgentHandler(nil, nil, false, "", "")
+	for i := 1; i < enrollMaxFailures; i++ {
+		if h.enrollBlocked("10.0.0.1", true) {
+			t.Fatalf("%d번째 실패에서 벌써 막힘", i)
+		}
+	}
+	if !h.enrollBlocked("10.0.0.1", true) || !h.enrollBlocked("10.0.0.1", false) {
+		t.Fatal("한도 도달 후 막혀야 함")
+	}
+	if h.enrollBlocked("10.0.0.2", false) {
+		t.Fatal("다른 IP는 막히면 안 됨")
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/agent/enroll", strings.NewReader(`{"token":"x"}`))
+	req.RemoteAddr = "10.0.0.1:5555"
+	h.Enroll(rec, req)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("429 기대, got %d", rec.Code)
+	}
+	h.fails["10.0.0.1"].since = time.Now().Add(-enrollFailWindow - time.Second)
+	if h.enrollBlocked("10.0.0.1", false) {
+		t.Fatal("창이 지나면 풀려야 함")
 	}
 }

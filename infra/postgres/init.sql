@@ -198,11 +198,21 @@ CREATE INDEX IF NOT EXISTS idx_log_annotations_template ON log_annotations (temp
 -- 에이전트 관리
 CREATE TABLE IF NOT EXISTS agents (
     id          BIGSERIAL PRIMARY KEY,
-    name        TEXT NOT NULL UNIQUE,          -- 에이전트 이름 (보통 호스트명)
-    key         TEXT NOT NULL UNIQUE,          -- 발급된 고유 키
-    status      TEXT NOT NULL DEFAULT 'pending', -- pending, active, blocked
+    name        TEXT NOT NULL UNIQUE,          -- 장비 이름 (메트릭·로그의 host로 강제됨)
+    key_hash    TEXT UNIQUE,                   -- 에이전트 키의 sha256 (원문은 저장하지 않음)
+    status      TEXT NOT NULL DEFAULT 'active', -- active, blocked(폐기)
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen   TIMESTAMPTZ
+);
+
+-- 서버 추가용 일회용 등록 토큰 (24시간, 한 번 쓰면 소진). 토큰도 sha256으로만 저장
+CREATE TABLE IF NOT EXISTS agent_enroll_tokens (
+    token_hash  TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    created_by  TEXT NOT NULL DEFAULT '',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ
 );
 
 -- 에이전트 호스트 스펙 (CPU/RAM/Disk/OS 등)

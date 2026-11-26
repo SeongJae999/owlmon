@@ -93,6 +93,9 @@ func InitDB() *AppContext {
 		appCtx.SyntheticStore = db.NewSyntheticStore(pool)
 		appCtx.DPMStore = db.NewDPMStore(pool)
 		appCtx.AgentStore = db.NewAgentStore(pool)
+		if err := appCtx.AgentStore.EnsureTables(context.Background()); err != nil {
+			log.Fatalf("에이전트 키 표 준비 실패 — 종료 (평문 키가 남지 않게): %v", err)
+		}
 		appCtx.SpecsStore = db.NewSpecsStore(pool)
 		appCtx.LogRuleMatchStore = db.NewLogRuleMatchStore(pool)
 		appCtx.AuditStore = audit.NewStore(pool)

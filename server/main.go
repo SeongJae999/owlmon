@@ -68,8 +68,11 @@ func startServer() func() {
 	if passwordHash == "" {
 		log.Fatal("OWLMON_PASSWORD_HASH 환경변수가 설정되지 않았습니다.")
 	}
-	if k := getEnv("OWLMON_AGENT_KEY", ""); k == "owlmon-dev-key" || (k != "" && len(k) < 16) {
-		log.Println("⚠️ OWLMON_AGENT_KEY가 예시값이거나 너무 짧습니다 — 누구나 로그를 넣을 수 있습니다. openssl rand -hex 16 으로 바꾸세요")
+	if getEnv("OWLMON_LEGACY_SHARED_KEY", "") == "true" {
+		log.Println("⚠️ 공용 에이전트 키(OWLMON_AGENT_KEY) 허용 중 — 그 키로 온 데이터는 장비 이름을 확인할 수 없습니다. 모든 서버를 화면의 [서버 추가]로 옮긴 뒤 끄세요")
+		if k := getEnv("OWLMON_AGENT_KEY", ""); k == "owlmon-dev-key" || len(k) < 16 {
+			log.Println("⚠️ OWLMON_AGENT_KEY가 예시값이거나 너무 짧습니다 — openssl rand -hex 16 으로 바꾸세요")
+		}
 	}
 
 	// 1. JWT Secret Persistent Logic

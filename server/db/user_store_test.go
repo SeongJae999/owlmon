@@ -194,3 +194,87 @@ func TestUserStore(t *testing.T) {
 		t.Fatal("없는 계정 비밀번호 변경은 실패해야 함")
 	}
 }
+
+// 폐기·삭제하면 그 이름으로 발급해 둔 미사용 등록 토큰도 못 쓰게 되어야 함 (유출된 설치 명령으로 되살리기 차단)
+// agents·agent_enroll_tokens 중 이 테스트가 만든 이름의 행만 쓰고 지운다
+func TestAgentStore_RevokeInvalidatesPendingTokens(t *testing.T) {
+	dsn := os.Getenv("OWLMON_TEST_PG_DSN")
+	if dsn == "" {
+		t.Skip("OWLMON_TEST_PG_DSN 미설정")
+	}
+	ctx := context.Background()
+	pool, err := Connect(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	s := NewAgentStore(pool)
+	if err := s.EnsureTables(ctx); err != nil {
+		t.Fatal(err)
+	}
+	const name = "test-revoke-tokens"
+	cleanup := func() {
+		_, _ = pool.Exec(ctx, "DELETE FROM agents WHERE name = $1", name)
+		_, _ = pool.Exec(ctx, "DELETE FROM agent_enroll_tokens WHERE name = $1", name)
+	}
+	cleanup()
+	defer cleanup()
+
+	issue := func(tok string) {
+		t.Helper()
+		if _, err := s.CreateEnrollToken(ctx, name, tok, "test", time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+	idOf := func() int64 {
+		var id int64
+		if err := pool.QueryRow(ctx, "SELECT id FROM agents WHERE name = $1", name).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+
+	issue("tok-1")
+	if _, prev, err := s.Enroll(ctx, "tok-1", "key-1"); err != nil || prev != "" {
+		t.Fatalf("첫 등록: prev=%q err=%v", prev, err)
+	}
+	if _, _, err := s.Enroll(ctx, "tok-1", "key-x"); !errors.Is(err, ErrTokenInvalid) {
+		t.Fatalf("같은 토큰 재사용은 거부: %v", err)
+	}
+
+	// 폐기 → 미사용 토큰 무효
+	issue("tok-2")
+	if err := s.UpdateStatus(ctx, idOf(), "blocked"); err != nil {
+		t.Fatal(err)
+	}
+	if s.TokenUsable(ctx, "tok-2") {
+		t.Fatal("폐기 후에도 미사용 토큰이 살아 있음")
+	}
+	if _, _, err := s.Enroll(ctx, "tok-2", "key-2"); !errors.Is(err, ErrTokenInvalid) {
+		t.Fatalf("폐기 후 토큰으로 되살리면 안 됨: %v", err)
+	}
+	if _, err := s.GetByKey(ctx, "key-2"); err == nil {
+		t.Fatal("되살아난 키가 있음")
+	}
+
+	// 폐기 뒤 새로 발급한 토큰은 쓸 수 있고, 감사용 prev는 blocked
+	issue("tok-3")
+	if _, prev, err := s.Enroll(ctx, "tok-3", "key-3"); err != nil || prev != "blocked" {
+		t.Fatalf("폐기 뒤 새 토큰: prev=%q err=%v", prev, err)
+	}
+	// 활성화는 토큰을 건드리지 않음
+	issue("tok-4")
+	if err := s.UpdateStatus(ctx, idOf(), "active"); err != nil {
+		t.Fatal(err)
+	}
+	if !s.TokenUsable(ctx, "tok-4") {
+		t.Fatal("활성화가 토큰을 무효로 만들면 안 됨")
+	}
+	// 삭제 → 미사용 토큰 무효
+	if err := s.Delete(ctx, idOf()); err != nil {
+		t.Fatal(err)
+	}
+	if s.TokenUsable(ctx, "tok-4") {
+		t.Fatal("삭제 후에도 미사용 토큰이 살아 있음")
+	}
+}

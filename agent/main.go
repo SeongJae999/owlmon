@@ -1,10 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
+	neturl "net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,10 +50,20 @@ func main() {
 // startAgent는 에이전트를 시작하고 정지 함수를 반환합니다.
 func startAgent() func() {
 	// 설정 파일 로드
-	cfg, err := config.Load(getEnv("OWLMON_CONFIG", "config.yaml"))
+	cfgPath := getEnv("OWLMON_CONFIG", "config.yaml")
+	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		log.Printf("설정 파일 로드 실패, 기본값 사용: %v", err)
 		cfg = &config.Config{}
+	}
+	if cfg.ServerCertSHA256 != "" {
+		if err := config.PinServerCert(cfg.ServerCertSHA256); err != nil {
+			log.Fatalf("%v", err)
+		}
+	}
+	serverURL := cfg.Logs.ServerURL
+	if serverURL == "" {
+		serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
 	}
 
 	endpoint := getEnv("OWLMON_OTLP_ENDPOINT", cfg.OTLPEndpoint)
@@ -53,10 +71,7 @@ func startAgent() func() {
 		endpoint = "localhost:4317"
 	}
 
-	agentKey := cfg.Logs.AgentKey
-	if agentKey == "" {
-		agentKey = getEnv("OWLMON_AGENT_KEY", "")
-	}
+	agentKey := loadAgentKey(cfg, cfgPath, serverURL)
 	if agentKey == "" {
 		log.Println("agent_key 미설정 — 서버가 메트릭과 로그를 거부합니다")
 	}
@@ -74,7 +89,11 @@ func startAgent() func() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	otlpExp, err := exporter.NewOTLPExporter(ctx, endpoint, agentKey)
+	var otlpTLS *tls.Config
+	if cfg.OTLPTLS {
+		otlpTLS = config.ServerTLS()
+	}
+	otlpExp, err := exporter.NewOTLPExporter(ctx, endpoint, agentKey, otlpTLS)
 	if err != nil {
 		log.Fatalf("exporter 초기화 실패: %v", err)
 	}
@@ -118,11 +137,6 @@ func startAgent() func() {
 
 	// 로그 수집 시작 (파일 tail + journald 수집기는 같은 Tailer 버퍼 공유)
 	if cfg.Logs.Enabled {
-		serverURL := cfg.Logs.ServerURL
-		if serverURL == "" {
-			serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
-		}
-
 		tailer := logtail.NewTailer(cfg.Logs.Tails, hostname, serverURL, agentKey)
 		if cfg.Logs.WALPath != "" {
 			tailer.SetWALPath(cfg.Logs.WALPath)
@@ -167,10 +181,6 @@ func startAgent() func() {
 
 	// Self-update — opt-in (config.self_update.enabled: true 일 때만)
 	if cfg.SelfUpdate.Enabled {
-		serverURL := cfg.Logs.ServerURL
-		if serverURL == "" {
-			serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
-		}
 		selfupdate.Start(ctx, selfupdate.Config{
 			Enabled:       true,
 			ServerURL:     serverURL,
@@ -185,7 +195,7 @@ func startAgent() func() {
 		collectInterval, len(cfg.Checks), len(cfg.SNMP.Devices), cfg.SelfUpdate.Enabled)
 
 	// 스펙 1회 수집/전송 (백그라운드 — 실패해도 메트릭 송신엔 영향 없음)
-	go sendSpecsOnce(ctx, cfg, agentKey)
+	go sendSpecsOnce(ctx, serverURL, agentKey)
 
 	return func() {
 		cancel()
@@ -204,16 +214,11 @@ func getEnv(key, fallback string) string {
 
 // sendSpecsOnce는 호스트 스펙을 1회 수집해서 OWLmon 서버로 전송한다.
 // 실패해도 에이전트의 메트릭 송신엔 영향 없도록 별도 goroutine에서 호출한다.
-func sendSpecsOnce(ctx context.Context, cfg *config.Config, agentKey string) {
+func sendSpecsOnce(ctx context.Context, serverURL, agentKey string) {
 	s, err := specs.Collect()
 	if err != nil {
 		log.Printf("스펙 수집 실패: %v", err)
 		return
-	}
-
-	serverURL := cfg.Logs.ServerURL
-	if serverURL == "" {
-		serverURL = getEnv("OWLMON_SERVER_URL", "http://localhost:8080")
 	}
 
 	// 송신 타임아웃 분리
@@ -226,4 +231,61 @@ func sendSpecsOnce(ctx context.Context, cfg *config.Config, agentKey string) {
 	}
 	log.Printf("호스트 스펙 전송 완료: CPU=%s(%d코어), RAM=%dGB, 디스크=%d개",
 		s.CPU.Model, s.CPU.Cores, s.MemoryTotalBytes/(1<<30), len(s.Disks))
+}
+
+// loadAgentKey — 우선순위: config의 agent_key(예전 설치) → agent.key(등록으로 받은 서버별 키)
+// → 등록 토큰 교환(처음 실행) → OWLMON_AGENT_KEY 환경변수(예전 설치).
+func loadAgentKey(cfg *config.Config, cfgPath, serverURL string) string {
+	if cfg.Logs.AgentKey != "" {
+		return cfg.Logs.AgentKey
+	}
+	keyFile := filepath.Join(filepath.Dir(cfgPath), "agent.key")
+	if b, err := os.ReadFile(keyFile); err == nil && len(bytes.TrimSpace(b)) > 0 {
+		return string(bytes.TrimSpace(b))
+	}
+	if cfg.EnrollToken != "" {
+		key, err := enroll(serverURL, cfg.EnrollToken)
+		if err != nil {
+			log.Fatalf("서버 등록 실패: %v", err)
+		}
+		if err := os.WriteFile(keyFile, []byte(key+"\n"), 0600); err != nil {
+			log.Fatalf("키 저장 실패 (%s) — 토큰은 이미 쓰였으니 화면에서 새로 발급해 다시 설치하세요: %v", keyFile, err)
+		}
+		return key
+	}
+	return getEnv("OWLMON_AGENT_KEY", "")
+}
+
+// enroll — 일회용 등록 토큰을 이 서버 전용 키로 바꾼다. 연결 실패만 짧게 재시도
+// (Windows 서비스는 시작 30초 안에 응답해야 하므로 길게 기다리지 않음 — 실패하면 종료해 서비스 재시작에 맡김).
+func enroll(serverURL, token string) (string, error) {
+	// 토큰과 응답으로 받는 키가 평문으로 오가지 않게 https만 (같은 PC의 localhost 시험은 예외)
+	if u, err := neturl.Parse(serverURL); err != nil || (u.Scheme != "https" && u.Hostname() != "localhost" && u.Hostname() != "127.0.0.1") {
+		return "", fmt.Errorf("등록은 https 서버 주소로만 합니다: %q", serverURL)
+	}
+	body, _ := json.Marshal(map[string]string{"token": token})
+	url := strings.TrimRight(serverURL, "/") + "/api/agent/enroll"
+	var lastErr error
+	for i := range 3 {
+		if i > 0 {
+			time.Sleep(3 * time.Second)
+		}
+		resp, err := config.ServerClient(5*time.Second).Post(url, "application/json", bytes.NewReader(body))
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, bytes.TrimSpace(msg))
+		}
+		var out struct{ Key, Name string }
+		if err := json.Unmarshal(msg, &out); err != nil || out.Key == "" {
+			return "", fmt.Errorf("응답 해석 실패: %s", msg)
+		}
+		log.Printf("서버 등록 완료 — 장비 이름: %s", out.Name)
+		return out.Key, nil
+	}
+	return "", lastErr
 }

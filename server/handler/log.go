@@ -63,8 +63,9 @@ const maxIngestBody = 32 << 20
 
 // Ingest POST /api/logs/ingest — 에이전트에서 호출 (Agent Key 인증)
 func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
-	if !validAgentKey(r, h.legacyKey, h.agentStore) {
-		http.Error(w, "인증 실패 또는 비활성화된 에이전트", http.StatusUnauthorized)
+	agentName, ok := agentIdentity(r, h.legacyKey, h.agentStore)
+	if !ok {
+		http.Error(w, "인증 실패 또는 폐기된 에이전트", http.StatusUnauthorized)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxIngestBody)
@@ -97,9 +98,14 @@ func (h *LogHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		}
 		// PII 마스킹 (저장 전 — DB엔 평문 개인정보 남지 않음)
 		line := masking.Mask(e.Line, h.maskOpts)
+		// 키에 묶인 장비 이름이 있으면 에이전트가 보낸 host는 무시 (다른 장비 행세 방지)
+		host := e.Host
+		if agentName != "" {
+			host = agentName
+		}
 		records = append(records, db.LogRecord{
 			Timestamp: ts,
-			Host:      e.Host,
+			Host:      host,
 			Source:    e.Source,
 			FilePath:  e.FilePath,
 			Line:      line,

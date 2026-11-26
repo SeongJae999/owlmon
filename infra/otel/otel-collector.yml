@@ -1,19 +1,31 @@
 # OpenTelemetry Collector 설정
-# 에이전트 → Collector → Prometheus 파이프라인
-
-extensions:
-  bearertokenauth:
-    token: "${env:OWLMON_AGENT_KEY}"
+# 에이전트 → nginx(443, 키 확인) → Collector → Prometheus 파이프라인
+# 키 확인은 nginx가 서버(/api/agent/auth)에 묻고, 통과하면 키에 묶인 장비 이름을 x-owlmon-host로 붙여 넘긴다.
+# 그래서 4317은 외부에 열지 않는다 (docker-compose.yml: 127.0.0.1에만 — 개발용 에이전트가 이 PC에서 직접 보냄)
 
 receivers:
   otlp:
     protocols:
       grpc:
         endpoint: "0.0.0.0:4317"
-        auth:
-          authenticator: bearertokenauth
+        include_metadata: true   # nginx가 붙인 x-owlmon-host를 아래 processor가 읽도록
 
 processors:
+  # 에이전트가 보낸 host.name은 믿지 않고 키에 묶인 장비 이름으로 덮어씀.
+  # 헤더가 없으면(공용 키 전환 설정·개발 환경) 에이전트 값 유지. batch보다 앞이어야 함 (batch를 지나면 메타데이터가 사라짐)
+  # 데이터 지점 속성에 장비 이름·라벨을 넣어 보내면 Prometheus 라벨이 "진짜;위조"로 이어 붙어 가짜 장비 행이 생기므로 지움
+  # (에이전트는 이 이름들을 데이터 지점에 쓰지 않는다 — 장비 이름은 resource의 host.name만)
+  attributes/strip-identity:
+    actions:
+      - { key: host.name, action: delete }
+      - { key: host_name, action: delete }
+      - { key: instance, action: delete }
+      - { key: job, action: delete }
+  resource/agent-identity:
+    attributes:
+      - key: host.name
+        from_context: metadata.x-owlmon-host
+        action: upsert
   batch:
     send_batch_size: 1024
     timeout: 5s
@@ -30,9 +42,8 @@ exporters:
     verbosity: basic
 
 service:
-  extensions: [bearertokenauth]
   pipelines:
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      processors: [attributes/strip-identity, resource/agent-identity, batch]
       exporters: [prometheusremotewrite, debug]

@@ -1,8 +1,15 @@
 package config
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"crypto/tls"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -10,11 +17,16 @@ import (
 
 // Config는 에이전트 전체 설정입니다.
 type Config struct {
-	OTLPEndpoint string        `yaml:"otlp_endpoint"` // OTel Collector 주소
-	Checks       []CheckConfig `yaml:"checks"`        // 서비스 체크 목록
-	Logs         LogConfig        `yaml:"logs"`          // 로그 수집 설정
-	SNMP         SNMPConfig       `yaml:"snmp"`          // SNMP 프록시 폴링 (망분리 환경에서 OWLmon 서버 대신 폴링)
-	SelfUpdate   SelfUpdateConfig `yaml:"self_update"`   // agent 자가 업데이트
+	OTLPEndpoint string `yaml:"otlp_endpoint"` // 메트릭 받는 주소 (운영: 서버주소:443, 개발: Collector 직접)
+	OTLPTLS      bool   `yaml:"otlp_tls"`      // 메트릭을 TLS로 보냄 (nginx 443). 예전 설치·개발은 false
+	// 서버 추가 화면에서 받은 일회용 등록 토큰 — 처음 실행 때 서버별 키로 바꿔 agent.key에 저장 (그 뒤엔 안 씀)
+	EnrollToken string `yaml:"enroll_token"`
+	// 서버 인증서 sha256 지문 — 자체 서명 인증서일 때 이 인증서만 믿는다 (검증을 끄지 않고 고정). 비우면 시스템 CA로 검증
+	ServerCertSHA256 string           `yaml:"server_cert_sha256"`
+	Checks           []CheckConfig    `yaml:"checks"`      // 서비스 체크 목록
+	Logs             LogConfig        `yaml:"logs"`        // 로그 수집 설정
+	SNMP             SNMPConfig       `yaml:"snmp"`        // SNMP 프록시 폴링 (망분리 환경에서 OWLmon 서버 대신 폴링)
+	SelfUpdate       SelfUpdateConfig `yaml:"self_update"` // agent 자가 업데이트
 }
 
 // SelfUpdateConfig는 agent 자가 업데이트 설정입니다.
@@ -112,4 +124,50 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// ── OWLmon 서버 연결 (등록·로그·스펙·self-update·메트릭 TLS 공용) ──
+
+var (
+	serverTLS       *tls.Config
+	serverTransport http.RoundTripper = http.DefaultTransport
+)
+
+// PinServerCert — 서버 인증서를 지문으로 고정한다. 자체 서명이라 CA 검증은 못 하지만
+// 지문이 다른 인증서(중간자)는 거부하므로 검증을 끄는 것(-k)보다 안전하다.
+func PinServerCert(fingerprint string) error {
+	want, err := hex.DecodeString(strings.ReplaceAll(strings.ToLower(strings.TrimSpace(fingerprint)), ":", ""))
+	if err != nil || len(want) != sha256.Size {
+		return fmt.Errorf("server_cert_sha256 형식 오류 (sha256 16진수 64자): %q", fingerprint)
+	}
+	serverTLS = &tls.Config{
+		InsecureSkipVerify: true, // CA 검증 대신 아래 지문 비교로 검증
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return errors.New("서버 인증서 없음")
+			}
+			got := sha256.Sum256(cs.PeerCertificates[0].Raw)
+			if subtle.ConstantTimeCompare(got[:], want) != 1 {
+				return errors.New("서버 인증서 지문 불일치 — 설치 명령의 지문과 다른 인증서 (인증서를 바꿨다면 [서버 추가]로 다시 설치)")
+			}
+			return nil
+		},
+	}
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.TLSClientConfig = serverTLS
+	serverTransport = t
+	return nil
+}
+
+// ServerTLS — 메트릭 gRPC용. 지문 고정이 없으면 시스템 CA로 검증하는 기본 설정.
+func ServerTLS() *tls.Config {
+	if serverTLS == nil {
+		return &tls.Config{}
+	}
+	return serverTLS
+}
+
+// ServerClient — OWLmon 서버로 가는 HTTP 요청용 (서비스 체크처럼 다른 사이트로 가는 요청엔 쓰지 말 것).
+func ServerClient(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, Transport: serverTransport}
 }

@@ -2,19 +2,21 @@ package exporter
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"google.golang.org/grpc/credentials"
 )
 
 // NewOTLPExporter는 OTel Collector로 메트릭을 전송하는 gRPC exporter를 생성합니다.
-// endpoint 예시: "localhost:4317"
-func NewOTLPExporter(ctx context.Context, endpoint, agentKey string) (metric.Exporter, error) {
+// endpoint 예시: "owlmon.school.local:443" (TLS, nginx) / "localhost:14317" (개발, 평문)
+// tlsCfg가 nil이면 평문 — 예전 설치(4317)와 개발 환경용.
+func NewOTLPExporter(ctx context.Context, endpoint, agentKey string, tlsCfg *tls.Config) (metric.Exporter, error) {
 	opts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithEndpoint(endpoint),
-		otlpmetricgrpc.WithInsecure(), // MVP: TLS 없이 연결 (프로덕션에서는 제거)
 		// Collector 일시 다운 시 재시도 설정
 		otlpmetricgrpc.WithRetry(otlpmetricgrpc.RetryConfig{
 			Enabled:         true,
@@ -23,8 +25,13 @@ func NewOTLPExporter(ctx context.Context, endpoint, agentKey string) (metric.Exp
 			MaxElapsedTime:  5 * time.Minute,  // 5분간 재시도 후 포기
 		}),
 	}
+	if tlsCfg != nil {
+		opts = append(opts, otlpmetricgrpc.WithTLSCredentials(credentials.NewTLS(tlsCfg)))
+	} else {
+		opts = append(opts, otlpmetricgrpc.WithInsecure())
+	}
 	if agentKey != "" {
-		// Collector의 bearertokenauth는 authorization 헤더만 읽는다
+		// nginx가 authorization 헤더의 키를 서버에 확인받는다
 		opts = append(opts, otlpmetricgrpc.WithHeaders(map[string]string{"authorization": "Bearer " + agentKey}))
 	}
 

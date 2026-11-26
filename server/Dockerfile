@@ -28,6 +28,9 @@ RUN addgroup -S owlmon && adduser -S -G owlmon owlmon
 
 WORKDIR /app
 COPY --from=builder /out/owlmon-server /app/owlmon-server
+# 에이전트 설치 스크립트 (docker-compose.yml의 additional_contexts: scripts) — 무인증으로 내려줌, 비밀 없음
+COPY --from=scripts install-agent-linux.sh install-agent-windows.ps1 /app/scripts/
+ENV OWLMON_AGENT_SCRIPTS_DIR=/app/scripts
 
 # JWT secret 영속화용 디렉토리
 RUN mkdir -p /app/data && chown -R owlmon:owlmon /app

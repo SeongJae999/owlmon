@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/seongJae/owlmon/agent/config"
 	"io"
 	"log"
 	"net/http"
@@ -110,7 +111,7 @@ func checkAndUpdate(cfg Config) error {
 	if cfg.AgentKey != "" {
 		req.Header.Set("X-Agent-Key", cfg.AgentKey)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := config.ServerClient(0).Do(req)
 	if err != nil {
 		return fmt.Errorf("latest 조회 실패: %w", err)
 	}
@@ -146,7 +147,7 @@ func checkAndUpdate(cfg Config) error {
 	if cfg.AgentKey != "" {
 		dlReq.Header.Set("X-Agent-Key", cfg.AgentKey)
 	}
-	dlResp, err := http.DefaultClient.Do(dlReq)
+	dlResp, err := config.ServerClient(0).Do(dlReq)
 	if err != nil {
 		return fmt.Errorf("binary 다운로드 실패: %w", err)
 	}
