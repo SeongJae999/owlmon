@@ -50,8 +50,13 @@ var (
 	tiberoCode = regexp.MustCompile(`\bTBR-\d+`)
 )
 
-// 로그인 실패는 sshd·PAM·MySQL이 레벨 단어 없이(journald priority info로) 남겨서 AI 분석(warn 이상)에서 빠졌다
-var authFailPhrases = []string{"Failed password", "Invalid user", "authentication failure", "Access denied for user"}
+// 레벨 단어 없이(journald priority info, PostgreSQL LOG, MySQL [Note]) 남는 장애라 AI 분석(warn 이상)에서 빠졌다
+var warnPhrases = []string{
+	"Failed password", "Invalid user", "authentication failure", "Access denied for user", "UID=0,", // 로그인 실패·root 권한 계정 생성
+	"No space left on device", "Address already in use", "Address in use",
+	"deadlock detected", "crash recovery", "not properly shut down", "archive command failed",
+	"OOM command not allowed", "Out of memory",
+}
 
 func reportable(level string) bool { return levelRank[level] >= levelRank["WARN"] }
 
@@ -86,7 +91,7 @@ func detectLevel(line string) string {
 		}
 	}
 	if implicit == "" {
-		for _, p := range authFailPhrases {
+		for _, p := range warnPhrases {
 			if strings.Contains(line, p) {
 				return "WARN"
 			}

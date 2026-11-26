@@ -47,6 +47,18 @@ func TestDetectLevel(t *testing.T) {
 		{"sshd Invalid user", "Invalid user admin from 203.0.113.5 port 52144", "WARN"},
 		{"PAM authentication failure", "pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=203.0.113.5  user=root", "WARN"},
 		{"MySQL Access denied", "2026-11-12T10:15:22.123456Z 12 [Note] Access denied for user 'root'@'10.0.0.5' (using password: YES)", "WARN"},
+		{"useradd UID 0", "new user: name=backup2, UID=0, GID=0, home=/home/backup2, shell=/bin/bash, from=none", "WARN"},
+		{"useradd 일반", "new user: name=teacher, UID=1001, GID=1001, home=/home/teacher, shell=/bin/bash, from=/dev/pts/0", ""},
+
+		// 레벨 단어 없는 장애 (PostgreSQL LOG, MySQL [Note], journald info)
+		{"PG archive 실패", "2026-11-26 02:37:50.906 UTC [52] LOG:  archive command failed with exit code 1", "WARN"},
+		{"PG 비정상 종료 복구", "2026-11-26 02:39:12.267 UTC [29] LOG:  database system was not properly shut down; automatic recovery in progress", "WARN"},
+		{"MySQL deadlock", "2026-11-26T02:46:10.420452Z 0 [Note] [MY-012468] [InnoDB] Transactions deadlock detected, dumping detailed information.", "WARN"},
+		{"MySQL crash recovery", "2026-11-26T02:47:08.428539Z 1 [Note] [MY-012552] [InnoDB] Starting crash recovery.", "WARN"},
+		{"디스크 가득", "queue write failed: [Errno 28] No space left on device: '/var/spool/app/q-24750.tmp'", "WARN"},
+		{"Apache 포트 사용 중", "(98)Address in use: AH00072: make_sock: could not bind to address 0.0.0.0:80", "WARN"},
+		{"Redis OOM", "OOM command not allowed when used memory > 'maxmemory'.", "WARN"},
+		{"PG 정상 종료", "2026-11-26 02:37:53.974 UTC [46] LOG:  database system is shut down", ""},
 		{"sshd Accepted password", "Accepted password for will from 10.0.0.5 port 52144 ssh2", ""},
 
 		// 오탐 방지
