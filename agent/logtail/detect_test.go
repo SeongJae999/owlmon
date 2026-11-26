@@ -42,6 +42,13 @@ func TestDetectLevel(t *testing.T) {
 		{"WebtoB [error]", "[08/Jul/2015:17:03:10 +0900] [error] [client 65.65.65.65] TIMEOUT is expired while svc is running", "ERROR"},
 		{"robocopy ERROR", "2015/03/10 23:55:35 ERROR 32 (0x00000020) Time-Stamping Destination File \\\\x.x.x.x\\share1\\Dummy_100.txt", "ERROR"},
 
+		// 로그인 실패 (레벨 단어 없음)
+		{"sshd Failed password", "Nov 12 10:15:22 web1 sshd[1234]: Failed password for root from 203.0.113.5 port 52144 ssh2", "WARN"},
+		{"sshd Invalid user", "Invalid user admin from 203.0.113.5 port 52144", "WARN"},
+		{"PAM authentication failure", "pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=203.0.113.5  user=root", "WARN"},
+		{"MySQL Access denied", "2026-11-12T10:15:22.123456Z 12 [Note] Access denied for user 'root'@'10.0.0.5' (using password: YES)", "WARN"},
+		{"sshd Accepted password", "Accepted password for will from 10.0.0.5 port 52144 ssh2", ""},
+
 		// 오탐 방지
 		{"errors=0", "2026-11-12 10:15:22 INFO Backup finished: files=120 errors=0", "INFO"},
 		{"ErrorPageFilter", "2026-11-12 10:15:22.123  INFO 1234 --- [main] o.s.b.w.servlet.support.ErrorPageFilter : Registered filter", "INFO"},

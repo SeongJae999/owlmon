@@ -50,6 +50,9 @@ var (
 	tiberoCode = regexp.MustCompile(`\bTBR-\d+`)
 )
 
+// 로그인 실패는 sshd·PAM·MySQL이 레벨 단어 없이(journald priority info로) 남겨서 AI 분석(warn 이상)에서 빠졌다
+var authFailPhrases = []string{"Failed password", "Invalid user", "authentication failure", "Access denied for user"}
+
 func reportable(level string) bool { return levelRank[level] >= levelRank["WARN"] }
 
 func detectLevel(line string) string {
@@ -79,6 +82,13 @@ func detectLevel(line string) string {
 			// 본문 속 alert는 "alert mail" 같은 일반 단어라 제외
 			if ok && upper != "ALERT" && levelRank[lvl] > levelRank[implicit] {
 				implicit = lvl
+			}
+		}
+	}
+	if implicit == "" {
+		for _, p := range authFailPhrases {
+			if strings.Contains(line, p) {
+				return "WARN"
 			}
 		}
 	}
