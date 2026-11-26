@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   LifeBuoy, Terminal, ServerCog, HelpCircle, Wrench, Mail, Code,
   ChevronDown, Copy, CheckCircle2, AlertCircle, AlertTriangle,
@@ -68,27 +69,20 @@ export default function SupportPage() {
               에이전트는 모니터링 대상 호스트에 설치합니다. 설치 후 자동으로 OWLmon 서버로 메트릭을 전송합니다.
             </p>
 
-            <SubSection title="Linux 에이전트 설치">
-              <CodeBlock
-                code={`curl -sSL http://<OWLmon 서버 IP>/install-agent.sh | sudo bash`}
-                note="3줄로 끝. 시스템 서비스로 등록되어 부팅 시 자동 시작합니다."
-              />
+            <SubSection title="에이전트 설치 (Linux · Windows)">
+              <ol className="list-decimal list-inside text-sm text-base-300 space-y-1.5 ml-1">
+                <li>관리자 계정으로 위쪽 메뉴 <Link to="/agents" className="text-brand-400 hover:underline">[장비] → [서버 추가]</Link>를 엽니다</li>
+                <li>서버 이름을 넣으면 그 서버 전용 설치 명령 한 줄이 나옵니다 (24시간 안에 한 번만 쓸 수 있음)</li>
+                <li>설치할 서버에서 명령을 붙여 넣습니다 — Linux는 sudo, Windows는 관리자 PowerShell</li>
+              </ol>
               <p className="text-xs text-base-500 mt-2">
-                망분리 환경: <code className="text-base-400 bg-base-800 px-1.5 py-0.5 rounded text-xs">scripts/install-agent-linux.sh</code> 를 수동 복사 후 실행
+                서버마다 따로 키를 받으므로, 한 서버의 키를 폐기해도 다른 서버엔 영향이 없습니다.
               </p>
-            </SubSection>
-
-            <SubSection title="Windows 에이전트 설치">
-              <CodeBlock
-                code={`# PowerShell 관리자 권한으로 실행
-iwr -useb http://<OWLmon 서버 IP>/install-agent.ps1 | iex`}
-                note="Windows 서비스로 등록됩니다."
-              />
             </SubSection>
 
             <SubSection title="설치 확인">
               <ol className="list-decimal list-inside text-sm text-base-300 space-y-1.5 ml-1">
-                <li>30초 이내 OWLmon 대시보드에 호스트 카드 자동 생성</li>
+                <li>[서버 추가] 화면에 '연결됨'이 뜨고, 지금 상태의 장비 표에 서버가 생깁니다 (1분 안팎)</li>
                 <li>CPU / 메모리 / 디스크 사용률 실시간 표시</li>
                 <li>안 보이면 → '문제 해결' 섹션 참고</li>
               </ol>
@@ -102,7 +96,7 @@ iwr -useb http://<OWLmon 서버 IP>/install-agent.ps1 | iex`}
                 <ReqRow label="CPU" value="1 core 이상 (사용률 1% 미만)" />
                 <ReqRow label="메모리" value="50MB 이상 (실제 사용 10~20MB)" />
                 <ReqRow label="디스크" value="설치 50MB" />
-                <ReqRow label="네트워크" value="OWLmon 서버로 outbound 4317/8080" />
+                <ReqRow label="네트워크" value="OWLmon 서버로 outbound 443" />
               </ReqCard>
 
               <ReqCard title="서버 (OWLmon 호스팅)">
@@ -125,9 +119,8 @@ iwr -useb http://<OWLmon 서버 IP>/install-agent.ps1 | iex`}
                     </tr>
                   </thead>
                   <tbody className="text-base-300 [&_tr]:border-t [&_tr]:border-base-800">
-                    <tr><td className="px-4 py-2.5 font-mono">4317</td><td className="px-4 py-2.5">OTLP gRPC (메트릭 수집)</td><td className="px-4 py-2.5 text-base-500">에이전트 → 서버</td></tr>
-                    <tr><td className="px-4 py-2.5 font-mono">8080</td><td className="px-4 py-2.5">서버 API (로그 / 알림)</td><td className="px-4 py-2.5 text-base-500">에이전트 → 서버</td></tr>
-                    <tr><td className="px-4 py-2.5 font-mono">80 / 443</td><td className="px-4 py-2.5">웹 대시보드</td><td className="px-4 py-2.5 text-base-500">사용자 → 서버</td></tr>
+                    <tr><td className="px-4 py-2.5 font-mono">80 / 443</td><td className="px-4 py-2.5">웹 대시보드 · 에이전트 메트릭/로그 (HTTPS)</td><td className="px-4 py-2.5 text-base-500">사용자·에이전트 → 서버</td></tr>
+                    <tr><td className="px-4 py-2.5 font-mono">4317 / 8080</td><td className="px-4 py-2.5">예전 방식 에이전트 (옮긴 뒤 닫아도 됨)</td><td className="px-4 py-2.5 text-base-500">에이전트 → 서버</td></tr>
                     <tr><td className="px-4 py-2.5 font-mono">25 / 587</td><td className="px-4 py-2.5">SMTP (이메일 알림)</td><td className="px-4 py-2.5 text-base-500">서버 → 메일</td></tr>
                   </tbody>
                 </table>
@@ -211,8 +204,8 @@ OWLMON_BACKUP_PASSPHRASE=학교에서_결정한_충분히_긴_문자열`}
             <FAQItem q="에이전트 설치 후 호스트가 대시보드에 안 보입니다.">
               <p className="mb-2">다음 순서로 확인하세요:</p>
               <ol className="list-decimal list-inside space-y-1 ml-1">
-                <li>에이전트 서비스 상태: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">systemctl status owlmon-agent</code></li>
-                <li>방화벽: 에이전트에서 OWLmon 서버 4317 포트 도달 가능한지: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">nc -zv {`<서버IP>`} 4317</code></li>
+                <li>에이전트 서비스 상태 (등록 실패·인증서 지문 불일치도 여기 로그에 나옴): <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">systemctl status owlmon-agent</code></li>
+                <li>방화벽: 에이전트에서 OWLmon 서버 443 포트 도달 가능한지: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">nc -zv {`<서버IP>`} 443</code></li>
                 <li>에이전트 로그: <code className="text-base-300 bg-base-800 px-1.5 py-0.5 rounded text-xs">journalctl -u owlmon-agent -n 50</code></li>
                 <li>30초 대기 후 새로고침 (메트릭은 30초 주기 전송)</li>
               </ol>
@@ -373,7 +366,7 @@ function SubSection({ title, children }: { title: string; children: React.ReactN
   )
 }
 
-function CodeBlock({ code, note }: { code: string; note?: string }) {
+export function CodeBlock({ code, note }: { code: string; note?: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <div className="relative">

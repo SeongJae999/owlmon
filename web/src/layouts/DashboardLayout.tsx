@@ -21,6 +21,7 @@ import {
   Database,
   Rows3,
   ChevronDown,
+  ServerCog,
 } from 'lucide-react'
 import { cn } from '../utils/cn'
 import ChatWidget from '../components/ChatWidget'
@@ -29,7 +30,7 @@ import ProblemsMenu from '../components/ProblemsMenu'
 import DeviceSearch from '../components/DeviceSearch'
 
 // 메뉴는 최소로 — 장비·알림 화면은 지금 상태의 행·카드·종 아이콘에서, 관리 화면은 설정 첫 줄 바로가기에서 들어감. 경로(path)는 그대로 (북마크 호환)
-type NavItem = { id: string; path: string; icon: any; label: string; short?: string; match?: string[]; leaves?: boolean; children?: NavItem[] }
+type NavItem = { id: string; path: string; icon: any; label: string; short?: string; match?: string[]; leaves?: boolean; adminOnly?: boolean; children?: NavItem[] }
 const NAV_SECTIONS: { adminOnly?: boolean; items: NavItem[] }[] = [
   { items: [
     // 타고 들어간 화면에서도 지금 상태가 켜져 있어야 한 번에 돌아옴
@@ -42,6 +43,8 @@ const NAV_SECTIONS: { adminOnly?: boolean; items: NavItem[] }[] = [
       { id: 'website', path: '/website', icon: Globe, label: '웹사이트' },
       { id: 'dpm', path: '/dpm', icon: Database, label: '데이터베이스' },
       { id: 'racks', path: '/racks', icon: Rows3, label: '랙 실장도' },
+      // 서버는 지금 상태의 장비 표에 있으므로, 새 서버를 붙이는 입구를 장비 메뉴 끝에 둠 (키 발급이라 관리자만)
+      { id: 'agents', path: '/agents', icon: ServerCog, label: '서버 추가', adminOnly: true },
     ] },
     { id: 'logs', path: '/logs', icon: FileText, label: '로그', match: ['/insights'] },
     { id: 'report', path: '/report', icon: FileBarChart, label: '월간 보고서', short: '보고서' },
@@ -168,7 +171,7 @@ export default function DashboardLayout() {
                       {open && (
                         <div ref={menuRef} id={`menu-${item.id}`} style={{ left: openMenu.left, top: openMenu.top + 4 }}
                           className="fixed z-50 w-48 py-1 rounded-xl border border-base-700 bg-base-900 shadow-xl">
-                          {item.children.map(c => {
+                          {item.children.filter(c => !(c.adminOnly && isViewer)).map(c => {
                             const on = isActive(c)
                             return (
                               <Link key={c.id} to={c.path} aria-current={on ? 'page' : undefined} onClick={() => setOpenMenu(null)}

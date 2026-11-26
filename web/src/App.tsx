@@ -25,6 +25,7 @@ const TopologyPage = lazy(() => import('./pages/TopologyPage'))
 const RackPage = lazy(() => import('./pages/RackPage'))
 const GroupsPage = lazy(() => import('./pages/GroupsPage'))
 const WallPage = lazy(() => import('./pages/WallPage'))
+const AgentsPage = lazy(() => import('./pages/AgentsPage'))
 
 export default function App() {
   const authenticated = isLoggedIn()
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="/topology" element={<TopologyPage />} />
         <Route path="/racks" element={<RackPage />} />
         <Route path="/groups" element={<GroupsPage />} />
+        <Route path="/agents" element={<AgentsPage />} />
       </Route>
       <Route path="/wall" element={<Suspense fallback={null}><WallPage /></Suspense>} />
       <Route path="*" element={<Navigate to="/" replace />} />
