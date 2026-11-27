@@ -75,7 +75,12 @@ type diskWriter struct {
 // 절반 넘게 못 읽으면 누구나 읽을 수 있는 cgroup io.stat으로 서비스·컨테이너·사용자 세션 단위를 대신 보여 준다.
 func topDiskWriters(ctx context.Context, d time.Duration) (ws []diskWriter, note string) {
 	first, total := writeBytes(ctx)
-	cgFirst := cgroupWriteBytes(cgroupRoot)
+	root, file := cgroupRoot, "io.stat"
+	cgFirst := cgroupWriteBytes(root, file)
+	if len(cgFirst) == 0 { // cgroup v1(CentOS 7·8 등)은 blkio 아래에 같은 값을 둔다
+		root, file = filepath.Join(cgroupRoot, "blkio"), "blkio.throttle.io_service_bytes"
+		cgFirst = cgroupWriteBytes(root, file)
+	}
 	select {
 	case <-ctx.Done():
 		return nil, ""
@@ -91,11 +96,11 @@ func topDiskWriters(ctx context.Context, d time.Duration) (ws []diskWriter, note
 		return top(ws), ""
 	}
 	if len(cgFirst) == 0 {
-		return nil, fmt.Sprintf("프로세스 %d개 중 %d개만 확인 (다른 계정 프로세스를 읽을 수 없고 cgroup v2도 없음)", total, len(first))
+		return nil, fmt.Sprintf("프로세스 %d개 중 %d개만 확인 (다른 계정 프로세스를 읽을 수 없고 cgroup 쓰기 통계도 없음)", total, len(first))
 	}
-	for path, b := range cgroupWriteBytes(cgroupRoot) {
+	for path, b := range cgroupWriteBytes(root, file) {
 		if a, ok := cgFirst[path]; ok && b > a {
-			ws = append(ws, diskWriter{label: cgroupLabel(cgroupRoot, path), bytesPerSec: float64(b-a) / d.Seconds()})
+			ws = append(ws, diskWriter{label: cgroupLabel(root, path), bytesPerSec: float64(b-a) / d.Seconds()})
 		}
 	}
 	return top(ws), ""
@@ -140,11 +145,12 @@ const cgroupRoot = "/sys/fs/cgroup"
 
 // cgroupWriteBytes는 cgroup별 누적 쓰기 바이트를 읽는다. 최상위(system.slice 등) 아래에 io.stat이 있으면
 // 그 하위(서비스·컨테이너)를, 없으면(user.slice는 사용자별로 안 나뉨) 최상위 자체를 쓴다. 키는 root 기준 경로.
-func cgroupWriteBytes(root string) map[string]uint64 {
+// v2 io.stat("8:0 rbytes=1 wbytes=2 ...")과 v1 blkio("8:0 Write 2") 둘 다 장치별 줄을 더한다.
+func cgroupWriteBytes(root, file string) map[string]uint64 {
 	m := map[string]uint64{}
-	tops, _ := filepath.Glob(filepath.Join(root, "*", "io.stat"))
+	tops, _ := filepath.Glob(filepath.Join(root, "*", file))
 	for _, t := range tops {
-		files, _ := filepath.Glob(filepath.Join(filepath.Dir(t), "*", "io.stat"))
+		files, _ := filepath.Glob(filepath.Join(filepath.Dir(t), "*", file))
 		if len(files) == 0 {
 			files = []string{t}
 		}
@@ -154,8 +160,13 @@ func cgroupWriteBytes(root string) map[string]uint64 {
 				continue
 			}
 			var sum uint64
-			for _, field := range strings.Fields(string(data)) { // "8:0 rbytes=1 wbytes=2 ..." 장치별 한 줄
-				if v, ok := strings.CutPrefix(field, "wbytes="); ok {
+			fields := strings.Fields(string(data))
+			for i, field := range fields {
+				v, ok := strings.CutPrefix(field, "wbytes=")
+				if !ok && i > 0 && fields[i-1] == "Write" {
+					v, ok = field, true
+				}
+				if ok {
 					n, _ := strconv.ParseUint(v, 10, 64)
 					sum += n
 				}
@@ -187,6 +198,9 @@ func cgroupLabel(root, path string) string {
 			uid = u.Username
 		}
 		names = append(names, uid)
+	}
+	if len(names) == 0 { // v1 blkio는 사용자별로 안 나뉜다
+		return "사용자 로그인 세션"
 	}
 	return "사용자 로그인 세션(" + strings.Join(names, ", ") + ")"
 }

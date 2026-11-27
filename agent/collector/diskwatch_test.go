@@ -56,7 +56,7 @@ func TestCgroupWriteBytes(t *testing.T) {
 	write("system.slice/mysql.service/io.stat", "8:0 rbytes=1 wbytes=100 rios=0 wios=0\n8:16 rbytes=0 wbytes=50 rios=0 wios=0\n")
 	write("system.slice/docker-0123456789abcdef0123.scope/io.stat", "8:0 wbytes=7\n")
 	write("user.slice/io.stat", "8:0 rbytes=0 wbytes=300\n")
-	got := cgroupWriteBytes(root)
+	got := cgroupWriteBytes(root, "io.stat")
 	want := map[string]uint64{"system.slice/mysql.service": 150, "system.slice/docker-0123456789abcdef0123.scope": 7, "user.slice": 300}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v (하위가 있으면 상위는 빼야 함)", got, want)
@@ -75,5 +75,14 @@ func TestCgroupWriteBytes(t *testing.T) {
 	write("user.slice/user-99999.slice/cgroup.procs", "")
 	if l := cgroupLabel(root, "user.slice"); l != "사용자 로그인 세션(99999)" {
 		t.Errorf("사용자 세션 이름 %q", l)
+	}
+
+	v1 := filepath.Join(root, "blkio")
+	write("blkio/gitlab.slice/blkio.throttle.io_service_bytes", "8:0 Read 5\n8:0 Write 40\n8:16 Write 2\n8:0 Total 47\nTotal 47\n")
+	if got := cgroupWriteBytes(v1, "blkio.throttle.io_service_bytes"); got["gitlab.slice"] != 42 || len(got) != 1 {
+		t.Errorf("cgroup v1 쓰기량 %v, want gitlab.slice=42", got)
+	}
+	if l := cgroupLabel(v1, "user.slice"); l != "사용자 로그인 세션" {
+		t.Errorf("v1 사용자 세션 이름 %q", l)
 	}
 }
